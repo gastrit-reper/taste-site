@@ -13,19 +13,20 @@ input{flex:1;min-width:0}.bar{display:flex;gap:8px;margin-bottom:12px}
 .ph{display:grid;place-items:center;color:#fff;font-weight:600;font-size:20px}
 h4{margin:0 0 2px;font-size:15px}.m{color:var(--mut);font-size:13px}.d{font-size:13px;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .st{text-align:center;color:var(--mut);padding:28px 0}.warn{color:#b9851a;font-size:13px;margin-bottom:8px}
+.tr{margin:8px 0 0;padding-left:20px;font-size:13px}.tb{border:0;background:none;color:var(--ac);padding:0;font:inherit;font-size:13px;cursor:pointer;margin-top:4px}
 .fine{margin-top:24px;color:var(--mut);font-size:12px;text-align:center}
 a{color:var(--ac)}
 </style></head><body><div class="w">
 <div class="bar">
-  <input id="q" placeholder="Матрица, Берсерк, Мастер и Маргарита, Дюна 2021…" autocomplete="off">
+  <input id="q" placeholder="Матрица, Берсерк, Мастер и Маргарита, Kid A…" autocomplete="off">
   <select id="cat">
     <option value="all">Все</option><option value="movie">Фильмы</option><option value="series">Сериалы</option>
-    <option value="anime">Аниме</option><option value="book">Книги</option>
+    <option value="anime">Аниме</option><option value="book">Книги</option><option value="music">Музыка</option>
   </select>
 </div>
 <div id="out"></div>
 <p class="fine">Фильмы, сериалы и аниме: This product uses the TMDB API but is not endorsed or certified by TMDB.<br>
-Книги: данные и обложки <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>.</p>
+Книги: данные и обложки <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>. Музыка: данные <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, обложки Cover Art Archive.</p>
 </div>
 <script src="/config.js"></script>
 <script>
@@ -33,7 +34,7 @@ const {SUPABASE_URL, PUBLISHABLE_KEY} = window.APP || {};
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const hue = s => [...s].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
-const KIND = {movie: 'Фильм', series: 'Сериал', anime: 'Аниме', book: 'Книга'};
+const KIND = {movie: 'Фильм', series: 'Сериал', anime: 'Аниме', book: 'Книга', music: 'Альбом'};
 
 // Превью для списков: все картинки идём через наш сайт (/img/...)
 function thumb(u) {
@@ -41,8 +42,36 @@ function thumb(u) {
   if (u.startsWith('https://image.tmdb.org/t/p/')) return u.replace('https://image.tmdb.org/t/p/w500/', '/img/w185/');
   const m = u.match(/covers\.openlibrary\.org\/b\/id\/(\d+)-L\.jpg/);
   if (m) return `/img/ol/M/${m[1]}.jpg`;
+  const c = u.match(/coverartarchive\.org\/release-group\/([0-9a-f-]{36})\//);
+  if (c) return `/img/caa/${c[1]}/250.jpg`;
   return null;
 }
+
+// нет обложки (у части альбомов и книг её нет): рисуем заглушку
+function fb(img, ch, h) {
+  const d = document.createElement('div');
+  d.className = 'cv ph'; d.style.background = `hsl(${h} 45% 42%)`; d.textContent = ch;
+  img.replaceWith(d);
+}
+
+// треклист альбома по клику
+$('out').addEventListener('click', async e => {
+  const b = e.target.closest('.tb'); if (!b) return;
+  const box = b.nextElementSibling;
+  if (box.dataset.done) { box.hidden = !box.hidden; return; }
+  b.textContent = 'Загружаю…';
+  try {
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/search?album=${encodeURIComponent(b.dataset.id)}`,
+      {headers: {apikey: PUBLISHABLE_KEY, Authorization: 'Bearer ' + PUBLISHABLE_KEY}});
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || r.status);
+    const mm = ms => ms ? ` <span class="m">${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}</span>` : '';
+    box.innerHTML = j.tracks.length
+      ? '<ol class="tr">' + j.tracks.map(t => `<li>${esc(t.title)}${mm(t.duration_ms)}</li>`).join('') + '</ol>'
+      : '<div class="m">Треклист не найден.</div>';
+    box.dataset.done = '1'; b.textContent = 'Треки';
+  } catch (err) { b.textContent = 'Треки'; box.innerHTML = `<div class="m">Не получилось (${esc(err.message)}).</div>`; }
+});
 
 let timer, ctrl;
 
@@ -52,14 +81,15 @@ function render(list, warn) {
     list.map(t => {
       const src = thumb(t.cover_url);
       const cv = src
-        ? `<img class="cv" loading="lazy" alt="" src="${esc(src)}">`
+        ? `<img class="cv" loading="lazy" alt="" src="${esc(src)}" onerror="fb(this,'${esc(t.title[0])}',${hue(t.title)})">`
         : `<div class="cv ph" style="background:hsl(${hue(t.title)} 45% 42%)">${esc(t.title[0])}</div>`;
       const orig = t.original_title && t.original_title !== t.title ? ` · ${esc(t.original_title)}` : '';
       const who = (t.creators || []).length ? ` · ${esc(t.creators.slice(0, 2).join(', '))}` : '';
       return `<div class="row">${cv}<div><h4>${esc(t.title)}</h4>
         <div class="m">${KIND[t.category] || t.category}${t.year ? ' · ' + t.year : ''}${who}${orig}</div>
         <div class="m">${esc((t.genres || []).slice(0, 3).join(', '))}</div>
-        <div class="d">${esc(t.description)}</div></div></div>`;
+        <div class="d">${esc(t.description)}</div>
+        ${t.category === 'music' ? `<button class="tb" data-id="${esc(t.external_id)}">Треки</button><div></div>` : ''}</div></div>`;
     }).join('');
 }
 
@@ -84,3 +114,4 @@ const deb = () => { clearTimeout(timer); timer = setTimeout(run, 250); };   // d
 $('q').addEventListener('input', deb);
 $('cat').addEventListener('change', run);
 </script></body></html>
+
