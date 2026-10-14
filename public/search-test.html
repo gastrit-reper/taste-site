@@ -31,7 +31,7 @@ const PUBLISHABLE_KEY = 'sb_publishable_mDuVbmPUaSHYaGwFUQFc5g_4eWPDAQH';
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const hue = s => [...s].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
-const small = u => u && u.replace('/w500/', '/w185/');      // маленькое превью для списков
+const small = u => u && u.replace('https://image.tmdb.org/t/p/w500/', '/img/w185/');     // маленькое превью для списков
 const KIND = {movie: 'Фильм', series: 'Сериал'};
 let timer, ctrl;
 
