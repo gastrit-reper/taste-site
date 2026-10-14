@@ -17,34 +17,47 @@ h4{margin:0 0 2px;font-size:15px}.m{color:var(--mut);font-size:13px}.d{font-size
 a{color:var(--ac)}
 </style></head><body><div class="w">
 <div class="bar">
-  <input id="q" placeholder="Матрица, Breaking Bad, Дюна 2021…" autocomplete="off">
-  <select id="cat"><option value="all">Все</option><option value="movie">Фильмы</option><option value="series">Сериалы</option></select>
+  <input id="q" placeholder="Матрица, Берсерк, Мастер и Маргарита, Дюна 2021…" autocomplete="off">
+  <select id="cat">
+    <option value="all">Все</option><option value="movie">Фильмы</option><option value="series">Сериалы</option>
+    <option value="anime">Аниме</option><option value="book">Книги</option>
+  </select>
 </div>
 <div id="out"></div>
-<p class="fine">This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
+<p class="fine">Фильмы, сериалы и аниме: This product uses the TMDB API but is not endorsed or certified by TMDB.<br>
+Книги: данные и обложки <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>.</p>
 </div>
+<script src="/config.js"></script>
 <script>
-// === ВСТАВЬТЕ СВОИ ЗНАЧЕНИЯ ===
-const SUPABASE_URL = 'https://kdcbtdypmcqwjeskctat.supabase.co'; // проверьте: Project Settings → API → Project URL
-const PUBLISHABLE_KEY = 'sb_publishable_mDuVbmPUaSHYaGwFUQFc5g_4eWPDAQH';
-// ==============================
+const {SUPABASE_URL, PUBLISHABLE_KEY} = window.APP || {};
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const hue = s => [...s].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
-const small = u => u && u.replace('https://image.tmdb.org/t/p/w500/', '/img/w185/');     // маленькое превью для списков
-const KIND = {movie: 'Фильм', series: 'Сериал'};
+const KIND = {movie: 'Фильм', series: 'Сериал', anime: 'Аниме', book: 'Книга'};
+
+// Превью для списков: все картинки идём через наш сайт (/img/...)
+function thumb(u) {
+  if (!u) return null;
+  if (u.startsWith('https://image.tmdb.org/t/p/')) return u.replace('https://image.tmdb.org/t/p/w500/', '/img/w185/');
+  const m = u.match(/covers\.openlibrary\.org\/b\/id\/(\d+)-L\.jpg/);
+  if (m) return `/img/ol/M/${m[1]}.jpg`;
+  return null;
+}
+
 let timer, ctrl;
 
 function render(list, warn) {
   if (!list.length) { $('out').innerHTML = '<div class="st">Такого нет. Можно предложить добавить.</div>'; return; }
-  $('out').innerHTML = (warn ? '<div class="warn">Внешняя база сейчас недоступна, показаны сохранённые результаты.</div>' : '') +
+  $('out').innerHTML = (warn ? '<div class="warn">Часть внешних баз сейчас недоступна, показаны найденные результаты.</div>' : '') +
     list.map(t => {
-      const cv = t.cover_url
-        ? `<img class="cv" loading="lazy" alt="" src="${esc(small(t.cover_url))}">`
+      const src = thumb(t.cover_url);
+      const cv = src
+        ? `<img class="cv" loading="lazy" alt="" src="${esc(src)}">`
         : `<div class="cv ph" style="background:hsl(${hue(t.title)} 45% 42%)">${esc(t.title[0])}</div>`;
       const orig = t.original_title && t.original_title !== t.title ? ` · ${esc(t.original_title)}` : '';
+      const who = (t.creators || []).length ? ` · ${esc(t.creators.slice(0, 2).join(', '))}` : '';
       return `<div class="row">${cv}<div><h4>${esc(t.title)}</h4>
-        <div class="m">${KIND[t.category] || t.category}${t.year ? ' · ' + t.year : ''}${orig}</div>
+        <div class="m">${KIND[t.category] || t.category}${t.year ? ' · ' + t.year : ''}${who}${orig}</div>
         <div class="m">${esc((t.genres || []).slice(0, 3).join(', '))}</div>
         <div class="d">${esc(t.description)}</div></div></div>`;
     }).join('');
