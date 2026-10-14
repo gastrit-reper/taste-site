@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Тест поиска</title>
+<style>
+:root{--bg:#f2f1f6;--s:#fff;--s2:#ebeaf2;--fg:#1b1a26;--mut:#6b6980;--ac:#4a55d6}
+@media (prefers-color-scheme:dark){:root{--bg:#121119;--s:#1b1a25;--s2:#242332;--fg:#eeedf6;--mut:#9a98b0;--ac:#8b97ff}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,sans-serif;padding:16px}
+.w{max-width:720px;margin:0 auto}
+input,select{font:inherit;color:var(--fg);background:var(--s);border:1px solid var(--s2);border-radius:10px;padding:10px 12px}
+input{flex:1;min-width:0}.bar{display:flex;gap:8px;margin-bottom:12px}
+.row{display:grid;grid-template-columns:56px 1fr;gap:12px;background:var(--s);border-radius:12px;padding:10px;margin-bottom:8px}
+.cv{width:56px;aspect-ratio:2/3;border-radius:8px;object-fit:cover;display:block}
+.ph{display:grid;place-items:center;color:#fff;font-weight:600;font-size:20px}
+h4{margin:0 0 2px;font-size:15px}.m{color:var(--mut);font-size:13px}.d{font-size:13px;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.st{text-align:center;color:var(--mut);padding:28px 0}.warn{color:#b9851a;font-size:13px;margin-bottom:8px}
+.fine{margin-top:24px;color:var(--mut);font-size:12px;text-align:center}
+a{color:var(--ac)}
+</style></head><body><div class="w">
+<div class="bar">
+  <input id="q" placeholder="Матрица, Breaking Bad, Дюна 2021…" autocomplete="off">
+  <select id="cat"><option value="all">Все</option><option value="movie">Фильмы</option><option value="series">Сериалы</option></select>
+</div>
+<div id="out"></div>
+<p class="fine">This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
+</div>
+<script>
+// === ВСТАВЬТЕ СВОИ ЗНАЧЕНИЯ ===
+const SUPABASE_URL = 'https://kdcbtdypmcqwjeskctat.supabase.co'; // проверьте: Project Settings → API → Project URL
+const PUBLISHABLE_KEY = 'sb_publishable_mDuVbmPUaSHYaGwFUQFc5g_4eWPDAQH';
+// ==============================
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const hue = s => [...s].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
+const small = u => u && u.replace('/w500/', '/w185/');      // маленькое превью для списков
+const KIND = {movie: 'Фильм', series: 'Сериал'};
+let timer, ctrl;
+
+function render(list, warn) {
+  if (!list.length) { $('out').innerHTML = '<div class="st">Такого нет. Можно предложить добавить.</div>'; return; }
+  $('out').innerHTML = (warn ? '<div class="warn">Внешняя база сейчас недоступна, показаны сохранённые результаты.</div>' : '') +
+    list.map(t => {
+      const cv = t.cover_url
+        ? `<img class="cv" loading="lazy" alt="" src="${esc(small(t.cover_url))}">`
+        : `<div class="cv ph" style="background:hsl(${hue(t.title)} 45% 42%)">${esc(t.title[0])}</div>`;
+      const orig = t.original_title && t.original_title !== t.title ? ` · ${esc(t.original_title)}` : '';
+      return `<div class="row">${cv}<div><h4>${esc(t.title)}</h4>
+        <div class="m">${KIND[t.category] || t.category}${t.year ? ' · ' + t.year : ''}${orig}</div>
+        <div class="m">${esc((t.genres || []).slice(0, 3).join(', '))}</div>
+        <div class="d">${esc(t.description)}</div></div></div>`;
+    }).join('');
+}
+
+async function run() {
+  const q = $('q').value.trim();
+  if (ctrl) ctrl.abort();
+  if (q.length < 2) { $('out').innerHTML = ''; return; }
+  ctrl = new AbortController();
+  $('out').innerHTML = '<div class="st">Ищу…</div>';
+  try {
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/search?q=${encodeURIComponent(q)}&cat=${$('cat').value}`,
+      {signal: ctrl.signal, headers: {apikey: PUBLISHABLE_KEY, Authorization: 'Bearer ' + PUBLISHABLE_KEY}});
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || r.status);
+    render(j.results, j.warning);
+  } catch (e) {
+    if (e.name === 'AbortError') return;
+    $('out').innerHTML = `<div class="st">Не получилось найти (${esc(e.message)}). Попробуйте ещё раз.</div>`;
+  }
+}
+const deb = () => { clearTimeout(timer); timer = setTimeout(run, 250); };   // debounce 250 мс
+$('q').addEventListener('input', deb);
+$('cat').addEventListener('change', run);
+</script></body></html>
