@@ -72,7 +72,7 @@ svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stro
 .fav .k svg{width:12px;height:12px}
 .fav label{grid-column:1/-1;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
 .fav.off{opacity:.45}
-.cover{width:48px;height:64px;border-radius:8px;display:grid;place-items:center;font-family:var(--font-display);font-size:18px;color:#fff;flex:none;text-shadow:0 1px 2px rgb(0 0 0 / .35)}
+.cover{position:relative;overflow:hidden;width:48px;height:64px;border-radius:8px;display:grid;place-items:center;font-family:var(--font-display);font-size:18px;color:#fff;flex:none;text-shadow:0 1px 2px rgb(0 0 0 / .35)}
 .fav .cover{width:34px;height:34px;border-radius:8px;font-size:14px}
 
 /* музыка */
@@ -272,6 +272,13 @@ textarea.fld{min-height:96px;resize:vertical}
 .cnt b{font-variant-numeric:tabular-nums}
 .big{font-family:var(--font-display);font-size:22px;font-weight:600}
 .src-note{font-size:12px;color:var(--muted);margin-top:12px}
+.src-note a,.note a{color:var(--accent)}
+.cover img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.tp-banner{position:relative;height:190px;border-radius:16px;overflow:hidden;margin-bottom:12px;background:var(--surface2)}
+.tp-banner img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.tp-banner.blur img{filter:blur(26px) saturate(1.3);transform:scale(1.3)}
+.tp-banner::after{content:"";position:absolute;inset:0;background:linear-gradient(transparent 35%,rgb(0 0 0 / .4))}
+@media (max-width:760px){.tp-banner{height:130px}}
 .tp-sec{display:flex;flex-direction:column;gap:10px}
 .tp-sec>h2{margin:8px 0 0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
 @media (max-width:760px){.tp-hero{grid-template-columns:minmax(0,1fr)}.tp-left .cover{height:200px;max-width:150px}.kv{grid-template-columns:minmax(0,1fr)}.day{min-height:52px}.mk{font-size:10px;padding:0 3px}}
@@ -523,9 +530,11 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10. Музыка пока без звука, это макет плеера.</p>
+  <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
 <input type="file" id="imgin" accept="image/*" hidden>
+<script src="/config.js"></script>
 <script>
 const CATS = {
   games:  {name:'Игры',    one:'Игра',    st:['Играю','Прошёл','Отложено','В планах','Бросил']},
@@ -603,7 +612,11 @@ const pp = v => v?'<svg class="pp" viewBox="0 0 24 24" aria-hidden="true"><rect 
 const ico = (id,cls='i') => `<svg class="${cls}" aria-hidden="true"><use href="#${id}"/></svg>`;
 const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const hue = s => { let h=0; for(const c of s) h=(h*31+c.charCodeAt(0))%360; return h; };
-const cover = (t,cls='') => `<div class="cover ${cls}" style="background:linear-gradient(145deg,hsl(${hue(t)} 55% 48%),hsl(${(hue(t)+50)%360} 55% 32%))">${esc(t.trim()[0].toUpperCase())}</div>`;
+const IMGK={};   // 'категория|название' -> {a: превью, b: крупная обложка}
+const cover = (t,cls='',k) => {
+  const im=k?IMGK[k+'|'+t]:null, big=/\bbig\b/.test(cls);
+  return `<div class="cover ${cls}" style="background:linear-gradient(145deg,hsl(${hue(t)} 55% 48%),hsl(${(hue(t)+50)%360} 55% 32%))">${im?`<img alt="" loading="lazy" src="${esc(big?im.b:im.a)}" onerror="this.remove()">`:''}${esc(t.trim()[0].toUpperCase())}</div>`;
+};
 const scoreCls = n => !n?'none':n>=8?'good':n>=6?'mid':'bad';
 const ago = d => d<=0?'сегодня':d===1?'вчера':d<7?d+' дн. назад':d<30?Math.round(d/7)+' нед. назад':Math.round(d/30)+' мес. назад';
 const MAXLINKS = 4;
@@ -649,7 +662,7 @@ function renderHead(){
   const favHtml = ORDER.map(k=>{
     const off = S.favHidden.has(k), f = favInfo(k);
     if(!f || (off && !S.editFav)) return '';
-    return `<div class="fav ${off?'off':''}">${cover(f.t)}<div style="min-width:0"><div class="t" title="${esc(f.t)}">${esc(f.t)}</div><div class="k">${ico(k)}${f.sub}</div></div>${S.editFav?`<label><input type="checkbox" data-fav="${k}" ${off?'':'checked'}>показывать</label>`:''}</div>`;
+    return `<div class="fav ${off?'off':''}">${cover(f.t,'',k)}<div style="min-width:0"><div class="t" title="${esc(f.t)}">${esc(f.t)}</div><div class="k">${ico(k)}${f.sub}</div></div>${S.editFav?`<label><input type="checkbox" data-fav="${k}" ${off?'':'checked'}>показывать</label>`:''}</div>`;
   }).join('');
   const sg = P.song && trk(P.song);
   DUR = sg ? durOf(P.song) : 251;
@@ -711,7 +724,7 @@ function renderTabs(){
 }
 
 /* ===== каталог: в настоящем сайте названия приходят из IGDB, TMDB и других баз ===== */
-const SRC={games:'IGDB',series:'TMDB',movies:'TMDB',anime:'AniList',music:'MusicBrainz',books:'Open Library'};
+const SRC={games:'IGDB',series:'TMDB',movies:'TMDB',anime:'TMDB',music:'MusicBrainz',books:'Open Library'};
 const GP=['PC','PlayStation 5','PlayStation 4','Xbox','Nintendo Switch'];
 const CATALOG={
   games:[
@@ -798,6 +811,71 @@ function ensureRow(k,t){let r=DATA[k].find(r=>r[0]===t);if(!r){const c=CAT_IDX[k
 
 /* ===== музыка: любимое, альбомы, исполнители (без статусов) ===== */
 const ALB={};CATALOG.music.forEach(a=>{ALB[a[0]]={t:a[0],by:a[1],y:a[2],g:a[3],d:a[5],tr:a[6]||[]}});
+
+/* ===== живой каталог: поиск через наш /search (TMDB, Open Library, MusicBrainz) ===== */
+const APPC=window.APP||{};
+const LIVE_CAT={series:'series',movies:'movie',anime:'anime',music:'music',books:'book'};   // игр пока нет (IGDB позже)
+const LIVE_BACK={series:'series',movie:'movies',anime:'anime',music:'music',book:'books'};
+const LIVE_SRC={tmdb:'TMDB',openlibrary:'Open Library',musicbrainz:'MusicBrainz'};
+const LIVE_LS='live_catalog_v1';
+const LIVE_ARR=[], LIVE_Q={}, LIVE_ST={};
+let liveCtrl=null, liveTimer=null;
+function imgUrls(u){   // все картинки идут через наш сайт (/img/...), чтобы не зависеть от блокировок
+  if(!u)return null;let m;
+  if(u.startsWith('https://image.tmdb.org/t/p/')){const f=u.split('/').pop();return {a:'/img/w342/'+f,b:'/img/w500/'+f}}
+  if(m=u.match(/covers\.openlibrary\.org\/b\/id\/(\d+)-/))return {a:`/img/ol/M/${m[1]}.jpg`,b:`/img/ol/L/${m[1]}.jpg`};
+  if(m=u.match(/coverartarchive\.org\/release-group\/([0-9a-f-]{36})\//))return {a:`/img/caa/${m[1]}/250.jpg`,b:`/img/caa/${m[1]}/500.jpg`};
+  return null;
+}
+function regLive(r,silent){   // результат API -> запись каталога прототипа; возвращает ключ
+  const k=LIVE_BACK[r.category];if(!k)return null;
+  const by=(r.creators&&r.creators.length?r.creators.slice(0,2).join(', '):'')||(r.original_title&&r.original_title!==r.title?r.original_title:'')||CATS[k].one;
+  const ext={source:r.source,id:r.external_id,url:(r.extra&&r.extra.source_url)||'',title_id:r.id};
+  let t=r.title,key=kk(k,t),ex=CAT_IDX[key];
+  if(ex&&ex.ext&&ex.ext.id!==r.external_id){t=r.title+' ('+(r.year||r.external_id)+')';key=kk(k,t);ex=CAT_IDX[key]}   // одинаковые названия
+  if(!ex)ex=CAT_IDX[key]={k,t,by,y:r.year||'',g:r.genres||[],p:[],d:r.description||'',tr:[]};
+  if(!ex.ext){ex.ext=ext;if(!ex.d)ex.d=r.description||''}   // демо-запись с тем же названием получает обложку и ссылку
+  ex.banner=r.banner_url||'';
+  const im=imgUrls(r.cover_url);if(im)IMGK[key]=im;
+  if(k==='music'&&!ALB[ex.t])ALB[ex.t]={t:ex.t,by:ex.by,y:ex.y,g:ex.g,d:ex.d,tr:ex.tr};
+  if(!silent&&!LIVE_ARR.some(x=>x.source===r.source&&x.external_id===r.external_id))LIVE_ARR.push(r);
+  return key;
+}
+function persistLive(){   // чтобы сборники не терялись после перезагрузки
+  try{localStorage.setItem(LIVE_LS,JSON.stringify(LIVE_ARR.slice(-400).map(r=>({...r,description:(r.description||'').slice(0,300)}))))}catch(e){}
+}
+try{JSON.parse(localStorage.getItem(LIVE_LS)||'[]').forEach(r=>{regLive(r);})}catch(e){}
+const liveOn=k=>!!(APPC.SUPABASE_URL&&APPC.PUBLISHABLE_KEY&&!/ВСТАВЬТЕ/.test(APPC.PUBLISHABLE_KEY)&&(k==='all'||LIVE_CAT[k]));
+const liveKeys=(q,k)=>LIVE_Q[k+'|'+q.trim().toLowerCase()]||[];
+function liveState(q,k){   // 'off' | 'loading' | 'error' | 'ok'
+  q=q.trim().toLowerCase();if(q.length<2||!liveOn(k))return 'off';
+  const lk=k+'|'+q;return LIVE_Q[lk]?'ok':LIVE_ST[lk]==='error'?'error':'loading';
+}
+const liveHeaders=()=>({apikey:APPC.PUBLISHABLE_KEY,Authorization:'Bearer '+APPC.PUBLISHABLE_KEY});
+function liveSearch(q,k,done){   // debounce 250 мс, устаревший запрос отменяется
+  q=q.trim();const lk=k+'|'+q.toLowerCase();
+  if(liveState(q,k)!=='loading')return;
+  clearTimeout(liveTimer);
+  liveTimer=setTimeout(async()=>{
+    if(liveCtrl)liveCtrl.abort();
+    const ctrl=liveCtrl=new AbortController();
+    try{
+      const r=await fetch(`${APPC.SUPABASE_URL}/functions/v1/search?q=${encodeURIComponent(q)}&cat=${k==='all'?'all':LIVE_CAT[k]}`,{signal:ctrl.signal,headers:liveHeaders()});
+      const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);
+      LIVE_Q[lk]=(j.results||[]).map(x=>regLive(x)).filter(Boolean);persistLive();
+    }catch(e){if(e.name==='AbortError')return;LIVE_ST[lk]='error'}
+    if(done)done();
+  },250);
+}
+function liveTracks(c,again){   // треклист альбома из MusicBrainz (один раз, потом из нашей базы)
+  if(!c||!c.ext||c.ext.source!=='musicbrainz'||c.tr.length||c._tl||!liveOn('music'))return;
+  c._tl='loading';
+  fetch(`${APPC.SUPABASE_URL}/functions/v1/search?album=${encodeURIComponent(c.ext.id)}`,{headers:liveHeaders()})
+    .then(r=>r.json().then(j=>({ok:r.ok,j})))
+    .then(({ok,j})=>{if(!ok)throw 0;c.tr=(j.tracks||[]).map(t=>t.title);c._tl=c.tr.length?'ok':'none';if(ALB[c.t])ALB[c.t].tr=c.tr})
+    .catch(()=>{c._tl='error'})
+    .then(()=>{if(again)again()});
+}
 // оценки и отзывы песен: ключ «Альбом|номер»
 const TRK={
   'Kid A|0':{s:10,rv:'С него всё началось.',fav:true},
@@ -836,11 +914,11 @@ const MS=[['fav','Любимое'],['albums','Альбомы'],['artists','Ис�
 const scoreBox=(n,cls='')=>`<div class="score ${cls} ${scoreCls(n)}" title="${n?'Оценка '+n+' из 10':'Без оценки'}">${n||'—'}</div>`;
 function albRowHtml(a){
   const r=albRow(a.t),s=r?r[2]:0,key=albKey(a.t);
-  return `<article class="row" data-al="${esc(key)}">${cover(a.t)}<div style="min-width:0"><h4><a href="#" class="tl" data-al="${esc(key)}">${esc(a.t)}</a>${albFav(a.t)?` <span class="heart" title="Любимое">${ico('heart')}</span>`:''}</h4><div class="meta"><span>${esc(a.by)}</span><span>${a.y}</span><span>песен оценено ${trRated(a.t)} из ${a.tr.length}</span>${r&&s?`<span>${ago(r[5])}</span>`:''}</div>${r&&r[4]?`<p class="review">${renderText(r[4])}</p>`:''}</div>${scoreBox(s)}</article>`;
+  return `<article class="row" data-al="${esc(key)}">${cover(a.t,'','music')}<div style="min-width:0"><h4><a href="#" class="tl" data-al="${esc(key)}">${esc(a.t)}</a>${albFav(a.t)?` <span class="heart" title="Любимое">${ico('heart')}</span>`:''}</h4><div class="meta"><span>${esc(a.by)}</span><span>${a.y}</span><span>песен оценено ${trRated(a.t)} из ${a.tr.length}</span>${r&&s?`<span>${ago(r[5])}</span>`:''}</div>${r&&r[4]?`<p class="review">${renderText(r[4])}</p>`:''}</div>${scoreBox(s)}</article>`;
 }
 function trkRowHtml(ref){
   const t=trk(ref),v=TRK[ref]||{};
-  return `<article class="row" data-al="${esc(albKey(t.album))}">${cover(t.album)}<div style="min-width:0"><h4>${esc(t.name)} <span class="heart">${ico('heart')}</span></h4><div class="meta"><span>${esc(t.artist)}</span><span>${esc(t.album)}</span></div>${v.rv?`<p class="review">${renderText(v.rv)}</p>`:''}</div>${scoreBox(v.s)}</article>`;
+  return `<article class="row" data-al="${esc(albKey(t.album))}">${cover(t.album,'','music')}<div style="min-width:0"><h4>${esc(t.name)} <span class="heart">${ico('heart')}</span></h4><div class="meta"><span>${esc(t.artist)}</span><span>${esc(t.album)}</span></div>${v.rv?`<p class="review">${renderText(v.rv)}</p>`:''}</div>${scoreBox(v.s)}</article>`;
 }
 function renderMusic(){
   if(S.al&&CAT_IDX[S.al])return renderAlbum();
@@ -867,6 +945,7 @@ function renderMusic(){
 const scoreSel=(cur,attr)=>`<select class="ssel" ${attr} aria-label="Оценка">${Array.from({length:11},(_,i)=>`<option value="${i}" ${i===cur?'selected':''}>${i||'—'}</option>`).join('')}</select>`;
 function renderAlbum(){
   const c=CAT_IDX[S.al],t=c.t,r=albRow(t),sc=r?r[2]:0,own=S.me,n=trRated(t);
+  const albKey0=S.al;liveTracks(c,()=>{if(S.al===albKey0)musicRefresh()});
   const lbl=S.msub==='artists'&&S.ar?S.ar:S.msub==='fav'?'Любимое':'Альбомы';
   const liked=albFav(t);
   const tracks=c.tr.map((nm,i)=>{
@@ -875,10 +954,10 @@ function renderAlbum(){
     return `<div class="trw"><div class="trk"><span class="tn">${i+1}</span><div class="tt"><b>${esc(nm)}</b>${v.rv&&!open?`<p class="review">${renderText(v.rv)}</p>`:''}</div><button type="button" class="hb ${v.fav?'on':''}" data-tf="${i}" aria-pressed="${!!v.fav}" aria-label="Любимая песня">${ico('heart')}</button>${scoreSel(v.s||0,`data-ts="${i}"`)}<button type="button" class="lnk" data-tr="${i}">${open?'Скрыть':v.rv?'Изменить':'Отзыв'}</button></div>${open?`<textarea class="fld" data-trv="${i}" maxlength="1000" placeholder="Отзыв на песню">${esc(v.rv||'')}</textarea>`:''}</div>`;
   }).join('');
   return `<div class="crumb"><button class="btn" data-mback>← ${esc(lbl)}</button></div>
-  <section class="card alh">${cover(t)}<div style="min-width:0"><h2 class="alt">${esc(t)}</h2><div class="sub">${esc(c.by)} · ${c.y} · ${esc(c.g.join(', '))}</div>
+  <section class="card alh">${cover(t,'','music')}<div style="min-width:0"><h2 class="alt">${esc(t)}</h2><div class="sub">${esc(c.by)} · ${c.y} · ${esc(c.g.join(', '))}</div>
     <div class="alh-a">${own?`<label class="sub">Оценка альбома ${scoreSel(sc,'data-as')}</label><button type="button" class="like ${liked?'on':''}" data-lk>${ico('heart')}Любимое</button>`:(liked?`<span class="heart">${ico('heart')}</span>`:'')}<button type="button" class="lnk" data-title="${esc(S.al)}">Страница альбома</button></div>
     ${own?`<textarea class="fld" data-arv maxlength="2000" placeholder="Отзыв на альбом">${esc(r?r[4]:'')}</textarea>`:(r&&r[4]?`<p class="review">${renderText(r[4])}</p>`:'')}</div>${scoreBox(sc)}</section>
-  <section class="card"><h3>Песни · оценено ${n} из ${c.tr.length}</h3><div class="trl">${tracks}</div><p class="src-note" style="margin:10px 0 0">Список песен в прототипе примерный. В настоящем сайте он приходит из ${SRC.music}.</p></section>`;
+  <section class="card"><h3>Песни · оценено ${n} из ${c.tr.length}</h3><div class="trl">${tracks||`<div class="sub">${c._tl==='loading'?'Загружаю список песен…':c._tl==='error'?'Не удалось загрузить список песен.':'Список песен не найден.'}</div>`}</div><p class="src-note" style="margin:10px 0 0">${c.ext?'Список песен: <a href="'+esc(c.ext.url)+'" target="_blank" rel="noopener">MusicBrainz</a>.':'Список песен в прототипе примерный. В настоящем сайте он приходит из '+SRC.music+'.'}</p></section>`;
 }
 function musicRefresh(){
   renderTabs();renderMain();
@@ -945,7 +1024,7 @@ function ratingRow(r,showCat){
   const rv = !r.rv?'':(x.spoiler&&!ST.spoilers)
     ? `<button class="lnk" data-spoil>Показать спойлер</button><p class="review" hidden>${renderText(r.rv)}</p>`
     : `<p class="review">${renderText(r.rv)}</p>`;
-  return `<article class="row" ${r.k==='music'?'data-al':'data-key'}="${esc(key)}">${cover(r.t)}<div style="min-width:0"><h4><a href="#" class="tl" ${r.k==='music'?'data-al':'data-title'}="${esc(key)}">${esc(r.t)}</a>${x.liked?` <span class="heart" title="Нравится">${ico('heart')}</span>`:''}</h4><div class="meta">${bits.join('')}</div>${rv}</div><div class="score ${scoreCls(r.s)}" title="${r.s?'Оценка '+r.s+' из 10':'Без оценки'}">${r.s||'—'}</div></article>`;
+  return `<article class="row" ${r.k==='music'?'data-al':'data-key'}="${esc(key)}">${cover(r.t,'',r.k)}<div style="min-width:0"><h4><a href="#" class="tl" ${r.k==='music'?'data-al':'data-title'}="${esc(key)}">${esc(r.t)}</a>${x.liked?` <span class="heart" title="Нравится">${ico('heart')}</span>`:''}</h4><div class="meta">${bits.join('')}</div>${rv}</div><div class="score ${scoreCls(r.s)}" title="${r.s?'Оценка '+r.s+' из 10':'Без оценки'}">${r.s||'—'}</div></article>`;
 }
 function postCard(p){
   return `<article class="post"><div class="tag">${ico('posts')}Пост · ${ago(p.d)}</div><p>${renderText(p.t)}</p></article>`;
@@ -990,7 +1069,12 @@ function bindCompose(){
     const q=c.q.trim().toLowerCase();
     let items;
     if(c.kind==='@') items=PEOPLE.filter(n=>n.toLowerCase().includes(q)).slice(0,6).map(n=>({html:'@'+esc(n),pick:()=>place(ctx(),userChip(n))}));
-    else items=Object.values(CAT_IDX).filter(x=>!q||x.t.toLowerCase().includes(q)).sort((a,b)=>rated(kk(b.k,b.t))-rated(kk(a.k,a.t))).slice(0,6).map(x=>({html:ico(x.k)+esc(x.t),pick:()=>place(ctx(),gameChip(x))}));
+    else{
+      const lv=liveKeys(c.q,'all').map(k=>CAT_IDX[k]).filter(Boolean);
+      const loc=Object.values(CAT_IDX).filter(x=>!lv.includes(x)&&(!q||x.t.toLowerCase().includes(q))).sort((a,b)=>rated(kk(b.k,b.t))-rated(kk(a.k,a.t)));
+      items=[...lv,...loc].slice(0,6).map(x=>({html:ico(x.k)+esc(x.t),pick:()=>place(ctx(),gameChip(x))}));
+      liveSearch(c.q,'all',()=>{if(ctx())suggest()});
+    }
     sg.innerHTML='';
     items.forEach(it=>{const b=document.createElement('button');b.type='button';b.innerHTML=it.html;b.onmousedown=e=>e.preventDefault();b.onclick=()=>{const cx=ctx();if(cx){it.pick();sg.innerHTML='';update()}};b._pick=it.pick;sg.appendChild(b)});
   };
@@ -1061,6 +1145,11 @@ function openTitle(key){S.page=key;render();window.scrollTo(0,0)}
 function renderTitle(){
   const key=S.page,c=CAT_IDX[key],k=c.k,row=DATA[k].find(r=>r[0]===c.t),x=EXTRA[key]||{},h=hue(key);
   const score=row?row[2]:0,st=row?row[3]:'';
+  if(k==='music')liveTracks(c,()=>{if(S.page===key)renderTitle()});
+  const bn=(()=>{const im=IMGK[key];let src='',cl='tp-banner';
+    if(c.banner&&c.banner.startsWith('https://image.tmdb.org/t/p/'))src='/img/w1280/'+c.banner.split('/').pop();
+    else if(im){src=im.b;cl+=' blur'}   // нет баннера у источника: размытая обложка с градиентом
+    return src?`<div class="${cl}"><img alt="" src="${esc(src)}" onerror="this.parentNode.remove()"></div>`:''})();
   const avg=6+rnd(h,1)*3.4;
   const hist=Array.from({length:10},(_,i)=>Math.exp(-Math.pow(i+1-avg,2)/3)*(.6+rnd(h,i+2)));
   const mx=Math.max(...hist), base=Math.floor(8000+rnd(h,20)*60000);
@@ -1072,8 +1161,9 @@ function renderTitle(){
   const mine=row&&row[4]?`<article class="row" style="grid-template-columns:40px minmax(0,1fr) auto"><div class="ava" style="width:40px;height:40px;border:0;font-size:16px">${esc(P.nick[0].toUpperCase())}</div><div><b>${esc(P.nick)}</b> <span class="sub">· ваш отзыв</span><p class="review">${renderText(row[4])}</p></div><div class="score ${scoreCls(score)}">${score||'—'}</div></article>`:'';
   document.getElementById('tp').innerHTML=`
     <div><button class="btn" data-back>← К профилю</button></div>
+    ${bn}
     <section class="tp-hero">
-      <div class="tp-left">${cover(c.t)}
+      <div class="tp-left">${cover(c.t,'big',k)}
         <div class="tp-box">
           <button class="btn primary" ${k==='music'?'data-al':'data-edit'}="${esc(key)}">${k==='music'?'Оценить песни':row?'Изменить оценку':'Оценить'}</button>
           <div class="tp-stars" role="group" aria-label="Быстрая оценка">${stars}</div>
@@ -1095,7 +1185,7 @@ function renderTitle(){
           <div class="tile"><h3>Сообщество</h3><div class="cnt"><span>Списки</span><b>${kfmt(Math.floor(base*.11))}</b></div><div class="cnt"><span>Отзывы</span><b>${kfmt(Math.floor(base*.08))}</b></div><div class="cnt"><span>Нравится</span><b>${kfmt(Math.floor(base*.09))}</b></div></div>
           ${time}
         </div>
-        <p class="src-note">Описание, жанры и платформы приходят из ${SRC[k]}. Цифры сообщества в прототипе примерные.</p>
+        <p class="src-note">${c.ext?`Данные: <a href="${esc(c.ext.url)}" target="_blank" rel="noopener">${esc(LIVE_SRC[c.ext.source]||c.ext.source)}</a>. Цифры сообщества в прототипе примерные.`:`Описание, жанры и платформы приходят из ${SRC[k]}. Цифры сообщества в прототипе примерные.`}</p>
       </div>
     </section>
     <section class="tp-sec"><h2>Отзывы</h2>${mine}${revs}</section>`;
@@ -1217,8 +1307,8 @@ function drawEditor(focus){
   let ov=document.getElementById('ov');
   if(!ov){ov=document.createElement('div');ov.id='ov';ov.className='ov';document.body.appendChild(ov)}
   const head=c?`${esc(c.t)}<small>${esc(c.by)} · ${c.y}</small>`:'Новая оценка';
-  const left=ro?`<div class="dl">${cover(c.t)}<div class="stb ${stc(E.st)} on">${esc(E.st)}</div>${E.liked?`<div class="like on" style="cursor:default">${ico('heart')}Нравится</div>`:''}</div>`
-    :`<div class="dl">${cover(c?c.t:'?')}${c?`<div class="stl">${CATS[E.k].st.map(s=>`<button type="button" class="stb ${stc(s)} ${E.st===s?'on':''}" data-st="${s}">${s}</button>`).join('')}</div><button type="button" class="like ${E.liked?'on':''}" id="e-like">${ico('heart')}Нравится</button>`:''}</div>`;
+  const left=ro?`<div class="dl">${cover(c.t,'big',c.k)}<div class="stb ${stc(E.st)} on">${esc(E.st)}</div>${E.liked?`<div class="like on" style="cursor:default">${ico('heart')}Нравится</div>`:''}</div>`
+    :`<div class="dl">${cover(c?c.t:'?',c?'big':'',c&&c.k)}${c?`<div class="stl">${CATS[E.k].st.map(s=>`<button type="button" class="stb ${stc(s)} ${E.st===s?'on':''}" data-st="${s}">${s}</button>`).join('')}</div><button type="button" class="like ${E.liked?'on':''}" id="e-like">${ico('heart')}Нравится</button>`:''}</div>`;
   const err='<div class="err" id="e-err" role="alert"></div>';
   let cols;
   if(!c)cols=`<div class="dr">${pickerHtml()}${err}</div>`;
@@ -1239,17 +1329,22 @@ function drawEditor(focus){
   if(!c)drawRes();
   if(focus){const f=document.getElementById(focus);if(f)f.focus()}
 }
-function drawRes(){
+function drawRes(noLive){
   const box=document.getElementById('e-res');if(!box)return;
   const q=E.q.trim().toLowerCase();
-  const list=Object.values(CAT_IDX).filter(c=>c.k===E.k&&(!q||c.t.toLowerCase().includes(q)||c.by.toLowerCase().includes(q))).slice(0,8);
-  box.innerHTML=list.length?list.map(c=>`<button type="button" class="opt" role="option" data-pick="${esc(kk(c.k,c.t))}">${cover(c.t)}<span><b>${esc(c.t)}</b><span class="sub">${esc(c.by)} · ${c.y}</span></span></button>`).join(''):`<div class="sub">В базе ${SRC[E.k]} такого нет. Проверьте написание.</div>`;
+  const local=Object.values(CAT_IDX).filter(c=>c.k===E.k&&(!q||c.t.toLowerCase().includes(q)||c.by.toLowerCase().includes(q)));
+  const lv=liveKeys(E.q,E.k).map(x=>CAT_IDX[x]).filter(c=>c&&c.k===E.k);
+  const list=[...lv,...local.filter(c=>!lv.includes(c))].slice(0,10);
+  const ls=liveState(E.q,E.k);
+  const msg=ls==='loading'?'Ищу в базе '+SRC[E.k]+'…':ls==='error'?'Не удалось связаться с базой. Попробуйте ещё раз.':E.k==='games'?'Игры пока только из демо-каталога, IGDB подключим позже.':`В базе ${SRC[E.k]} такого нет. Проверьте написание.`;
+  box.innerHTML=(list.length?list.map(c=>`<button type="button" class="opt" role="option" data-pick="${esc(kk(c.k,c.t))}">${cover(c.t,'',c.k)}<span><b>${esc(c.t)}</b><span class="sub">${esc(c.by)}${c.y?' · '+c.y:''}</span></span></button>`).join(''):'')+(!list.length||ls==='loading'||ls==='error'?`<div class="sub">${msg}</div>`:'');
   box.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{
     const c=CAT_IDX[b.dataset.pick];
     if(c.k==='music'){closeEditor();goTo(kk(c.k,c.t));return}
     if(DATA[c.k].some(r=>r[0]===c.t)){openEditor(c.k,c.t,false);return}
     E.cat=c;E.plat='';E.tab='review';drawEditor();
   });
+  if(!noLive)liveSearch(E.q,E.k,()=>{if(E&&!E.cat)drawRes(true)});
 }
 function closeEditor(){const ov=document.getElementById('ov');if(ov)ov.remove();E=null}
 function bindEditor(){
@@ -1530,14 +1625,18 @@ function drawCD(){
   };
   drawCDres();
 }
-function drawCDres(){
+function drawCDres(noLive){
   const res=document.getElementById('cd-res'),box=document.getElementById('cd-items'),cnt=document.getElementById('cd-cnt');if(!res)return;
   const q=CD.q.trim().toLowerCase();
-  const list=q?Object.entries(CAT_IDX).filter(([k,c])=>!CD.items.includes(k)&&(c.t.toLowerCase().includes(q)||c.by.toLowerCase().includes(q))).slice(0,6):[];
-  res.innerHTML=list.map(([k,c])=>`<button type="button" class="opt" data-add-i="${esc(k)}">${cover(c.t)}<span><b>${esc(c.t)}</b><span class="sub">${CATS[c.k].one} · ${esc(c.by)} · ${c.y}</span></span></button>`).join('')||(q?'<div class="sub">Ничего не найдено в базе.</div>':'');
+  const lv=liveKeys(CD.q,'all').filter(k=>CAT_IDX[k]&&!CD.items.includes(k)).map(k=>[k,CAT_IDX[k]]);
+  const local=q?Object.entries(CAT_IDX).filter(([k,c])=>!CD.items.includes(k)&&!lv.some(x=>x[0]===k)&&(c.t.toLowerCase().includes(q)||c.by.toLowerCase().includes(q))):[];
+  const list=[...lv,...local].slice(0,8);
+  const ls=liveState(CD.q,'all');
+  res.innerHTML=list.map(([k,c])=>`<button type="button" class="opt" data-add-i="${esc(k)}">${cover(c.t,'',c.k)}<span><b>${esc(c.t)}</b><span class="sub">${CATS[c.k].one} · ${esc(c.by)}${c.y?' · '+c.y:''}</span></span></button>`).join('')+(q&&(!list.length||ls==='loading'||ls==='error')?`<div class="sub">${ls==='loading'?'Ищу…':ls==='error'?'Не удалось связаться с базой.':'Ничего не найдено в базе.'}</div>`:'');
   res.querySelectorAll('[data-add-i]').forEach(b=>b.onclick=()=>{CD.items.push(b.dataset.addI);CD.q='';document.getElementById('cd-q').value='';drawCDres()});
   cnt.textContent='В сборнике: '+CD.items.length;
-  box.innerHTML=CD.items.map((k,i)=>{const c=CAT_IDX[k];return c?`<div class="ci">${cover(c.t)}<span style="min-width:0"><b>${esc(c.t)}</b><span class="sub" style="display:block">${CATS[c.k].one} · ${esc(c.by)}</span></span><button type="button" class="ic" data-rm-i="${i}" aria-label="Убрать">${ico('close')}</button></div>`:''}).join('')||'<div class="sub">Пока пусто.</div>';
+  if(!noLive)liveSearch(CD.q,'all',()=>{if(CD)drawCDres(true)});
+  box.innerHTML=CD.items.map((k,i)=>{const c=CAT_IDX[k];return c?`<div class="ci">${cover(c.t,'',c.k)}<span style="min-width:0"><b>${esc(c.t)}</b><span class="sub" style="display:block">${CATS[c.k].one} · ${esc(c.by)}</span></span><button type="button" class="ic" data-rm-i="${i}" aria-label="Убрать">${ico('close')}</button></div>`:''}).join('')||'<div class="sub">Пока пусто.</div>';
   box.querySelectorAll('[data-rm-i]').forEach(b=>b.onclick=()=>{CD.items.splice(+b.dataset.rmI,1);drawCDres()});
 }
 
