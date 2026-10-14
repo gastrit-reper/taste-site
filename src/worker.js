@@ -1,8 +1,10 @@
 // Отдаёт статический сайт (папка public) и проксирует картинки:
 //   /img/<размер>/<файл>.jpg      - TMDB (фильмы, сериалы, аниме)
 //   /img/ol/<S|M|L>/<id>.jpg      - Open Library (обложки книг)
+//   /img/caa/<mbid>/<250|500|1200>.jpg - Cover Art Archive (обложки альбомов)
 const TMDB_IMG = /^\/img\/(w92|w154|w185|w342|w500|w780|w1280|original)\/([A-Za-z0-9_-]+\.(?:jpg|png))$/;
 const OL_IMG = /^\/img\/ol\/(S|M|L)\/(\d{1,12})\.jpg$/;
+const CAA_IMG = /^\/img\/caa\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(250|500|1200)\.jpg$/;
 
 export default {
   async fetch(request, env) {
@@ -12,6 +14,7 @@ export default {
     let m = path.match(TMDB_IMG);
     if (m) upstream = `https://image.tmdb.org/t/p/${m[1]}/${m[2]}`;
     if (!upstream && (m = path.match(OL_IMG))) upstream = `https://covers.openlibrary.org/b/id/${m[2]}-${m[1]}.jpg?default=false`;
+    if (!upstream && (m = path.match(CAA_IMG))) upstream = `https://coverartarchive.org/release-group/${m[1]}/front-${m[2]}`;
 
     if (!upstream) return env.ASSETS.fetch(request);       // всё остальное - обычные файлы сайта
     if (request.method !== 'GET') return new Response('method not allowed', { status: 405 });
