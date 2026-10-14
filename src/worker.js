@@ -1,14 +1,22 @@
-const IMG = /^\/img\/(w92|w154|w185|w342|w500|w780|w1280|original)\/([A-Za-z0-9_-]+\.(?:jpg|png))$/;
+// Отдаёт статический сайт (папка public) и проксирует картинки:
+//   /img/<размер>/<файл>.jpg      - TMDB (фильмы, сериалы, аниме)
+//   /img/ol/<S|M|L>/<id>.jpg      - Open Library (обложки книг)
+const TMDB_IMG = /^\/img\/(w92|w154|w185|w342|w500|w780|w1280|original)\/([A-Za-z0-9_-]+\.(?:jpg|png))$/;
+const OL_IMG = /^\/img\/ol\/(S|M|L)\/(\d{1,12})\.jpg$/;
 
 export default {
   async fetch(request, env) {
-    const m = new URL(request.url).pathname.match(IMG);
-    if (!m) return env.ASSETS.fetch(request);
+    const path = new URL(request.url).pathname;
+    let upstream = null;
+
+    let m = path.match(TMDB_IMG);
+    if (m) upstream = `https://image.tmdb.org/t/p/${m[1]}/${m[2]}`;
+    if (!upstream && (m = path.match(OL_IMG))) upstream = `https://covers.openlibrary.org/b/id/${m[2]}-${m[1]}.jpg?default=false`;
+
+    if (!upstream) return env.ASSETS.fetch(request);       // всё остальное - обычные файлы сайта
     if (request.method !== 'GET') return new Response('method not allowed', { status: 405 });
 
-    const up = await fetch(`https://image.tmdb.org/t/p/${m[1]}/${m[2]}`, {
-      cf: { cacheEverything: true, cacheTtl: 2592000 },
-    });
+    const up = await fetch(upstream, { cf: { cacheEverything: true, cacheTtl: 2592000 } });
     if (!up.ok) return new Response('not found', { status: 404 });
     return new Response(up.body, {
       headers: {
