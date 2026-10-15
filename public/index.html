@@ -877,8 +877,8 @@ function attachLive(key,r){   // демо-записи прототипа пол
   ex.banner=r.banner_url||'';
   const im=imgUrls(r.cover_url);if(im)IMGK[key]=im;
 }
-try{const sv=JSON.parse(localStorage.getItem(ENR_LS)||'{}');Object.keys(sv).forEach(k=>{if(!CAT_IDX[k])return;ENR[k]=sv[k];if(sv[k])attachLive(k,sv[k]);else CAT_IDX[k]._en='none'})}catch(e){}
-const normT=x=>String(x||'').toLowerCase().replace(/ё/g,'е').trim();
+try{const sv=JSON.parse(localStorage.getItem(ENR_LS)||'{}');Object.keys(sv).forEach(k=>{if(!CAT_IDX[k]||!sv[k])return;if(sv[k].none){if(Date.now()-sv[k].none<864e5){ENR[k]=sv[k];CAT_IDX[k]._en='none'}}else{ENR[k]=sv[k];attachLive(k,sv[k])}})}catch(e){}
+const normT=x=>String(x||'').toLowerCase().replace(/ё/g,'е').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
 const saveEnr=()=>{try{localStorage.setItem(ENR_LS,JSON.stringify(ENR))}catch(e){}};
 function paintCover(key){   // добавить картинку в уже нарисованные обложки, без перерисовки страницы
   const im=IMGK[key];if(!im)return;
@@ -899,7 +899,7 @@ async function enrichDemo(key,again){   // демо-запись ищет себ
     const same=res.filter(x=>[x.title,x.original_title,...(x.alt_titles||[])].map(normT).includes(t));
     const m=same.find(x=>yr&&x.year===yr)||same[0]||(yr&&res[0]&&res[0].year===yr?res[0]:null);   // совпало название, либо первый результат того же года
     c._en=m?'ok':'none';
-    ENR[key]=m?{...m,description:(m.description||'').slice(0,300)}:null;saveEnr();
+    ENR[key]=m?{...m,description:(m.description||'').slice(0,300)}:{none:Date.now()};saveEnr();
     if(m){attachLive(key,m);paintCover(key)}
   }catch(e){c._en=''}   // не вышло: повторим не раньше чем через минуту
   if(again)again();
@@ -914,7 +914,7 @@ function enqueueEnrich(){
   });
   if(!enrBusy&&ENQ.length)runEnrich();
 }
-setTimeout(()=>{let tm;enqueueEnrich();new MutationObserver(()=>{clearTimeout(tm);tm=setTimeout(enqueueEnrich,400)}).observe(document.body,{childList:true,subtree:true})},400);
+setTimeout(()=>{let tm;enqueueEnrich();new MutationObserver(()=>{clearTimeout(tm);tm=setTimeout(enqueueEnrich,400)}).observe(document.body,{childList:true,subtree:true});setInterval(enqueueEnrich,20000)},400);
 function liveTracks(c,again){   // треклист альбома из MusicBrainz (один раз, потом из нашей базы)
   if(!c||!c.ext||c.ext.source!=='musicbrainz'||c.tr.length||c._tl||!liveOn('music'))return;
   c._tl='loading';
