@@ -43,7 +43,7 @@ function thumb(u) {
   const m = u.match(/covers\.openlibrary\.org\/b\/id\/(\d+)-L\.jpg/);
   if (m) return `/img/ol/M/${m[1]}.jpg`;
   const g = u.match(/media\.rawg\.io\/media\/(?:crop\/\d+\/\d+\/)?((?:games|screenshots)\/[0-9a-f]{2,3}\/[0-9a-f]{32}\.jpg)/);
-  if (g) return `/img/rawg/300x420/${g[1]}`;
+  if (g) return `/img/rawg/420/${g[1]}`;
   const c = u.match(/coverartarchive\.org\/release-group\/([0-9a-f-]{36})\//);
   if (c) return `/img/caa/${c[1]}/250.jpg`;
   return null;
