@@ -612,10 +612,11 @@ const pp = v => v?'<svg class="pp" viewBox="0 0 24 24" aria-hidden="true"><rect 
 const ico = (id,cls='i') => `<svg class="${cls}" aria-hidden="true"><use href="#${id}"/></svg>`;
 const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const hue = s => { let h=0; for(const c of s) h=(h*31+c.charCodeAt(0))%360; return h; };
+function imgFb(i){const a=i.dataset.alt;if(a&&i.getAttribute('src')!==a){i.removeAttribute('data-alt');i.src=a}else i.remove()}   // нет вертикальной обложки: пробуем запасную, иначе буква
 const IMGK={};   // 'категория|название' -> {a: превью, b: крупная обложка}
 const cover = (t,cls='',k) => {
   const im=k?IMGK[k+'|'+t]:null, big=/\bbig\b/.test(cls);
-  return `<div class="cover ${cls}"${k?` data-ck="${esc(k+'|'+t)}"`:''} style="background:linear-gradient(145deg,hsl(${hue(t)} 55% 48%),hsl(${(hue(t)+50)%360} 55% 32%))">${im?`<img alt="" loading="lazy" src="${esc(big?im.b:im.a)}" onerror="this.remove()">`:''}${esc(t.trim()[0].toUpperCase())}</div>`;
+  return `<div class="cover ${cls}"${k?` data-ck="${esc(k+'|'+t)}"`:''} style="background:linear-gradient(145deg,hsl(${hue(t)} 55% 48%),hsl(${(hue(t)+50)%360} 55% 32%))">${im?`<img alt="" loading="lazy" src="${esc(big?im.b:im.a)}"${(big?im.altB:im.altA)?` data-alt="${esc(big?im.altB:im.altA)}"`:''} onerror="imgFb(this)">`:''}${esc(t.trim()[0].toUpperCase())}</div>`;
 };
 const scoreCls = n => !n?'none':n>=8?'good':n>=6?'mid':'bad';
 const ago = d => d<=0?'сегодня':d===1?'вчера':d<7?d+' дн. назад':d<30?Math.round(d/7)+' нед. назад':Math.round(d/30)+' мес. назад';
@@ -819,12 +820,13 @@ const LIVE_BACK={game:'games',series:'series',movie:'movies',anime:'anime',music
 const LIVE_SRC={tmdb:'TMDB',openlibrary:'Open Library',musicbrainz:'MusicBrainz',rawg:'RAWG'};
 const LIVE_LS='live_catalog_v1';
 const LIVE_ARR=[], LIVE_Q={}, LIVE_ST={}, LIVE_RAW={}, ENR={};
-const ENR_LS='live_enrich_v1';
+const ENR_LS='live_enrich_v2';
 let liveCtrl=null, liveTimer=null;
 function imgUrls(u){   // все картинки идут через наш сайт (/img/...), чтобы не зависеть от блокировок
   if(!u)return null;let m;
   if(u.startsWith('https://image.tmdb.org/t/p/')){const f=u.split('/').pop();return {a:'/img/w342/'+f,b:'/img/w500/'+f}}
   if(m=u.match(/covers\.openlibrary\.org\/b\/id\/(\d+)-/))return {a:`/img/ol/M/${m[1]}.jpg`,b:`/img/ol/L/${m[1]}.jpg`};
+  if(m=u.match(/steamstatic\.com\/steam\/apps\/(\d+)\/library_600x900/))return {a:`/img/steam/${m[1]}.jpg`,b:`/img/steam/${m[1]}.jpg`};
   if(m=u.match(/media\.rawg\.io\/media\/(?:crop\/\d+\/\d+\/)?((?:games|screenshots)\/[0-9a-f]{2,3}\/[0-9a-f]{32}\.jpg)/))return {a:`/img/rawg/420/${m[1]}`,b:`/img/rawg/640/${m[1]}`};
   if(m=u.match(/coverartarchive\.org\/release-group\/([0-9a-f-]{36})\//))return {a:`/img/caa/${m[1]}/250.jpg`,b:`/img/caa/${m[1]}/500.jpg`};
   return null;
@@ -838,7 +840,7 @@ function regLive(r,silent){   // результат API -> запись ката
   if(!ex)ex=CAT_IDX[key]={k,t,by,y:r.year||'',g:r.genres||[],p:(r.extra&&r.extra.platforms)||[],d:r.description||'',tr:[]};
   if(!ex.ext){ex.ext=ext;if(!ex.d)ex.d=r.description||''}   // демо-запись с тем же названием получает обложку и ссылку
   ex.banner=r.banner_url||'';
-  const im=imgUrls(r.cover_url);if(im)IMGK[key]=im;
+  const im=imgUrls(r.cover_url);if(im){const al=r.extra&&r.extra.alt_image?imgUrls(r.extra.alt_image):null;if(al){im.altA=al.a;im.altB=al.b}IMGK[key]=im}
   if(k==='music'&&!ALB[ex.t])ALB[ex.t]={t:ex.t,by:ex.by,y:ex.y,g:ex.g,d:ex.d,tr:ex.tr};
   if(!silent&&!LIVE_ARR.some(x=>x.source===r.source&&x.external_id===r.external_id))LIVE_ARR.push(r);
   return key;
@@ -875,7 +877,7 @@ function attachLive(key,r){   // демо-записи прототипа пол
   if(!ex.d)ex.d=r.description||'';
   if(!(ex.p||[]).length)ex.p=(r.extra&&r.extra.platforms)||[];
   ex.banner=r.banner_url||'';
-  const im=imgUrls(r.cover_url);if(im)IMGK[key]=im;
+  const im=imgUrls(r.cover_url);if(im){const al=r.extra&&r.extra.alt_image?imgUrls(r.extra.alt_image):null;if(al){im.altA=al.a;im.altB=al.b}IMGK[key]=im}
 }
 try{const sv=JSON.parse(localStorage.getItem(ENR_LS)||'{}');Object.keys(sv).forEach(k=>{if(!CAT_IDX[k]||!sv[k])return;if(sv[k].none){if(Date.now()-sv[k].none<864e5){ENR[k]=sv[k];CAT_IDX[k]._en='none'}}else{ENR[k]=sv[k];attachLive(k,sv[k])}})}catch(e){}
 const normT=x=>String(x||'').toLowerCase().replace(/ё/g,'е').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
@@ -884,7 +886,7 @@ function paintCover(key){   // добавить картинку в уже на�
   const im=IMGK[key];if(!im)return;
   document.querySelectorAll('.cover[data-ck]').forEach(el=>{
     if(el.dataset.ck!==key||el.querySelector('img'))return;
-    const img=document.createElement('img');img.alt='';img.src=el.classList.contains('big')?im.b:im.a;img.onerror=()=>img.remove();el.appendChild(img);
+    const big=el.classList.contains('big'),alt=big?im.altB:im.altA,img=document.createElement('img');img.alt='';img.src=big?im.b:im.a;if(alt)img.dataset.alt=alt;img.onerror=()=>imgFb(img);el.appendChild(img);
   });
 }
 async function enrichDemo(key,again){   // демо-запись ищет себя в базах по названию: обложка, баннер, ссылка на источник

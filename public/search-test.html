@@ -42,6 +42,8 @@ function thumb(u) {
   if (u.startsWith('https://image.tmdb.org/t/p/')) return u.replace('https://image.tmdb.org/t/p/w500/', '/img/w185/');
   const m = u.match(/covers\.openlibrary\.org\/b\/id\/(\d+)-L\.jpg/);
   if (m) return `/img/ol/M/${m[1]}.jpg`;
+  const st = u.match(/steamstatic\.com\/steam\/apps\/(\d+)\/library_600x900/);
+  if (st) return `/img/steam/${st[1]}.jpg`;
   const g = u.match(/media\.rawg\.io\/media\/(?:crop\/\d+\/\d+\/)?((?:games|screenshots)\/[0-9a-f]{2,3}\/[0-9a-f]{32}\.jpg)/);
   if (g) return `/img/rawg/420/${g[1]}`;
   const c = u.match(/coverartarchive\.org\/release-group\/([0-9a-f-]{36})\//);
