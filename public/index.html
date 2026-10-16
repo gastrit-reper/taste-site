@@ -889,26 +889,47 @@ function paintCover(key){   // добавить картинку в уже на�
     const big=el.classList.contains('big'),alt=big?im.altB:im.altA,img=document.createElement('img');img.alt='';img.src=big?im.b:im.a;if(alt)img.dataset.alt=alt;img.onerror=()=>imgFb(img);el.appendChild(img);
   });
 }
-async function enrichDemo(key,again){   // демо-запись ищет себя в базах по названию: обложка, баннер, ссылка на источник
+function pickMatch(c,res){   // из результатов выбираем ту же запись: совпало название, либо первый результат того же года
+  res=(res||[]).filter(x=>LIVE_BACK[x.category]===c.k);
+  const t=normT(c.t),yr=Number(c.y)||0;
+  const same=res.filter(x=>[x.title,x.original_title,...(x.alt_titles||[])].map(normT).includes(t));
+  return same.find(x=>yr&&x.year===yr)||same[0]||(yr&&res[0]&&res[0].year===yr?res[0]:null);
+}
+function applyEnr(key,m){const c=CAT_IDX[key];c._en=m?'ok':'none';ENR[key]=m?{...m,description:(m.description||'').slice(0,300)}:{none:Date.now()};if(m){attachLive(key,m);paintCover(key)}}
+async function enrichDemo(key,again){   // одиночный поиск во внешних базах (для записей, которых ещё нет в нашей базе)
   const c=CAT_IDX[key];
   if(!c||c.ext||c._en||!LIVE_CAT[c.k]||!liveOn(c.k)||(c._enT&&Date.now()-c._enT<60000))return;
   c._en='loading';c._enT=Date.now();
   try{
     const r=await fetch(`${APPC.SUPABASE_URL}/functions/v1/search?q=${encodeURIComponent(c.t)}&cat=${LIVE_CAT[c.k]}`,{headers:liveHeaders()});
     const j=await r.json();if(!r.ok)throw 0;
-    const res=(j.results||[]).filter(x=>LIVE_BACK[x.category]===c.k);
-    const t=normT(c.t),yr=Number(c.y)||0;
-    const same=res.filter(x=>[x.title,x.original_title,...(x.alt_titles||[])].map(normT).includes(t));
-    const m=same.find(x=>yr&&x.year===yr)||same[0]||(yr&&res[0]&&res[0].year===yr?res[0]:null);   // совпало название, либо первый результат того же года
-    c._en=m?'ok':'none';
-    ENR[key]=m?{...m,description:(m.description||'').slice(0,300)}:{none:Date.now()};saveEnr();
-    if(m){attachLive(key,m);paintCover(key)}
+    applyEnr(key,pickMatch(c,j.results));saveEnr();
   }catch(e){c._en=''}   // не вышло: повторим не раньше чем через минуту
   if(again)again();
 }
-// очередь: обложки в списках догружаются по одной раз в 2 секунды (лимит функции 40 запросов в минуту)
+// 1) пачка до 40 записей одним запросом к нашей базе (быстро); 2) то, чего там нет, догружается из внешних баз по 3 штуки параллельно
 const ENQ=[];let enrBusy=false;
-async function runEnrich(){enrBusy=true;while(ENQ.length){await enrichDemo(ENQ.shift());await new Promise(r=>setTimeout(r,2000))}enrBusy=false}
+async function runEnrich(){
+  enrBusy=true;
+  try{
+    while(ENQ.length){
+      const keys=ENQ.splice(0,40).filter(k=>{const c=CAT_IDX[k];return c&&!c.ext&&!c._en&&LIVE_CAT[c.k]&&liveOn(c.k)});
+      if(!keys.length)continue;
+      let miss=keys;
+      try{
+        const r=await fetch(`${APPC.SUPABASE_URL}/functions/v1/search`,{method:'POST',headers:{...liveHeaders(),'Content-Type':'application/json'},body:JSON.stringify({items:keys.map(k=>({q:CAT_IDX[k].t,cat:LIVE_CAT[CAT_IDX[k].k]}))})});
+        const j=await r.json();if(!r.ok)throw 0;
+        miss=[];
+        keys.forEach((k,i)=>{const m=pickMatch(CAT_IDX[k],j.results[i]);if(m)applyEnr(k,m);else miss.push(k)});
+        saveEnr();
+      }catch(e){}
+      for(let i=0;i<miss.length;i+=3){
+        await Promise.all(miss.slice(i,i+3).map(k=>enrichDemo(k)));
+        await new Promise(r=>setTimeout(r,500));
+      }
+    }
+  }finally{enrBusy=false}
+}
 function enqueueEnrich(){
   document.querySelectorAll('.cover[data-ck]').forEach(el=>{
     const key=el.dataset.ck,c=CAT_IDX[key];
