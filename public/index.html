@@ -691,7 +691,7 @@ function renderHead(){
   const linkHtml = links.map(h=>`<a href="${esc(h)}" target="_blank" rel="noopener" aria-label="${esc(h.replace(/^https?:\/\//,''))}" title="${esc(h.replace(/^https?:\/\//,''))}">${ico(ICON_LINK(h))}</a>`).join('')
     + (P.links.length>MAXLINKS?`<button class="links more btn" id="morelinks" style="border:0;background:var(--surface2);border-radius:10px;height:34px">${S.linksOpen?'Скрыть':'+'+(P.links.length-MAXLINKS)}</button>`:'');
   const btns = S.me
-    ? `<button class="btn" id="b-edit" data-editprof>${ico('edit')}Редактировать профиль</button>`
+    ? `<button class="btn" id="b-edit" data-editprof>${ico('edit')}Редактировать профиль</button><button class="btn" id="b-import" data-import>${ico('plus')}Импорт</button>`
     : `<button class="btn ${S.friend?'on':'primary'}" id="b-friend">${ico(S.friend?'check':'userplus')}${S.friend?'В друзьях':'Добавить в друзья'}</button><button class="btn" id="b-msg">${ico('mail')}Написать</button>`;
   const favHtml = ORDER.map(k=>{
     const off = S.favHidden.has(k), f = favInfo(k);
@@ -2007,4 +2007,164 @@ function gsClose(){const p=gsPop();if(p)p.hidden=true}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-morepost]');if(!b)return;const p=b.previousElementSibling;p.classList.toggle('clamp');b.textContent=p.classList.contains('clamp')?'Показать полностью':'Свернуть'});
 </script>
 
+<script>
+/* ===== импорт оценок из файлов (сейчас: Letterboxd). Хранится в браузере, пока нет аккаунтов ===== */
+(function(){
+const IMP_LS='imported_v1', SRC_NAME='Letterboxd';
+const imp={files:[],items:[],found:[],state:'idle',done:0,ctrl:null,err:''};
+const $=id=>document.getElementById(id);
+
+/* --- чтение: zip без библиотек, CSV --- */
+async function readZip(file){
+  const buf=await file.arrayBuffer(),dv=new DataView(buf),u8=new Uint8Array(buf),dec=new TextDecoder();
+  let e=-1;for(let i=buf.byteLength-22;i>=Math.max(0,buf.byteLength-66000);i--){if(dv.getUint32(i,true)===0x06054b50){e=i;break}}
+  if(e<0)throw new Error('Не получилось открыть архив');
+  const n=dv.getUint16(e+10,true);let p=dv.getUint32(e+16,true);const out=[];
+  for(let i=0;i<n;i++){
+    if(dv.getUint32(p,true)!==0x02014b50)break;
+    const method=dv.getUint16(p+10,true),csz=dv.getUint32(p+20,true),nl=dv.getUint16(p+28,true),el=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),lo=dv.getUint32(p+42,true);
+    const name=dec.decode(u8.subarray(p+46,p+46+nl));p+=46+nl+el+cl;
+    if(!/\.csv$/i.test(name))continue;
+    const ln=dv.getUint16(lo+26,true),le=dv.getUint16(lo+28,true),start=lo+30+ln+le,data=u8.subarray(start,start+csz);
+    let text;
+    if(method===0)text=dec.decode(data);
+    else if(method===8)text=await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text();
+    else continue;
+    out.push({name:name.split('/').pop(),text});
+  }
+  return out;
+}
+function parseCsv(t){
+  t=t.replace(/^﻿/,'');const rows=[];let r=[],f='',q=false;
+  for(let i=0;i<t.length;i++){const c=t[i];
+    if(q){if(c==='"'){if(t[i+1]==='"'){f+='"';i++}else q=false}else f+=c}
+    else if(c==='"')q=true;
+    else if(c===','){r.push(f);f=''}
+    else if(c==='\n'||c==='\r'){if(c==='\r'&&t[i+1]==='\n')i++;r.push(f);f='';if(r.length>1||r[0]!=='')rows.push(r);r=[]}
+    else f+=c}
+  if(f!==''||r.length){r.push(f);rows.push(r)}
+  if(!rows.length)return [];
+  const h=rows[0].map(x=>x.trim());return rows.slice(1).map(x=>Object.fromEntries(h.map((k,i)=>[k,x[i]??''])));
+}
+const daysAgo=d=>{const t=Date.parse(d);return isFinite(t)?Math.max(0,Math.round((Date.now()-t)/864e5)):0};
+
+/* --- Letterboxd: ratings / watched / watchlist / reviews / diary --- */
+function fromLetterboxd(csvs){
+  const M=new Map(),get=(r)=>{const y=Number(r.Year)||0,k=(r.Name||'').trim()+'|'+y;if(!r.Name)return null;let o=M.get(k);if(!o){o={title:r.Name.trim(),year:y,score:0,status:'Просмотрено',review:'',days:0};M.set(k,o)}return o};
+  const by=n=>csvs.filter(c=>c.name.toLowerCase()===n);
+  let nr=0,nw=0,nv=0;
+  for(const c of by('watched.csv'))for(const r of parseCsv(c.text)){const o=get(r);if(o){o.days=o.days||daysAgo(r.Date)}}
+  for(const c of by('ratings.csv'))for(const r of parseCsv(c.text)){const o=get(r);if(!o)continue;const x=parseFloat(r.Rating);if(x>0){o.score=Math.min(10,Math.max(1,Math.round(x*2)));nr++}o.days=o.days||daysAgo(r.Date)}
+  for(const c of by('diary.csv'))for(const r of parseCsv(c.text)){const o=get(r);if(!o)continue;const x=parseFloat(r.Rating);if(x>0&&!o.score){o.score=Math.round(x*2);nr++}const d=daysAgo(r['Watched Date']||r.Date);if(d||!o.days)o.days=d}
+  for(const c of by('reviews.csv'))for(const r of parseCsv(c.text)){const o=get(r);if(!o)continue;const x=parseFloat(r.Rating);if(x>0&&!o.score)o.score=Math.round(x*2);if(r.Review&&!o.review){o.review=r.Review.replace(/<[^>]+>/g,'').slice(0,1900);nv++}}
+  for(const c of by('watchlist.csv'))for(const r of parseCsv(c.text)){const k=(r.Name||'').trim()+'|'+(Number(r.Year)||0);if(M.has(k)||!r.Name)continue;const o=get(r);o.status='В планах';o.score=0;o.days=daysAgo(r.Date);nw++}
+  return {items:[...M.values()],info:`оценок: ${nr}, хочу посмотреть: ${nw}, отзывов: ${nv}`};
+}
+
+/* --- подбор тайтлов через сервер --- */
+async function matchAll(){
+  imp.state='matching';imp.done=0;imp.found=new Array(imp.items.length).fill(undefined);imp.ctrl=new AbortController();draw();
+  const chunks=[];for(let i=0;i<imp.items.length;i+=25)chunks.push(i);
+  let next=0;
+  const worker=async()=>{
+    while(next<chunks.length&&imp.state==='matching'){
+      const i=chunks[next++],part=imp.items.slice(i,i+25);
+      for(let a=0;a<2;a++){
+        try{
+          const r=await fetch(`${APPC.SUPABASE_URL}/functions/v1/search?import=1`,{method:'POST',signal:imp.ctrl.signal,headers:{...liveHeaders(),'Content-Type':'application/json'},body:JSON.stringify({items:part.map(x=>({q:x.title,year:x.year,kind:'movie'}))})});
+          const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);
+          j.results.forEach((x,n)=>{imp.found[i+n]=x&&x.error?undefined:x});break;
+        }catch(e){if(e.name==='AbortError')return;if(a===1)part.forEach((_,n)=>{imp.found[i+n]=undefined});else await new Promise(r=>setTimeout(r,1500))}
+      }
+      imp.done+=part.length;draw(true);
+    }
+  };
+  await Promise.all([worker(),worker(),worker()]);
+  if(imp.state==='matching'){imp.state='ready';draw()}
+}
+
+/* --- добавление в профиль и хранение --- */
+const slim=r=>({id:r.id,source:r.source,external_id:r.external_id,category:r.category,title:r.title,original_title:r.original_title,alt_titles:(r.alt_titles||[]).slice(0,2),year:r.year,creators:r.creators||[],genres:(r.genres||[]).slice(0,4),description:(r.description||'').slice(0,140),cover_url:r.cover_url,banner_url:r.banner_url,extra:{source_url:r.extra&&r.extra.source_url}});
+function applyOne(e){   // e: {r, score, status, review, days}
+  const key=regLive(e.r,true);if(!key)return false;
+  const c=CAT_IDX[key],k=c.k;
+  if(DATA[k].some(x=>x[0]===c.t))return false;
+  DATA[k].push([c.t,`${c.by} · ${c.y}`,e.score,e.status,e.review||'',e.days||0]);
+  return true;
+}
+function loadSaved(){try{const a=JSON.parse(localStorage.getItem(IMP_LS)||'[]');a.forEach(applyOne)}catch(_){}}
+function commit(){
+  const entries=[];
+  imp.items.forEach((it,i)=>{const r=imp.found[i];if(r)entries.push({r:slim(r),score:it.score,status:it.status,review:it.review,days:it.days})});
+  let added=0;entries.forEach(e=>{if(applyOne(e))added++});
+  let saved=[];try{saved=JSON.parse(localStorage.getItem(IMP_LS)||'[]')}catch(_){}
+  const have=new Set(saved.map(e=>e.r.external_id));entries.forEach(e=>{if(!have.has(e.r.external_id))saved.push(e)});
+  try{localStorage.setItem(IMP_LS,JSON.stringify(saved))}catch(_){imp.err='Браузер не дал сохранить такой объём: оценки добавлены только до перезагрузки.'}
+  imp.added=added;imp.state='done';draw();render();
+}
+function clearAll(){
+  let saved=[];try{saved=JSON.parse(localStorage.getItem(IMP_LS)||'[]')}catch(_){}
+  saved.forEach(e=>{const key=kk(LIVE_BACK[e.r.category]||'movies',e.r.title);const k=LIVE_BACK[e.r.category];if(k)DATA[k]=DATA[k].filter(x=>x[0]!==(CAT_IDX[key]&&CAT_IDX[key].t||e.r.title))});
+  try{localStorage.removeItem(IMP_LS)}catch(_){}
+  imp.state='idle';imp.items=[];imp.found=[];draw();render();
+}
+
+/* --- окно --- */
+function close(){if(imp.ctrl)imp.ctrl.abort();imp.state='idle';const o=$('imp-ov');if(o)o.remove()}
+function draw(soft){
+  let ov=$('imp-ov');
+  if(soft&&ov&&imp.state==='matching'){const b=$('imp-bar'),t=$('imp-cnt');if(b)b.style.width=Math.round(imp.done/imp.items.length*100)+'%';if(t)t.textContent=imp.done+' из '+imp.items.length;return}
+  if(ov)ov.remove();
+  ov=document.createElement('div');ov.id='imp-ov';ov.className='ov';
+  const n=imp.items.length,ok=imp.found.filter(Boolean).length,bad=imp.found.filter(x=>x===undefined).length,miss=imp.found.length?imp.found.filter(x=>x===null).length:0;
+  const lost=imp.items.map((x,i)=>imp.found[i]===null||imp.found[i]===undefined?x:null).filter(Boolean);
+  let body='';
+  if(imp.state==='idle'){
+    body=`<p class="hint">Пока поддерживается <b>Letterboxd</b>. На сайте letterboxd.com: Settings → Import &amp; Export → Export your data. Придёт zip-архив: загрузите его сюда целиком, ничего распаковывать не надо.</p>
+    <label class="imp-drop" id="imp-drop"><input type="file" id="imp-file" accept=".zip,.csv" multiple hidden><b>Выберите файл или перетащите сюда</b><span class="hint">zip из Letterboxd или отдельные ratings.csv, watchlist.csv, reviews.csv</span></label>
+    ${imp.err?`<div class="err" role="alert">${esc(imp.err)}</div>`:''}
+    <p class="hint">Данные хранятся только в этом браузере, пока на сайте нет аккаунтов.</p>`;
+  }else if(imp.state==='matching'){
+    body=`<p>Подбираю фильмы в каталоге…</p><div class="imp-track"><div class="imp-bar" id="imp-bar" style="width:${Math.round(imp.done/n*100)}%"></div></div><p class="hint" id="imp-cnt">${imp.done} из ${n}</p>`;
+  }else if(imp.state==='ready'){
+    body=`<p><b>${ok}</b> из ${n} найдено в каталоге.</p><p class="hint">В файле ${esc(imp.info)}.</p>
+    ${lost.length?`<details><summary>Не найдено или не проверено: ${lost.length}</summary><div class="imp-lost">${lost.slice(0,300).map(x=>esc(x.title)+(x.year?' ('+x.year+')':'')).join('<br>')}${lost.length>300?'<br>…':''}</div></details>`:''}
+    ${bad?`<div class="hint">Не удалось проверить ${bad} — можно повторить позже.</div>`:''}`;
+  }else if(imp.state==='done'){
+    body=`<p>Добавлено в профиль: <b>${imp.added}</b>${imp.added<ok?` (остальные уже были)`:''}.</p>${imp.err?`<div class="err">${esc(imp.err)}</div>`:''}`;
+  }
+  const saved=(()=>{try{return JSON.parse(localStorage.getItem(IMP_LS)||'[]').length}catch(_){return 0}})();
+  const foot=imp.state==='ready'?`<button type="button" class="btn" id="imp-c">Отмена</button><button type="button" class="btn primary" id="imp-go" ${ok?'':'disabled'}>Добавить ${ok}</button>`
+    :imp.state==='done'?`<button type="button" class="btn primary" id="imp-c">Готово</button>`
+    :imp.state==='matching'?`<button type="button" class="btn" id="imp-c">Отмена</button>`
+    :`${saved?`<button type="button" class="btn" id="imp-clear" style="margin-right:auto">Удалить импортированное (${saved})</button>`:''}<button type="button" class="btn" id="imp-c">Закрыть</button>`;
+  ov.innerHTML=`<div class="dlg" role="dialog" aria-modal="true" aria-labelledby="imp-h" style="width:min(560px,100%)"><div class="dh"><h2 id="imp-h">Импорт оценок</h2><button type="button" class="ic" id="imp-x" aria-label="Закрыть">${ico('close')}</button></div><div class="dr pb">${body}</div><div class="df">${foot}</div></div>`;
+  document.body.appendChild(ov);
+  ov.onmousedown=e=>{if(e.target===ov&&imp.state!=='matching')close()};
+  ['imp-x','imp-c'].forEach(i=>{const b=$(i);if(b)b.onclick=close});
+  const go=$('imp-go');if(go)go.onclick=commit;
+  const cl=$('imp-clear');if(cl)cl.onclick=()=>{if(confirm('Удалить все импортированные оценки из профиля?'))clearAll()};
+  const fi=$('imp-file');if(fi)fi.onchange=()=>take([...fi.files]);
+  const dz=$('imp-drop');if(dz){['dragover','dragenter'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.add('on')}));['dragleave','drop'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.remove('on')}));dz.addEventListener('drop',e=>take([...e.dataTransfer.files]))}
+}
+async function take(files){
+  imp.err='';
+  try{
+    const csvs=[];
+    for(const f of files){if(/\.zip$/i.test(f.name))csvs.push(...await readZip(f));else if(/\.csv$/i.test(f.name))csvs.push({name:f.name.split('/').pop(),text:await f.text()})}
+    if(!csvs.length)throw new Error('В файлах не нашлось CSV.');
+    if(!csvs.some(c=>/Letterboxd URI/.test(c.text.slice(0,400))))throw new Error('Это не похоже на выгрузку Letterboxd (в файлах нет колонки Letterboxd URI).');
+    const r=fromLetterboxd(csvs);
+    if(!r.items.length)throw new Error('В файлах нет оценок или списка «хочу посмотреть».');
+    if(!liveOn('all'))throw new Error('Не настроено подключение к базе (config.js).');
+    imp.items=r.items.slice(0,5000);imp.info=r.info;
+    matchAll();
+  }catch(e){imp.state='idle';imp.err=e.message||String(e);draw()}
+}
+document.addEventListener('click',e=>{if(e.target.closest('[data-import]')){e.preventDefault();imp.state='idle';imp.err='';draw()}});
+loadSaved();
+setTimeout(()=>{try{render()}catch(_){}},0);
+const st=document.createElement('style');st.textContent='.imp-drop{display:grid;gap:4px;place-items:center;text-align:center;border:2px dashed var(--line);border-radius:14px;padding:26px 12px;cursor:pointer}.imp-drop.on,.imp-drop:hover{border-color:var(--accent)}.imp-track{height:8px;border-radius:99px;background:var(--surface2);overflow:hidden}.imp-bar{height:100%;background:var(--accent);transition:width .2s}.imp-lost{max-height:200px;overflow:auto;font-size:13px;color:var(--muted);margin-top:6px}';document.head.appendChild(st);
+})();
+</script>
 </body></html>
