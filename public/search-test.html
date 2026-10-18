@@ -94,7 +94,7 @@ function render(list, warn) {
         <div class="m">${KIND[t.category] || t.category}${t.year ? ' · ' + t.year : ''}${who}${orig}</div>
         <div class="m">${esc((t.genres || []).slice(0, 3).join(', '))}</div>
         <div class="d">${esc(t.description)}</div>
-        ${DEBUG?`<div class="m" style="word-break:break-all;color:#e0a030">cover: ${esc(t.cover_url||'НЕТ')} | src: ${esc(src||'НЕТ')} | steam: ${esc((t.extra&&t.extra.steam_id)||'-')}/${esc((t.extra&&t.extra.steam_checked)||'-')}</div>`:''}
+        ${DEBUG?`<div class="m" style="word-break:break-all;color:#e0a030">alt: ${esc((t.alt_titles||[]).join('; ')||'НЕТ')} | cover: ${esc(t.cover_url||'НЕТ')} | src: ${esc(src||'НЕТ')} | steam: ${esc((t.extra&&t.extra.steam_id)||'-')}/${esc((t.extra&&t.extra.steam_checked)||'-')}</div>`:''}
         ${t.category === 'music' ? `<button class="tb" data-id="${esc(t.external_id)}">Треки</button><div></div>` : ''}</div></div>`;
     }).join('');
 }
