@@ -26,7 +26,7 @@ a{color:var(--ac)}
 </div>
 <div id="out"></div>
 <p class="fine">Фильмы, сериалы и аниме: This product uses the TMDB API but is not endorsed or certified by TMDB.<br>
-Книги: данные и обложки <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>. Музыка: данные <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, обложки Cover Art Archive. Игры: <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a>.</p>
+Книги: данные и обложки <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>. Музыка: данные <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, обложки Cover Art Archive, а также <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>. Игры: <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a>.</p>
 </div>
 <script src="/config.js"></script>
 <script>
@@ -46,6 +46,8 @@ function thumb(u) {
   if (st) return `/img/steam/${st[1]}.jpg`;
   const g = u.match(/media\.rawg\.io\/media\/(?:crop\/\d+\/\d+\/)?((?:games|screenshots)\/[0-9a-f]{2,3}\/[0-9a-f]{32}\.jpg)/);
   if (g) return `/img/rawg/420/${g[1]}`;
+  const dz = u.match(/cdn-images\.dzcdn\.net\/images\/cover\/([0-9a-f]{32})\//);
+  if (dz) return `/img/dz/${dz[1]}/250.jpg`;
   const c = u.match(/coverartarchive\.org\/release-group\/([0-9a-f-]{36})\//);
   if (c) return `/img/caa/${c[1]}/250.jpg`;
   return null;
@@ -65,7 +67,7 @@ $('out').addEventListener('click', async e => {
   if (box.dataset.done) { box.hidden = !box.hidden; return; }
   b.textContent = 'Загружаю…';
   try {
-    const r = await fetch(`${SUPABASE_URL}/functions/v1/search?album=${encodeURIComponent(b.dataset.id)}`,
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/search?${/^\d+$/.test(b.dataset.id) ? 'dz' : 'album'}=${encodeURIComponent(b.dataset.id)}`,
       {headers: {apikey: PUBLISHABLE_KEY, Authorization: 'Bearer ' + PUBLISHABLE_KEY}});
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || r.status);
