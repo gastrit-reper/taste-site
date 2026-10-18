@@ -1,6 +1,7 @@
 // Отдаёт статический сайт (папка public) и проксирует картинки:
 //   /img/<размер>/<файл>.jpg      - TMDB (фильмы, сериалы, аниме)
 //   /img/ol/<S|M|L>/<id>.jpg      - Open Library (обложки книг)
+//   /img/dz/<md5>/<250|500|1000>.jpg - Deezer (обложки альбомов)
 //   /img/caa/<mbid>/<250|500|1200>.jpg - Cover Art Archive (обложки альбомов)
 //   /img/steam/<appid>.jpg        - вертикальная обложка игры из Steam (600x900)
 //   /img/steam/hero/<appid>.jpg   - широкий баннер игры из Steam
@@ -10,6 +11,7 @@ const OL_IMG = /^\/img\/ol\/(S|M|L)\/(\d{1,12})\.jpg$/;
 const RAWG_IMG = /^\/img\/rawg\/(420|640|1280)\/((?:games|screenshots)\/[0-9a-f]{2,3}\/[0-9a-f]{32}\.jpg)$/;
 const STEAM_HERO = /^\/img\/steam\/hero\/(\d{1,9})\.jpg$/;
 const STEAM_IMG = /^\/img\/steam\/(\d{1,9})\.jpg$/;
+const DZ_IMG = /^\/img\/dz\/([0-9a-f]{32})\/(250|500|1000)\.jpg$/;
 const CAA_IMG = /^\/img\/caa\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(250|500|1200)\.jpg$/;
 
 export default {
@@ -27,6 +29,7 @@ export default {
       upstream = `https://media.rawg.io/media/resize/${m[1]}/-/${m[2]}`;
       fallback = `https://media.rawg.io/media/${m[2]}`;
     }
+    if (!upstream && (m = path.match(DZ_IMG))) upstream = `https://cdn-images.dzcdn.net/images/cover/${m[1]}/${m[2]}x${m[2]}-000000-80-0-0.jpg`;
     if (!upstream && (m = path.match(CAA_IMG))) upstream = `https://coverartarchive.org/release-group/${m[1]}/front-${m[2]}`;
 
     if (!upstream) return env.ASSETS.fetch(request);       // всё остальное - обычные файлы сайта
