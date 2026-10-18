@@ -853,7 +853,7 @@ const LIVE_BACK={game:'games',series:'series',movie:'movies',anime:'anime',music
 const LIVE_SRC={tmdb:'TMDB',openlibrary:'Open Library',musicbrainz:'MusicBrainz',rawg:'RAWG'};
 const LIVE_LS='live_catalog_v1';
 const LIVE_ARR=[], LIVE_Q={}, LIVE_ST={}, LIVE_RAW={}, ENR={};
-const ENR_LS='live_enrich_v4';
+const ENR_LS='live_enrich_v5';
 let liveCtrl=null, liveTimer=null;
 function imgUrls(u){   // все картинки идут через наш сайт (/img/...), чтобы не зависеть от блокировок
   if(!u)return null;let m;
@@ -912,7 +912,7 @@ function attachLive(key,r){   // демо-записи прототипа пол
   ex.banner=r.banner_url||'';ex.steam=(r.extra&&r.extra.steam_id)||0;
   const im=imgUrls(r.cover_url);if(im){const al=r.extra&&r.extra.alt_image?imgUrls(r.extra.alt_image):null;if(al){im.altA=al.a;im.altB=al.b}IMGK[key]=im}
 }
-try{const sv=JSON.parse(localStorage.getItem(ENR_LS)||'{}');Object.keys(sv).forEach(k=>{if(!CAT_IDX[k]||!sv[k])return;if(sv[k].none){if(Date.now()-sv[k].none<864e5){ENR[k]=sv[k];CAT_IDX[k]._en='none'}}else{ENR[k]=sv[k];attachLive(k,sv[k])}})}catch(e){}
+try{const sv=JSON.parse(localStorage.getItem(ENR_LS)||'{}');Object.keys(sv).forEach(k=>{if(!CAT_IDX[k]||!sv[k])return;if(sv[k].none){if(Date.now()-sv[k].none<18e5){ENR[k]=sv[k];CAT_IDX[k]._en='none'}}else{ENR[k]=sv[k];attachLive(k,sv[k])}})}catch(e){}
 const normT=x=>String(x||'').toLowerCase().replace(/ё/g,'е').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
 const saveEnr=()=>{try{localStorage.setItem(ENR_LS,JSON.stringify(ENR))}catch(e){}};
 function paintCover(key){   // добавить картинку в уже нарисованные обложки, без перерисовки страницы
