@@ -1,4 +1,31 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}
+/* поиск в любимом */
+.cmb{position:relative}.cmb .fld{padding-right:32px}
+.cmb-x{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--muted);font-size:20px;line-height:1;padding:2px 6px;border-radius:8px}
+.cmb-list{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:30;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px;box-shadow:0 10px 30px rgb(0 0 0 / .35);max-height:260px}
+/* общий поиск */
+.gs{position:relative;margin:0 0 12px}
+.gs-box{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:0 12px}
+.gs-box:focus-within{border-color:var(--accent)}
+.gs-box svg{width:18px;height:18px;flex:none;stroke:var(--muted);fill:none;stroke-width:2;stroke-linecap:round}
+.gs-box input{flex:1;min-width:0;border:0;background:none;color:var(--fg);font:inherit;padding:11px 0;outline:0}
+.gs-box kbd{font:12px var(--font-body);color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+.gs-pop{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:40;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px;box-shadow:0 14px 40px rgb(0 0 0 / .4);max-height:min(70vh,560px);overflow:auto}
+.gs-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.gs-chip{border:1px solid var(--line);background:var(--surface2);color:var(--muted);border-radius:999px;padding:4px 11px;font-size:13px}
+.gs-chip[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.gs-chip[disabled]{opacity:.45}
+.gs-grp{margin:10px 0 6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.gs-list{display:flex;flex-direction:column;gap:4px}
+.gs-it{display:flex;align-items:center;gap:10px;text-align:left;width:100%;border:1px solid transparent;background:var(--surface2);border-radius:10px;padding:6px 10px}
+.gs-it:hover,.gs-it.act{border-color:var(--accent)}
+.gs-it .cover{flex:none;width:34px;height:48px;border-radius:6px}
+.gs-ava{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:600}
+.gs-it b{font-weight:500}.gs-it .sub{display:block;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gs-hint{font-size:12px;color:var(--muted);margin-top:8px}
+.post p.clamp{display:-webkit-box;-webkit-line-clamp:8;-webkit-box-orient:vertical;overflow:hidden}
+.more-post{border:0;background:none;color:var(--accent);padding:6px 0 0;font:inherit;font-size:13px}
+</style></head><body>
 <title>Профиль оценок</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&family=Unbounded:wght@500;600&display=swap">
@@ -513,6 +540,11 @@ textarea.fld{min-height:96px;resize:vertical}
     </span><span class="gearwrap"><button type="button" class="ic gear" id="gear" aria-label="Настройки" aria-expanded="false" aria-controls="pop"><svg class="i" aria-hidden="true"><use href="#cog"/></svg></button><div class="pop" id="pop" hidden></div></span></span>
   </div>
 
+  <div class="gs" id="gs">
+    <div class="gs-box"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="gs-q" type="search" autocomplete="off" placeholder="Поиск: игры, фильмы, люди, сборники, посты" aria-label="Поиск по сайту"><kbd aria-hidden="true">/</kbd></div>
+    <div class="gs-pop" id="gs-pop" hidden></div>
+  </div>
+
   <div id="profile">
   <div class="banner" id="banner"><span id="bn-lbl">баннер профиля</span></div>
   <header class="head" id="head"></header>
@@ -821,7 +853,7 @@ const LIVE_BACK={game:'games',series:'series',movie:'movies',anime:'anime',music
 const LIVE_SRC={tmdb:'TMDB',openlibrary:'Open Library',musicbrainz:'MusicBrainz',rawg:'RAWG'};
 const LIVE_LS='live_catalog_v1';
 const LIVE_ARR=[], LIVE_Q={}, LIVE_ST={}, LIVE_RAW={}, ENR={};
-const ENR_LS='live_enrich_v3';
+const ENR_LS='live_enrich_v4';
 let liveCtrl=null, liveTimer=null;
 function imgUrls(u){   // все картинки идут через наш сайт (/img/...), чтобы не зависеть от блокировок
   if(!u)return null;let m;
@@ -894,7 +926,7 @@ function pickMatch(c,res){   // из результатов выбираем т�
   res=(res||[]).filter(x=>LIVE_BACK[x.category]===c.k);
   const t=normT(c.t),yr=Number(c.y)||0;
   const same=res.filter(x=>[x.title,x.original_title,...(x.alt_titles||[])].map(normT).includes(t));
-  return same.find(x=>yr&&x.year===yr)||same[0]||(yr&&res[0]&&res[0].year===yr?res[0]:null);
+  return same.find(x=>yr&&x.year===yr)||same[0]||(yr?res.slice(0,5).find(x=>x.year===yr)||null:null);
 }
 function applyEnr(key,m){const c=CAT_IDX[key];c._en=m?'ok':'none';ENR[key]=m?{...m,description:(m.description||'').slice(0,300)}:{none:Date.now()};if(m){attachLive(key,m);paintCover(key)}}
 async function enrichDemo(key,again){   // одиночный поиск во внешних базах (для записей, которых ещё нет в нашей базе)
@@ -902,9 +934,15 @@ async function enrichDemo(key,again){   // одиночный поиск во в
   if(!c||c.ext||c._en||!LIVE_CAT[c.k]||!liveOn(c.k)||(c._enT&&Date.now()-c._enT<60000))return;
   c._en='loading';c._enT=Date.now();
   try{
-    const r=await fetch(`${APPC.SUPABASE_URL}/functions/v1/search?q=${encodeURIComponent(c.t)}&cat=${LIVE_CAT[c.k]}`,{headers:liveHeaders()});
-    const j=await r.json();if(!r.ok)throw 0;
-    applyEnr(key,pickMatch(c,j.results));saveEnr();
+    // сначала полное название, потом часть до «:» или « - » ("Ковбой Бибоп: фильм" -> "Ковбой Бибоп"); совпадение проверяем по году
+    const tries=[c.t],head=c.t.split(/\s*[:–—]\s*|\s+-\s+/)[0].trim();if(head&&head!==c.t&&head.length>=2)tries.push(head);
+    let m=null;
+    for(const q of tries){
+      const r=await fetch(`${APPC.SUPABASE_URL}/functions/v1/search?q=${encodeURIComponent(q)}&cat=${LIVE_CAT[c.k]}`,{headers:liveHeaders()});
+      const j=await r.json();if(!r.ok)throw 0;
+      m=pickMatch(c,j.results);if(m)break;
+    }
+    applyEnr(key,m);saveEnr();
   }catch(e){c._en=''}   // не вышло: повторим не раньше чем через минуту
   if(again)again();
 }
@@ -1098,11 +1136,13 @@ function ratingRow(r,showCat){
     : `<p class="review">${renderText(r.rv)}</p>`;
   return `<article class="row" ${r.k==='music'?'data-al':'data-key'}="${esc(key)}">${cover(r.t,'',r.k)}<div style="min-width:0"><h4><a href="#" class="tl" ${r.k==='music'?'data-al':'data-title'}="${esc(key)}">${esc(r.t)}</a>${x.liked?` <span class="heart" title="Нравится">${ico('heart')}</span>`:''}</h4><div class="meta">${bits.join('')}</div>${rv}</div><div class="score ${scoreCls(r.s)}" title="${r.s?'Оценка '+r.s+' из 10':'Без оценки'}">${r.s||'—'}</div></article>`;
 }
+const POST_MAX=5000;   // длина поста
 function postCard(p){
-  return `<article class="post"><div class="tag">${ico('posts')}Пост · ${ago(p.d)}</div><p>${renderText(p.t)}</p></article>`;
+  const long=p.t.length>700;   // длинные посты свёрнуты, разворачиваются кнопкой
+  return `<article class="post"><div class="tag">${ico('posts')}Пост · ${ago(p.d)}</div><p${long?' class="clamp"':''}>${renderText(p.t)}</p>${long?'<button type="button" class="more-post" data-morepost>Показать полностью</button>':''}</article>`;
 }
 function compose(){
-  return S.me?`<div class="addbar">${addBtn(ORDER.includes(S.view)?S.view:'')}</div><form class="post compose" id="cf"><span class="sub" id="ct-l">Новый пост</span><div id="ct" class="ced" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="ct-l" data-ph="О чём думаете?"></div><div class="sugg" id="sg"></div><div class="r"><span class="hint">{{ — сослаться на игру, фильм, книгу. @ — отметить человека.</span><span id="cc">0 / 500</span><button class="btn primary" type="submit">Опубликовать</button></div></form>`:'';
+  return S.me?`<div class="addbar">${addBtn(ORDER.includes(S.view)?S.view:'')}</div><form class="post compose" id="cf"><span class="sub" id="ct-l">Новый пост</span><div id="ct" class="ced" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="ct-l" data-ph="О чём думаете?"></div><div class="sugg" id="sg"></div><div class="r"><span class="hint">{{ — сослаться на игру, фильм, книгу. @ — отметить человека.</span><span id="cc">0 / 5000</span><button class="btn primary" type="submit">Опубликовать</button></div></form>`:'';
 }
 
 /* редактор поста: подсказки превращаются в подсвеченные метки без скобок */
@@ -1133,7 +1173,7 @@ function bindCompose(){
   const gameChip=c=>{const e=document.createElement('span');e.className='cm game';e.contentEditable='false';e.dataset.tok='{{'+c.t+'}}';e.innerHTML=ico(c.k)+esc(c.t);return e};
   const userChip=n=>{const e=document.createElement('span');e.className='cm user';e.contentEditable='false';e.dataset.tok='@'+n;e.textContent='@'+n;return e};
   const update=()=>{
-    const len=serialize(ed).length;cc.textContent=len+' / 500';cc.style.color=len>500?'var(--bad)':'';
+    const len=serialize(ed).length;cc.textContent=len+' / '+POST_MAX;cc.style.color=len>POST_MAX?'var(--bad)':'';
   };
   const suggest=()=>{
     const c=ctx();
@@ -1174,7 +1214,7 @@ function bindCompose(){
   cf.onsubmit=e=>{
     e.preventDefault();
     const v=serialize(ed).trim();
-    if(!v||v.length>500)return;
+    if(!v||v.length>POST_MAX)return;
     S.posts.unshift({t:v,d:0});render();
   };
 }
@@ -1736,7 +1776,7 @@ function drawProf(focus){
       <div><label for="p-nick">Ник</label><input id="p-nick" class="fld" maxlength="24" autocomplete="off" value="${esc(PD.nick)}"><div class="hint">Буквы, цифры и _, от 2 до 24 символов. В настоящем сайте ник проверяется на занятость.</div></div>
       <div><label for="p-about">О себе</label><textarea id="p-about" class="fld" maxlength="300">${esc(PD.about)}</textarea></div>
       <div><span class="lb">Ссылки · ${PD.links.length} из ${MAXL}</span><div class="dr" style="gap:6px">${PD.links.map((h,i)=>`<div class="lrow"><span class="lic">${ico(ICON_LINK(h))}</span><input class="fld" data-l="${i}" value="${esc(h)}" placeholder="https://" aria-label="Ссылка ${i+1}"><button type="button" class="ic" data-lrm="${i}" aria-label="Убрать ссылку">${ico('close')}</button></div>`).join('')}${PD.links.length<MAXL?'<button type="button" class="btn" id="p-addl" style="align-self:flex-start">'+ico('plus')+'Добавить ссылку</button>':''}</div></div>
-      <div><span class="lb">Любимое</span><div class="dr" style="gap:6px">${ORDER.map(k=>`<label class="frow"><span>${CATS[k].name}</span><select class="fld" data-f="${k}">${k==='music'?songOpts(PD.fav.music):titleOpts(k,PD.fav[k])}</select></label>`).join('')}</div><div class="hint">Что показывать, а что скрыть, можно выбрать кнопкой «Настроить» над любимым.</div></div>
+      <div><span class="lb">Любимое</span><div class="dr" style="gap:6px">${ORDER.map(k=>`<label class="frow"><span>${CATS[k].name}</span><div class="cmb" data-cmb="${k}"><input class="fld" type="text" autocomplete="off" placeholder="Начните вводить название" aria-label="${CATS[k].name}" value="${esc(favLabel(k,PD.fav[k]))}"><button type="button" class="cmb-x" aria-label="Очистить" ${PD.fav[k]?'':'hidden'}>×</button><div class="res cmb-list" hidden></div></div></label>`).join('')}</div><div class="hint">Что показывать, а что скрыть, можно выбрать кнопкой «Настроить» над любимым.</div></div>
       <div><label for="p-song">Музыка в профиле</label><select id="p-song" class="fld">${songOpts(PD.song)}</select></div>
       <div class="err" id="p-err" role="alert"></div>
     </div>
@@ -1751,7 +1791,7 @@ function drawProf(focus){
   $('p-song').onchange=e=>PD.song=e.target.value;
   ov.querySelectorAll('[data-l]').forEach(i=>i.oninput=()=>{PD.links[+i.dataset.l]=i.value});
   ov.querySelectorAll('[data-lrm]').forEach(b=>b.onclick=()=>{PD.links.splice(+b.dataset.lrm,1);drawProf()});
-  ov.querySelectorAll('[data-f]').forEach(s=>s.onchange=()=>{PD.fav[s.dataset.f]=s.value});
+  ov.querySelectorAll('[data-cmb]').forEach(mountCmb);
   const al=$('p-addl');if(al)al.onclick=()=>{PD.links.push('');drawProf('l'+(PD.links.length-1))};
   ov.firstElementChild.onsubmit=e=>{
     e.preventDefault();
@@ -1851,6 +1891,120 @@ bannerEl.insertAdjacentHTML('afterbegin','<div class="cropbox" id="bn-box"></div
 bannerEl.insertAdjacentHTML('beforeend',`<button type="button" class="bn-edit" id="bn-edit" data-img="banner" hidden>${ico('camera')}Сменить баннер</button>`);
 new ResizeObserver(()=>applyBanner()).observe(bannerEl);
 render();
+
+/* ===== поиск в «Любимом» (вместо длинных списков) ===== */
+function favLabel(k,v){if(!v)return '';if(k==='music'){const t=trk(v);return t?t.name:''}return v}
+function mountCmb(box){
+  const k=box.dataset.cmb,inp=box.querySelector('input'),list=box.querySelector('.cmb-list'),x=box.querySelector('.cmb-x');
+  const items=q=>{
+    q=q.trim().toLowerCase();const out=[];
+    if(k==='music'){
+      CATALOG.music.forEach(a=>a[6].forEach((n,i)=>{if(!q||n.toLowerCase().includes(q)||a[1].toLowerCase().includes(q)||a[0].toLowerCase().includes(q))out.push({v:tkey(a[0],i),l:n,sub:a[1]+' — '+a[0]})}));
+      return out.slice(0,10);
+    }
+    CATALOG[k].forEach(a=>{if(!q||a[0].toLowerCase().includes(q)||String(a[1]||'').toLowerCase().includes(q))out.push({v:a[0],l:a[0],sub:(a[1]||'')+(a[2]?' · '+a[2]:'')})});
+    liveKeys(q,k).map(key=>CAT_IDX[key]).filter(c=>c&&c.k===k&&!out.some(o=>o.v===c.t)).forEach(c=>out.push({v:c.t,l:c.t,sub:(c.by||'')+(c.y?' · '+c.y:''),live:1}));
+    return out.slice(0,10);
+  };
+  const draw=()=>{
+    const q=inp.value;const st=k!=='music'&&q.trim().length>=2?liveState(q,k):'off';
+    const it=items(q);
+    list.innerHTML=it.map((o,i)=>`<button type="button" class="opt" data-i="${i}"><span><b>${esc(o.l)}</b><span class="sub">${esc(o.sub)}</span></span></button>`).join('')
+      +(st==='loading'?'<div class="sub">Ищу в базе…</div>':st==='error'?'<div class="sub">Не удалось связаться с базой.</div>':!it.length?'<div class="sub">Ничего не найдено.</div>':'');
+    list.hidden=false;
+    list.onmousedown=e=>{
+      const b=e.target.closest('[data-i]');if(!b)return;e.preventDefault();
+      const o=it[+b.dataset.i];PD.fav[k]=o.v;inp.value=o.l;x.hidden=false;list.hidden=true;
+    };
+  };
+  const search=()=>{draw();if(k!=='music'&&inp.value.trim().length>=2)liveSearch(inp.value,k,()=>{if(document.activeElement===inp)draw()})};
+  inp.addEventListener('focus',()=>{inp.select();search()});
+  inp.addEventListener('input',search);
+  inp.addEventListener('blur',()=>{list.hidden=true;inp.value=favLabel(k,PD.fav[k])});   // не выбрали - возвращаем прежнее
+  inp.addEventListener('keydown',e=>{if(e.key==='Escape'){list.hidden=true;e.stopPropagation()}if(e.key==='Enter'){e.preventDefault();const f=list.querySelector('[data-i]');if(f)f.dispatchEvent(new MouseEvent('mousedown',{bubbles:true}))}});
+  x.onclick=()=>{PD.fav[k]='';inp.value='';x.hidden=true;inp.focus()};
+}
+
+/* ===== общий поиск сверху: люди, тайтлы, сборники, посты. Новый раздел (например, обсуждения) = одна запись в GS_SRC ===== */
+const GS={scope:'all',cat:'all',q:'',act:0};
+const plain=t=>String(t).replace(/\{\{(.+?)\}\}/g,'$1');
+const nrm2=x=>String(x||'').toLowerCase().replace(/ё/g,'е');
+const GS_SRC=[
+  {id:'people',label:'Люди',max:4,find:q=>{
+    const names=[...new Set([P.nick,...FRIENDS.map(f=>f[0])])];
+    return names.filter(n=>nrm2(n).includes(q)).map(n=>({id:'u:'+n,ava:n,t:n,sub:n===P.nick?'Это вы':'Друг',go:()=>{n===P.nick?setProfile(true):toast('Страницы других людей появятся вместе с аккаунтами')}}));
+  }},
+  {id:'titles',label:'Тайтлы',max:8,find:q=>{
+    const ck=GS.cat;
+    const loc=Object.entries(CAT_IDX).filter(([key,c])=>(ck==='all'||c.k===ck)&&(nrm2(c.t).includes(q)||nrm2(c.by).includes(q))).map(([key])=>key);
+    const lv=liveKeys(GS.q,ck).filter(key=>CAT_IDX[key]);
+    return [...new Set([...lv,...loc])].map(key=>{const c=CAT_IDX[key];return {id:'t:'+key,cover:c,t:c.t,sub:CATS[c.k].one+' · '+(c.by||'')+(c.y?' · '+c.y:''),go:()=>openTitle(key)}});
+  }},
+  {id:'colls',label:'Сборники',max:4,find:q=>COLL.filter(c=>nrm2(c.name).includes(q)||nrm2(c.desc).includes(q)).map(c=>({id:'c:'+c.id,t:c.name,sub:'Сборник · '+c.items.length+' поз. · '+(c.owner==='me'?'ваш':c.owner),go:()=>{S.coll=c.id;S.page=null;S.cf='all';render();window.scrollTo(0,0)}}))},
+  {id:'posts',label:'Посты',max:4,find:q=>S.posts.filter(p=>nrm2(plain(p.t)).includes(q)).map((p,i)=>({id:'p:'+i,t:plain(p.t).slice(0,90)+(p.t.length>90?'…':''),sub:'Пост · '+ago(p.d),go:()=>{setProfile(true);S.view='posts';render();window.scrollTo(0,0)}}))}
+  // сюда позже: {id:'threads',label:'Обсуждения',...}
+];
+const gsPop=()=>document.getElementById('gs-pop'),gsIn=()=>document.getElementById('gs-q');
+let gsItems=[];
+function gsDraw(){
+  const pop=gsPop();if(!pop)return;
+  let q=GS.q.trim(),scope=GS.scope;
+  if(q[0]==='@'){scope='people';q=q.slice(1).trim()}   // быстрый путь: @имя - только люди
+  const nq2=nrm2(q);
+  const chips=[['all','Всё'],...GS_SRC.map(s=>[s.id,s.label])];
+  let h=`<div class="gs-chips" role="group" aria-label="Где искать">${chips.map(([id,l])=>`<button type="button" class="gs-chip" data-gsc="${id}" aria-pressed="${scope===id}">${l}</button>`).join('')}<button type="button" class="gs-chip" disabled title="Скоро">Обсуждения · скоро</button></div>`;
+  if(scope==='titles')h+=`<div class="gs-chips" role="group" aria-label="Категория">${[['all','Все'],...ORDER.map(k=>[k,CATS[k].name])].map(([id,l])=>`<button type="button" class="gs-chip" data-gsk="${id}" aria-pressed="${GS.cat===id}">${l}</button>`).join('')}</div>`;
+  gsItems=[];
+  if(!nq2){
+    h+='<div class="gs-hint">Начните вводить: название, имя человека, сборник или слово из поста. «@» перед именем ищет только людей.</div>';
+  }else{
+    const srcs=scope==='all'?GS_SRC:GS_SRC.filter(s=>s.id===scope);
+    let any=false;
+    srcs.forEach(s=>{
+      const res=s.find(nq2).slice(0,scope==='all'?s.max:20);
+      if(!res.length)return;any=true;
+      h+=`<div class="gs-grp">${s.label}</div><div class="gs-list">`+res.map(r=>{const i=gsItems.push(r)-1;
+        const lead=r.cover?cover(r.cover.t,'',r.cover.k):r.ava?`<span class="gs-ava" style="background:hsl(${hue(r.ava)} 45% 42%)">${esc(r.ava[0].toUpperCase())}</span>`:'';
+        return `<button type="button" class="gs-it${i===GS.act?' act':''}" data-gsi="${i}">${lead}<span style="min-width:0"><b>${esc(r.t)}</b><span class="sub">${esc(r.sub)}</span></span></button>`}).join('')+'</div>';
+    });
+    const useLive=(scope==='all'||scope==='titles')&&nq2.length>=2&&liveOn(GS.cat==='all'?'games':GS.cat);
+    const ls=useLive?liveState(GS.q.trim(),GS.cat):'off';
+    if(ls==='loading')h+='<div class="gs-hint">Ищу в базах…</div>';
+    else if(ls==='error')h+='<div class="gs-hint">Не удалось связаться с базой, показаны найденные у нас.</div>';
+    else if(!any)h+='<div class="gs-hint">Ничего не найдено. Проверьте написание или выберите другой раздел.</div>';
+  }
+  pop.innerHTML=h;pop.hidden=false;
+}
+function gsRun(){
+  gsDraw();
+  let q=GS.q.trim();if(q[0]==='@')return;
+  const scope=GS.scope;
+  if((scope==='all'||scope==='titles')&&q.length>=2)liveSearch(q,GS.cat,()=>{if(document.activeElement===gsIn()||!gsPop().hidden)gsDraw()});
+}
+function gsOpen(i){const r=gsItems[i];if(!r)return;gsClose();gsIn().value='';GS.q='';r.go()}
+function gsClose(){const p=gsPop();if(p)p.hidden=true}
+(function(){
+  const inp=gsIn(),pop=gsPop(),root=document.getElementById('gs');
+  inp.addEventListener('focus',gsRun);
+  inp.addEventListener('input',()=>{GS.q=inp.value;GS.act=0;gsRun()});
+  inp.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){gsClose();inp.blur()}
+    else if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();if(!gsItems.length)return;GS.act=(GS.act+(e.key==='ArrowDown'?1:-1)+gsItems.length)%gsItems.length;gsDraw();const a=pop.querySelector('.act');if(a)a.scrollIntoView({block:'nearest'})}
+    else if(e.key==='Enter'){e.preventDefault();gsOpen(GS.act)}
+  });
+  pop.addEventListener('mousedown',e=>e.preventDefault());   // клик по подсказке не убирает фокус
+  pop.addEventListener('click',e=>{
+    let b;
+    if(b=e.target.closest('[data-gsc]')){GS.scope=b.dataset.gsc;GS.act=0;inp.focus();gsRun();return}
+    if(b=e.target.closest('[data-gsk]')){GS.cat=b.dataset.gsk;GS.act=0;inp.focus();gsRun();return}
+    if(b=e.target.closest('[data-gsi]'))gsOpen(+b.dataset.gsi);
+  });
+  document.addEventListener('mousedown',e=>{if(!root.contains(e.target))gsClose()});
+  document.addEventListener('keydown',e=>{
+    if(e.key==='/'&&!e.ctrlKey&&!e.metaKey&&!e.altKey){const t=e.target;if(t.closest&&t.closest('input,textarea,select,[contenteditable="true"]'))return;e.preventDefault();inp.focus()}
+  });
+})();
+document.addEventListener('click',e=>{const b=e.target.closest('[data-morepost]');if(!b)return;const p=b.previousElementSibling;p.classList.toggle('clamp');b.textContent=p.classList.contains('clamp')?'Показать полностью':'Свернуть'});
 </script>
 
 </body></html>
