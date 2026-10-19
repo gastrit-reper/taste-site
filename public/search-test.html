@@ -121,4 +121,5 @@ async function run() {
 const deb = () => { clearTimeout(timer); timer = setTimeout(run, 250); };   // debounce 250 мс
 $('q').addEventListener('input', deb);
 $('cat').addEventListener('change', run);
+{const p = new URLSearchParams(location.search); if (p.get('q')) { $('q').value = p.get('q'); if ([...$('cat').options].some(o => o.value === p.get('cat'))) $('cat').value = p.get('cat'); run(); }}
 </script></body></html>
