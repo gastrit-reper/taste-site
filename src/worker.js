@@ -31,7 +31,12 @@ export default {
       upstream = `https://media.rawg.io/media/resize/${m[1]}/-/${m[2]}`;
       fallback = `https://media.rawg.io/media/${m[2]}`;
     }
-    if (!upstream && (m = path.match(SS_IMG))) upstream = `https://cdn.cloudflare.steamstatic.com/steam/apps/${m[1]}/${m[2]}.jpg`;
+    let fallback2 = null;
+    if (!upstream && (m = path.match(SS_IMG))) {   // у новых игр скриншоты лежат в store_item_assets, у старых - в steam/apps
+      upstream = `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${m[1]}/${m[2]}.jpg`;
+      fallback = `https://cdn.cloudflare.steamstatic.com/steam/apps/${m[1]}/${m[2]}.jpg`;
+      fallback2 = `https://cdn.akamai.steamstatic.com/steam/apps/${m[1]}/${m[2]}.jpg`;
+    }
     if (!upstream && (m = path.match(DZ_IMG))) upstream = `https://cdn-images.dzcdn.net/images/cover/${m[1]}/${m[2]}x${m[2]}-000000-80-0-0.jpg`;
     if (!upstream && (m = path.match(CAA_IMG))) upstream = `https://coverartarchive.org/release-group/${m[1]}/front-${m[2]}`;
 
@@ -41,6 +46,7 @@ export default {
     const get = (u) => fetch(u, { cf: { cacheEverything: true, cacheTtl: 2592000 } });
     let up = await get(upstream);
     if (!up.ok && fallback) up = await get(fallback);
+    if (!up.ok && fallback2) up = await get(fallback2);
     if (!up.ok) return new Response('not found', { status: 404 });
     return new Response(up.body, {
       headers: {
