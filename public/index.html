@@ -562,7 +562,7 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10. Музыка пока без звука, это макет плеера.</p>
-  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-18-import1</p>
+  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-19-import2</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
@@ -2013,7 +2013,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-morepost]'
 /* ===== импорт оценок из файлов (сейчас: Letterboxd). Хранится в браузере, пока нет аккаунтов ===== */
 (function(){
 const IMP_LS='imported_v1', SRC_NAME='Letterboxd';
-const imp={files:[],items:[],found:[],state:'idle',done:0,ctrl:null,err:''};
+const imp={files:[],items:[],found:[],state:'idle',done:0,ctrl:null,err:'',skip:new Set()};
 const $=id=>document.getElementById(id);
 
 /* --- чтение: zip без библиотек, CSV --- */
@@ -2026,7 +2026,7 @@ async function readZip(file){
     if(dv.getUint32(p,true)!==0x02014b50)break;
     const method=dv.getUint16(p+10,true),csz=dv.getUint32(p+20,true),nl=dv.getUint16(p+28,true),el=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),lo=dv.getUint32(p+42,true);
     const name=dec.decode(u8.subarray(p+46,p+46+nl));p+=46+nl+el+cl;
-    if(!/\.csv$/i.test(name))continue;
+    if(!/\.(csv|json|xml)$/i.test(name))continue;
     const ln=dv.getUint16(lo+26,true),le=dv.getUint16(lo+28,true),start=lo+30+ln+le,data=u8.subarray(start,start+csz);
     let text;
     if(method===0)text=dec.decode(data);
@@ -2063,6 +2063,72 @@ function fromLetterboxd(csvs){
   return {items:[...M.values()],info:`оценок: ${nr}, хочу посмотреть: ${nw}, отзывов: ${nv}`};
 }
 
+
+/* --- общие помощники для разных сайтов --- */
+const tx=v=>String(v==null?'':v).replace(/<br\s*\/?>/gi,'\n').replace(/<[^>]+>/g,'').trim();
+const sc10=x=>{x=parseFloat(x);return x>0?Math.min(10,Math.max(1,Math.round(x))):0};
+
+/* --- IMDb: ratings.csv / watchlist (Const, Your Rating, Title Type, Year) --- */
+function fromImdb(csvs){
+  const out=[];let nr=0,nw=0;
+  csvs.forEach(c=>parseCsv(c.text).forEach(r=>{
+    const tt=r['Title Type']||'';if(!r.Const||/episode|videoGame|podcast|musicVideo/i.test(tt))return;
+    const title=(r.Title||r['Original Title']||'').trim();if(!title)return;
+    const sc=sc10(r['Your Rating']),rated=('Your Rating' in r)&&sc>0;
+    out.push({title,title2:(r['Original Title']||'').trim()!==title?(r['Original Title']||'').trim():'',year:Number(r.Year)||0,imdb:r.Const.trim(),kind:/series/i.test(tt)?'tv':'movie',score:sc,status:rated?'Просмотрено':'В планах',review:'',days:daysAgo(r['Date Rated']||r.Created)});
+    rated?nr++:nw++;
+  }));
+  return {items:out,info:`IMDb: оценок ${nr}, в планах ${nw}`};
+}
+/* --- Trakt: json (ratings / watchlist / watched), номер TMDB у каждого тайтла --- */
+function fromTrakt(jsons){
+  const M=new Map();let n=0;
+  jsons.forEach(arr=>arr.forEach(e=>{
+    const tv=e.show?'tv':'movie',m=e.show||e.movie;if(!m||!m.title||(e.type&&!/^(movie|show)$/.test(e.type)))return;
+    const id=(m.ids&&m.ids.tmdb)||0,im=(m.ids&&m.ids.imdb)||'',k=tv+'|'+(id||im||m.title+m.year);
+    let o=M.get(k);if(!o){o={title:m.title,year:Number(m.year)||0,tmdb:id,imdb:im,kind:tv,score:0,status:'В планах',review:'',days:0};M.set(k,o);n++}
+    if(e.rating){o.score=sc10(e.rating);o.status='Просмотрено';o.days=o.days||daysAgo(e.rated_at)}
+    else if(e.last_watched_at||e.plays){o.status='Просмотрено';o.days=o.days||daysAgo(e.last_watched_at)}
+    else if(e.listed_at&&o.status!=='Просмотрено'){o.days=o.days||daysAgo(e.listed_at)}
+  }));
+  return {items:[...M.values()],info:`Trakt: ${n} тайтлов`};
+}
+/* --- MyAnimeList (xml) и Shikimori (json или такой же xml) --- */
+const MAL_ST={completed:'Просмотрено',watching:'Смотрю','on-hold':'Отложено',onhold:'Отложено',on_hold:'Отложено',dropped:'Бросил','plan to watch':'В планах',planned:'В планах',rewatching:'Смотрю','1':'Смотрю','2':'Просмотрено','3':'Отложено','4':'Бросил','6':'В планах'};
+function fromMalXml(texts){
+  const out=[];
+  texts.forEach(t=>{
+    const d=new DOMParser().parseFromString(t,'text/xml');
+    d.querySelectorAll('anime').forEach(a=>{
+      const g=n=>{const e=a.getElementsByTagName(n)[0];return e?e.textContent.trim():''};
+      const title=g('series_title');if(!title)return;
+      const ty=g('series_type'),fin=g('my_finish_date');
+      out.push({title,mal:Number(g('series_animedb_id'))||0,kind:'anime',atype:/movie/i.test(ty)?'movie':'tv',score:sc10(g('my_score')),status:MAL_ST[g('my_status').toLowerCase()]||'В планах',review:tx(g('my_comments')).slice(0,1900),days:daysAgo(/^0000/.test(fin)?'':fin)});
+    });
+  });
+  return {items:out,info:`MyAnimeList: ${out.length} аниме`};
+}
+function fromShiki(arrs){
+  const out=[];
+  arrs.forEach(arr=>arr.forEach(e=>{
+    if(!e.target_title||/manga|ranobe/i.test(e.target_type||''))return;
+    const ty=String(e.target_type||'');
+    out.push({title:e.target_title,title2:e.target_title_ru||'',mal:Number(e.target_id)||0,kind:'anime',atype:/movie|фильм/i.test(ty)?'movie':'tv',score:sc10(e.score),status:MAL_ST[String(e.status||'').toLowerCase()]||'В планах',review:tx(e.text).slice(0,1900),days:daysAgo(e.updated_at||e.created_at)});
+  }));
+  return {items:out,info:`Shikimori: ${out.length} аниме`};
+}
+/* --- Goodreads: goodreads_library_export.csv --- */
+function fromGoodreads(csvs){
+  const out=[];
+  csvs.forEach(c=>parseCsv(c.text).forEach(r=>{
+    let title=(r.Title||'').replace(/\s*\([^()]*#\d+[^()]*\)\s*$/,'').trim();if(!title)return;
+    const sh=(r['Exclusive Shelf']||'').toLowerCase(),sc=sc10((Number(r['My Rating'])||0)*2);
+    const status=sh==='currently-reading'?'Читаю':sh==='to-read'?'В планах':/dnf|did-not|abandon|drop/.test(sh)?'Бросил':sh==='read'||sc||r['Date Read']?'Прочитано':'В планах';
+    out.push({title,year:0,kind:'book',author:(r.Author||'').trim(),score:status==='Прочитано'?sc:0,status,review:tx(r['My Review']).slice(0,1900),days:daysAgo((r['Date Read']||r['Date Added']||'').replace(/\//g,'-'))});
+  }));
+  return {items:out,info:`Goodreads: ${out.length} книг`};
+}
+
 /* --- подбор тайтлов через сервер --- */
 async function matchAll(){
   imp.state='matching';imp.done=0;imp.found=new Array(imp.items.length).fill(undefined);imp.ctrl=new AbortController();draw();
@@ -2073,7 +2139,7 @@ async function matchAll(){
       const i=chunks[next++],part=imp.items.slice(i,i+25);
       for(let a=0;a<2;a++){
         try{
-          const r=await fetch(`${APPC.SUPABASE_URL}/functions/v1/search?import=1`,{method:'POST',signal:imp.ctrl.signal,headers:{...liveHeaders(),'Content-Type':'application/json'},body:JSON.stringify({items:part.map(x=>({q:x.title,year:x.year,kind:'movie'}))})});
+          const r=await fetch(`${APPC.SUPABASE_URL}/functions/v1/search?import=1`,{method:'POST',signal:imp.ctrl.signal,headers:{...liveHeaders(),'Content-Type':'application/json'},body:JSON.stringify({items:part.map(x=>({q:x.title,q2:x.title2||'',year:x.year||0,kind:x.kind||'movie',atype:x.atype||'',imdb:x.imdb||'',tmdb:x.tmdb||0,author:x.author||'',mal:x.mal||0}))})});
           const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);
           j.results.forEach((x,n)=>{imp.found[i+n]=x&&x.error?undefined:x});break;
         }catch(e){if(e.name==='AbortError')return;if(a===1)part.forEach((_,n)=>{imp.found[i+n]=undefined});else await new Promise(r=>setTimeout(r,1500))}
@@ -2087,17 +2153,34 @@ async function matchAll(){
 
 /* --- добавление в профиль и хранение --- */
 const slim=r=>({id:r.id,source:r.source,external_id:r.external_id,category:r.category,title:r.title,original_title:r.original_title,alt_titles:(r.alt_titles||[]).slice(0,2),year:r.year,creators:r.creators||[],genres:(r.genres||[]).slice(0,4),description:(r.description||'').slice(0,140),cover_url:r.cover_url,banner_url:r.banner_url,extra:{source_url:r.extra&&r.extra.source_url}});
+const stClass=v=>/^(просмотр|прочит|прошё)/i.test(v)?'done':/^(смотр|читаю|играю)/i.test(v)?'doing':/отлож/i.test(v)?'hold':/бросил/i.test(v)?'drop':'plan';
+function normSt(v,k){
+  const st=(CATS[k]&&CATS[k].st)||[];if(!st.length)return '';
+  const want=stClass(v),cls=st.map(stClass);
+  let i=cls.indexOf(want);if(i<0&&want==='hold')i=cls.indexOf('plan');if(i<0&&want==='doing')i=cls.indexOf('done');
+  return st[i<0?0:i];
+}
 function applyOne(e){   // e: {r, score, status, review, days}
   const key=regLive(e.r,true);if(!key)return false;
   const c=CAT_IDX[key],k=c.k;
   if(DATA[k].some(x=>x[0]===c.t))return false;
-  DATA[k].push([c.t,`${c.by} · ${c.y}`,e.score,e.status,e.review||'',e.days||0]);
+  DATA[k].push([c.t,`${c.by} · ${c.y}`,e.score,normSt(e.status,k),e.review||'',e.days||0]);
   return true;
 }
 function loadSaved(){try{const a=JSON.parse(localStorage.getItem(IMP_LS)||'[]');a.forEach(applyOne)}catch(_){}}
 function commit(){
   const entries=[];
-  imp.items.forEach((it,i)=>{const r=imp.found[i];if(r)entries.push({r:slim(r),score:it.score,status:it.status,review:it.review,days:it.days})});
+  const byId=new Map(),rank={done:4,doing:3,hold:2,drop:1,plan:0};
+  imp.items.forEach((it,i)=>{const r=imp.found[i];if(!r||imp.skip.has(i))return;
+    const id=r.source+':'+r.external_id,o=byId.get(id);
+    if(!o){const e={r:slim(r),sc:it.score?[it.score]:[],score:it.score,status:it.status,review:it.review,days:it.days};byId.set(id,e);entries.push(e);return}
+    // несколько записей указывают на один тайтл (например, сезоны одного аниме): усредняем оценку
+    if(it.score)o.sc.push(it.score);
+    if(rank[stClass(it.status)]>rank[stClass(o.status)])o.status=it.status;
+    if((it.review||'').length>(o.review||'').length)o.review=it.review;
+    if(it.days&&(!o.days||it.days<o.days))o.days=it.days;
+  });
+  entries.forEach(e=>{e.score=e.sc.length?Math.round(e.sc.reduce((a,b)=>a+b,0)/e.sc.length):0;delete e.sc});
   let added=0;entries.forEach(e=>{if(applyOne(e))added++});
   let saved=[];try{saved=JSON.parse(localStorage.getItem(IMP_LS)||'[]')}catch(_){}
   const have=new Set(saved.map(e=>e.r.external_id));entries.forEach(e=>{if(!have.has(e.r.external_id))saved.push(e)});
@@ -2120,23 +2203,31 @@ function draw(soft){
   ov=document.createElement('div');ov.id='imp-ov';ov.className='ov';
   const n=imp.items.length,ok=imp.found.filter(Boolean).length,bad=imp.found.filter(x=>x===undefined).length,miss=imp.found.length?imp.found.filter(x=>x===null).length:0;
   const lost=imp.items.map((x,i)=>imp.found[i]===null||imp.found[i]===undefined?x:null).filter(Boolean);
+  const fz=imp.items.map((x,i)=>imp.found[i]&&imp.found[i]._fuzzy?i:-1).filter(i=>i>=0);
   let body='';
   if(imp.state==='idle'){
-    body=`<p class="hint">Пока поддерживается <b>Letterboxd</b>. На сайте letterboxd.com: Settings → Import &amp; Export → Export your data. Придёт zip-архив: загрузите его сюда целиком, ничего распаковывать не надо.</p>
-    <label class="imp-drop" id="imp-drop"><input type="file" id="imp-file" accept=".zip,.csv" multiple hidden><b>Выберите файл или перетащите сюда</b><span class="hint">zip из Letterboxd или отдельные ratings.csv, watchlist.csv, reviews.csv</span></label>
+    body=`<details class="imp-how" open><summary><b>Откуда взять файл</b></summary><div class="hint">
+    <p><b>Letterboxd</b> — Settings → Import &amp; Export → Export your data → zip целиком.</p>
+    <p><b>IMDb</b> — открыть свой список оценок (Your Ratings) или Watchlist → ⋯ → Export → CSV.</p>
+    <p><b>Trakt</b> — Settings → Data → Export (файлы .json; для некоторых выгрузок нужен VIP).</p>
+    <p><b>MyAnimeList</b> — профиль → Export My List → XML (можно .xml.gz как есть).</p>
+    <p><b>Shikimori</b> — настройки → Экспорт списков → файл с аниме (.json) или экспорт для MAL (.xml).</p>
+    <p><b>Goodreads</b> — My Books → Import and export → Export Library → CSV.</p></div></details>
+    <label class="imp-drop" id="imp-drop"><input type="file" id="imp-file" accept=".zip,.csv,.json,.xml,.gz" multiple hidden><b>Выберите файл или перетащите сюда</b><span class="hint">можно несколько файлов сразу, из разных сайтов</span></label>
     ${imp.err?`<div class="err" role="alert">${esc(imp.err)}</div>`:''}
     <p class="hint">Данные хранятся только в этом браузере, пока на сайте нет аккаунтов.</p>`;
   }else if(imp.state==='matching'){
-    body=`<p>Подбираю фильмы в каталоге…</p><div class="imp-track"><div class="imp-bar" id="imp-bar" style="width:${Math.round(imp.done/n*100)}%"></div></div><p class="hint" id="imp-cnt">${imp.done} из ${n}</p>`;
+    body=`<p>Подбираю тайтлы в каталоге…</p><div class="imp-track"><div class="imp-bar" id="imp-bar" style="width:${Math.round(imp.done/n*100)}%"></div></div><p class="hint" id="imp-cnt">${imp.done} из ${n}</p>`;
   }else if(imp.state==='ready'){
     body=`<p><b>${ok}</b> из ${n} найдено в каталоге.</p><p class="hint">В файле ${esc(imp.info)}.</p>
     ${lost.length?`<details><summary>Не найдено или не проверено: ${lost.length}</summary><div class="imp-lost">${lost.slice(0,300).map(x=>esc(x.title)+(x.year?' ('+x.year+')':'')).join('<br>')}${lost.length>300?'<br>…':''}</div></details>`:''}
+    ${fz.length?`<details><summary>Подобрано неточно: ${fz.length} (уберите галочку у лишнего)</summary><div class="imp-lost">${fz.slice(0,200).map(i=>`<label style="display:block"><input type="checkbox" data-fz="${i}" ${imp.skip.has(i)?'':'checked'}> ${esc(imp.items[i].title)} → <b>${esc(imp.found[i].title)}</b>${imp.found[i].year?' ('+imp.found[i].year+')':''}</label>`).join('')}</div></details>`:''}
     ${bad?`<div class="hint">Не удалось проверить ${bad} — можно повторить позже.</div>`:''}`;
   }else if(imp.state==='done'){
     body=`<p>Добавлено в профиль: <b>${imp.added}</b>${imp.added<ok?` (остальные уже были)`:''}.</p>${imp.err?`<div class="err">${esc(imp.err)}</div>`:''}`;
   }
   const saved=(()=>{try{return JSON.parse(localStorage.getItem(IMP_LS)||'[]').length}catch(_){return 0}})();
-  const foot=imp.state==='ready'?`<button type="button" class="btn" id="imp-c">Отмена</button><button type="button" class="btn primary" id="imp-go" ${ok?'':'disabled'}>Добавить ${ok}</button>`
+  const foot=imp.state==='ready'?`<button type="button" class="btn" id="imp-c">Отмена</button><button type="button" class="btn primary" id="imp-go" ${ok?'':'disabled'}>Добавить ${ok-fz.filter(i=>imp.skip.has(i)).length}</button>`
     :imp.state==='done'?`<button type="button" class="btn primary" id="imp-c">Готово</button>`
     :imp.state==='matching'?`<button type="button" class="btn" id="imp-c">Отмена</button>`
     :`${saved?`<button type="button" class="btn" id="imp-clear" style="margin-right:auto">Удалить импортированное (${saved})</button>`:''}<button type="button" class="btn" id="imp-c">Закрыть</button>`;
@@ -2145,21 +2236,47 @@ function draw(soft){
   ov.onmousedown=e=>{if(e.target===ov&&imp.state!=='matching')close()};
   ['imp-x','imp-c'].forEach(i=>{const b=$(i);if(b)b.onclick=close});
   const go=$('imp-go');if(go)go.onclick=commit;
+  ov.querySelectorAll('[data-fz]').forEach(c=>c.onchange=()=>{const i=Number(c.dataset.fz);c.checked?imp.skip.delete(i):imp.skip.add(i);const g=$('imp-go');if(g){const m=imp.found.filter((x,j)=>x&&!imp.skip.has(j)).length;g.textContent='Добавить '+m;g.disabled=!m}});
   const cl=$('imp-clear');if(cl)cl.onclick=()=>{if(confirm('Удалить все импортированные оценки из профиля?'))clearAll()};
   const fi=$('imp-file');if(fi)fi.onchange=()=>take([...fi.files]);
   const dz=$('imp-drop');if(dz){['dragover','dragenter'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.add('on')}));['dragleave','drop'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.remove('on')}));dz.addEventListener('drop',e=>take([...e.dataTransfer.files]))}
 }
+async function gunzip(f){return await new Response(f.stream().pipeThrough(new DecompressionStream('gzip'))).text()}
 async function take(files){
   imp.err='';
   try{
-    const csvs=[];
-    for(const f of files){if(/\.zip$/i.test(f.name))csvs.push(...await readZip(f));else if(/\.csv$/i.test(f.name))csvs.push({name:f.name.split('/').pop(),text:await f.text()})}
-    if(!csvs.length)throw new Error('В файлах не нашлось CSV.');
-    if(!csvs.some(c=>/Letterboxd URI/.test(c.text.slice(0,400))))throw new Error('Это не похоже на выгрузку Letterboxd (в файлах нет колонки Letterboxd URI).');
-    const r=fromLetterboxd(csvs);
-    if(!r.items.length)throw new Error('В файлах нет оценок или списка «хочу посмотреть».');
+    const docs=[];
+    for(const f of files){
+      let name=f.name.split('/').pop();
+      if(/\.zip$/i.test(name))docs.push(...await readZip(f));
+      else if(/\.gz$/i.test(name))docs.push({name:name.replace(/\.gz$/i,''),text:await gunzip(f)});
+      else if(/\.(csv|json|xml)$/i.test(name))docs.push({name,text:await f.text()});
+    }
+    if(!docs.length)throw new Error('В файлах не нашлось CSV, JSON или XML.');
+    const g={lb:[],imdb:[],gr:[],mal:[],tr:[],sh:[]};
+    docs.forEach(d=>{
+      const head=d.text.slice(0,600).replace(/^﻿/,'');
+      if(/\.json$/i.test(d.name)||/^\s*[\[{]/.test(head)){
+        let j;try{j=JSON.parse(d.text)}catch(_){return}
+        if(!Array.isArray(j))j=Object.values(j).find(Array.isArray)||[];
+        if(j[0]&&('target_title' in j[0]))g.sh.push(j);else if(j[0]&&(j[0].movie||j[0].show))g.tr.push(j);
+      }else if(/^\s*</.test(head)){if(/<anime>|<myanimelist|series_title/i.test(d.text.slice(0,4000)))g.mal.push(d.text)}
+      else if(/Letterboxd URI/.test(head))g.lb.push(d);
+      else if(/\bConst\b/.test(head.split('\n')[0])&&/Title Type|Your Rating|Created/.test(head.split('\n')[0]))g.imdb.push(d);
+      else if(/Book Id/.test(head.split('\n')[0])&&/Exclusive Shelf/.test(head.split('\n')[0]))g.gr.push(d);
+    });
+    const parts=[];
+    if(g.lb.length)parts.push(fromLetterboxd(g.lb));
+    if(g.imdb.length)parts.push(fromImdb(g.imdb));
+    if(g.tr.length)parts.push(fromTrakt(g.tr));
+    if(g.mal.length)parts.push(fromMalXml(g.mal));
+    if(g.sh.length)parts.push(fromShiki(g.sh));
+    if(g.gr.length)parts.push(fromGoodreads(g.gr));
+    if(!parts.length)throw new Error('Не узнал формат. Подходят выгрузки Letterboxd, IMDb, Trakt, MyAnimeList, Shikimori и Goodreads.');
+    const items=parts.flatMap(p=>p.items);
+    if(!items.length)throw new Error('В файлах нет оценок или списков.');
     if(!liveOn('all'))throw new Error('Не настроено подключение к базе (config.js).');
-    imp.items=r.items.slice(0,5000);imp.info=r.info;
+    imp.items=items.slice(0,5000);imp.info=parts.map(p=>p.info).join('; ');imp.skip=new Set();
     matchAll();
   }catch(e){imp.state='idle';imp.err=e.message||String(e);draw()}
 }
