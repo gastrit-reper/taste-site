@@ -48,6 +48,7 @@ h4{margin:0 0 2px;font-size:15px;font-weight:500}.m{color:var(--muted);font-size
 .st{text-align:center;color:var(--muted);padding:28px 0}.warn{color:var(--mid);font-size:13px;margin-bottom:8px}
 .tr{margin:8px 0 0;padding-left:20px;font-size:13px}.tb{border:0;background:none;color:var(--accent);padding:0;font:inherit;font-size:13px;margin-top:4px}
 .fine{margin-top:24px;color:var(--muted);font-size:12px}
+.row[data-tid]{cursor:pointer}.row[data-tid]:hover{border-color:var(--accent)}h4 a.tl{color:inherit;text-decoration:none}
 a{color:var(--accent)}
 </style></head><body><div class="wrap">
   <div class="proto">
@@ -131,7 +132,11 @@ applyTheme(curTheme()); drawChips();
 const DEBUG = location.search.includes('debug');
 let timer, ctrl;
 
+let LAST = [];
+function tid(t) { return t.source + ':' + t.external_id; }
 function render(list, warn) {
+  LAST = list || [];
+  try { localStorage.setItem('search_rows', JSON.stringify(LAST.slice(0, 40).map(t => ({...t, description: (t.description || '').slice(0, 300)})))); } catch (_) {}
   if (!list.length) { $('out').innerHTML = '<div class="st">Ничего не найдено. Проверьте написание или выберите другую категорию.</div>'; return; }
   $('out').innerHTML = (warn ? '<div class="warn">Часть внешних баз сейчас недоступна, показаны найденные результаты.</div>' : '') +
     list.map(t => {
@@ -141,7 +146,7 @@ function render(list, warn) {
         : `<div class="cv ph" style="background:hsl(${hue(t.title)} 45% 42%)">${esc(t.title[0])}</div>`;
       const orig = t.original_title && t.original_title !== t.title ? ` · ${esc(t.original_title)}` : '';
       const who = (t.creators || []).length ? ` · ${esc(t.creators.slice(0, 2).join(', '))}` : '';
-      return `<div class="row">${cv}<div><h4>${esc(t.title)}</h4>
+      return `<div class="row" data-tid="${esc(tid(t))}">${cv}<div><h4><a class="tl" href="/?t=${encodeURIComponent(tid(t))}">${esc(t.title)}</a></h4>
         <div class="m">${KIND[t.category] || t.category}${t.year ? ' · ' + t.year : ''}${who}${orig}</div>
         <div class="m">${esc((t.genres || []).slice(0, 3).join(', '))}</div>
         <div class="d">${esc(t.description)}</div>
@@ -167,6 +172,10 @@ async function run() {
     $('out').innerHTML = `<div class="st">Не получилось найти (${esc(e.message)}). Попробуйте ещё раз.</div>`;
   }
 }
+$('out').addEventListener('click', e => {
+  if (e.target.closest('.tb,.tr,a')) return;
+  const r = e.target.closest('.row[data-tid]'); if (r) location.href = '/?t=' + encodeURIComponent(r.dataset.tid);
+});
 const deb = () => { clearTimeout(timer); timer = setTimeout(run, 250); };   // debounce 250 мс
 $('q').addEventListener('input', deb);
 {const p = new URLSearchParams(location.search); if (p.get('q')) { $('q').value = p.get('q'); if (CATS_OK.includes(p.get('cat'))) CAT = p.get('cat'); run(); }}

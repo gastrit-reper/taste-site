@@ -2286,4 +2286,19 @@ setTimeout(()=>{try{render()}catch(_){}},0);
 const st=document.createElement('style');st.textContent='.imp-drop{display:grid;gap:4px;place-items:center;text-align:center;border:2px dashed var(--line);border-radius:14px;padding:26px 12px;cursor:pointer}.imp-drop.on,.imp-drop:hover{border-color:var(--accent)}.imp-track{height:8px;border-radius:99px;background:var(--surface2);overflow:hidden}.imp-bar{height:100%;background:var(--accent);transition:width .2s}.imp-lost{max-height:200px;overflow:auto;font-size:13px;color:var(--muted);margin-top:6px}';document.head.appendChild(st);
 })();
 </script>
+<script>
+/* открыть страницу тайтла из результатов поиска: /?t=<источник>:<id> */
+(function(){
+  try{
+    const p=new URLSearchParams(location.search),id=p.get('t');if(!id)return;
+    history.replaceState(null,'',location.pathname);
+    const rows=JSON.parse(localStorage.getItem('search_rows')||'[]');
+    const r=rows.find(x=>x.source+':'+x.external_id===id)||LIVE_ARR.find(x=>x.source+':'+x.external_id===id);
+    if(!r)return;
+    const key=regLive(r);if(!key)return;
+    persistLive();
+    S.page=key;render();window.scrollTo(0,0);
+  }catch(e){console.error(e)}
+})();
+</script>
 </body></html>
