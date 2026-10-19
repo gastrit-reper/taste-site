@@ -52,7 +52,6 @@ a{color:var(--accent)}
 </style></head><body><div class="wrap">
   <div class="proto">
     <a href="/">← На сайт</a>
-    <span class="seg" id="themes" role="group" aria-label="Тема"></span>
   </div>
   <div class="gs">
     <div class="gs-box"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="q" type="search" autocomplete="off" placeholder="Поиск: игры, фильмы, сериалы, аниме, музыка, книги" aria-label="Поиск"></div>
@@ -126,19 +125,9 @@ function syncUrl() { try { const u = new URL(location.href); u.searchParams.set(
 $('q').addEventListener('keydown', e => { if (e.key === 'Enter') { clearTimeout(timer); syncUrl(); run(); } });
 $('q').addEventListener('input', syncUrl);
 // тема — та же, что выбрана на сайте
-const THEMES = [['auto','Авто'],['light','Светлая'],['dark','Тёмная'],['crimson','Малиновая']];
 function applyTheme(th) { const r = document.documentElement; if (!th || th === 'auto') r.removeAttribute('data-theme'); else r.setAttribute('data-theme', th); }
 function curTheme() { try { return JSON.parse(localStorage.getItem('prof_settings') || '{}').theme || 'auto'; } catch (_) { return 'auto'; } }
-function drawThemes() {
-  const c = curTheme();
-  $('themes').innerHTML = THEMES.map(([id, l]) => `<button type="button" data-th="${id}" aria-pressed="${c === id}">${l}</button>`).join('');
-}
-$('themes').addEventListener('click', e => {
-  const b = e.target.closest('[data-th]'); if (!b) return;
-  try { const s = JSON.parse(localStorage.getItem('prof_settings') || '{}'); s.theme = b.dataset.th; localStorage.setItem('prof_settings', JSON.stringify(s)); } catch (_) {}
-  applyTheme(b.dataset.th); drawThemes();
-});
-applyTheme(curTheme()); drawThemes(); drawChips();
+applyTheme(curTheme()); drawChips();
 const DEBUG = location.search.includes('debug');
 let timer, ctrl;
 
