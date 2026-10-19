@@ -1,32 +1,68 @@
 <!doctype html>
 <html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Тест поиска</title>
+<title>Поиск</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&family=Unbounded:wght@500;600&display=swap">
 <style>
-:root{--bg:#f2f1f6;--s:#fff;--s2:#ebeaf2;--fg:#1b1a26;--mut:#6b6980;--ac:#4a55d6}
-@media (prefers-color-scheme:dark){:root{--bg:#121119;--s:#1b1a25;--s2:#242332;--fg:#eeedf6;--mut:#9a98b0;--ac:#8b97ff}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,sans-serif;padding:16px}
-.w{max-width:720px;margin:0 auto}
-input,select{font:inherit;color:var(--fg);background:var(--s);border:1px solid var(--s2);border-radius:10px;padding:10px 12px}
-input{flex:1;min-width:0}.bar{display:flex;gap:8px;margin-bottom:12px}
-.row{display:grid;grid-template-columns:56px 1fr;gap:12px;background:var(--s);border-radius:12px;padding:10px;margin-bottom:8px}
+:root{
+  --bg:#f2f1f6; --surface:#ffffff; --surface2:#ebeaf2; --line:#dcdae8;
+  --fg:#1b1a26; --muted:#6b6980; --accent:#4a55d6; --accent-fg:#ffffff; --accent-soft:#e4e6fb;
+  --mid:#b9851a;
+  --font-display:"Unbounded","Onest",system-ui,sans-serif;
+  --font-body:"Onest",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121119; --surface:#1b1a25; --surface2:#242332; --line:#302f42;
+  --fg:#eeedf6; --muted:#9a98b0; --accent:#8b97ff; --accent-fg:#14131f; --accent-soft:#2a2d52; --mid:#e0b04a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121119; --surface:#1b1a25; --surface2:#242332; --line:#302f42;
+  --fg:#eeedf6; --muted:#9a98b0; --accent:#8b97ff; --accent-fg:#14131f; --accent-soft:#2a2d52; --mid:#e0b04a; color-scheme:dark}
+:root[data-theme="crimson"]{
+  --bg:#0a0506; --surface:#150b0d; --surface2:#201013; --line:#3a1b20;
+  --fg:#f5ebeb; --muted:#b58f93; --accent:#e5384a; --accent-fg:#ffffff; --accent-soft:#3b1519; --mid:#e0b04a; color-scheme:dark}
+:root[data-theme="crimson"] body{background:radial-gradient(60% 45% at 85% 0%,rgb(170 22 34 / .38),transparent 70%),radial-gradient(55% 45% at 0% 55%,rgb(110 10 20 / .32),transparent 70%),var(--bg);background-attachment:fixed}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.45;padding-inline:16px;padding-block:0 48px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1160px;margin-inline:auto}
+/* верхняя строка и строка поиска: те же размеры и место, что на главной */
+.proto{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;padding-block:12px;min-height:62px;color:var(--muted);font-size:13px}
+.proto a{color:var(--muted);text-decoration:none}.proto a:hover{color:var(--fg)}
+.seg{display:inline-flex;background:var(--surface2);border-radius:10px;padding:3px}
+.seg button{border:0;background:none;padding:5px 12px;border-radius:8px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgb(0 0 0 / .12)}
+.gs{position:relative;margin:0 0 12px}
+.gs-box{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:0 12px}
+.gs-box:focus-within{border-color:var(--accent)}
+.gs-box svg{width:18px;height:18px;flex:none;stroke:var(--muted);fill:none;stroke-width:2;stroke-linecap:round}
+.gs-box input{flex:1;min-width:0;border:0;background:none;color:var(--fg);font:inherit;padding:11px 0;outline:0}
+.gs-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.gs-chip{border:1px solid var(--line);background:var(--surface2);color:var(--muted);border-radius:999px;padding:4px 11px;font-size:13px}
+.gs-chip[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.res{max-width:760px}
+.row{display:grid;grid-template-columns:56px 1fr;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px;margin-bottom:8px}
 .cv{width:56px;aspect-ratio:2/3;border-radius:8px;object-fit:cover;display:block}
-.ph{display:grid;place-items:center;color:#fff;font-weight:600;font-size:20px}
-h4{margin:0 0 2px;font-size:15px}.m{color:var(--mut);font-size:13px}.d{font-size:13px;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.st{text-align:center;color:var(--mut);padding:28px 0}.warn{color:#b9851a;font-size:13px;margin-bottom:8px}
-.tr{margin:8px 0 0;padding-left:20px;font-size:13px}.tb{border:0;background:none;color:var(--ac);padding:0;font:inherit;font-size:13px;cursor:pointer;margin-top:4px}
-.fine{margin-top:24px;color:var(--mut);font-size:12px;text-align:center}
-a{color:var(--ac)}
-</style></head><body><div class="w">
-<div class="bar">
-  <input id="q" placeholder="Матрица, Берсерк, Мастер и Маргарита, Kid A…" autocomplete="off">
-  <select id="cat">
-    <option value="all">Все</option><option value="movie">Фильмы</option><option value="series">Сериалы</option>
-    <option value="anime">Аниме</option><option value="book">Книги</option><option value="music">Музыка</option><option value="game">Игры</option>
-  </select>
-</div>
-<div id="out"></div>
-<p class="fine">Фильмы, сериалы и аниме: This product uses the TMDB API but is not endorsed or certified by TMDB.<br>
+.ph{display:grid;place-items:center;color:#fff;font-family:var(--font-display);font-size:20px}
+h4{margin:0 0 2px;font-size:15px;font-weight:500}.m{color:var(--muted);font-size:13px}.d{font-size:13px;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.st{text-align:center;color:var(--muted);padding:28px 0}.warn{color:var(--mid);font-size:13px;margin-bottom:8px}
+.tr{margin:8px 0 0;padding-left:20px;font-size:13px}.tb{border:0;background:none;color:var(--accent);padding:0;font:inherit;font-size:13px;margin-top:4px}
+.fine{margin-top:24px;color:var(--muted);font-size:12px}
+a{color:var(--accent)}
+</style></head><body><div class="wrap">
+  <div class="proto">
+    <a href="/">← На сайт</a>
+    <span class="seg" id="themes" role="group" aria-label="Тема"></span>
+  </div>
+  <div class="gs">
+    <div class="gs-box"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="q" type="search" autocomplete="off" placeholder="Поиск: игры, фильмы, сериалы, аниме, музыка, книги" aria-label="Поиск"></div>
+  </div>
+  <div class="gs-chips" id="chips" role="group" aria-label="Категория"></div>
+  <div class="res">
+  <div id="out"></div>
+  <p class="fine">Фильмы, сериалы и аниме: This product uses the TMDB API but is not endorsed or certified by TMDB.<br>
 Книги: данные и обложки <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>. Музыка: данные <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, обложки Cover Art Archive, а также <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>. Игры: <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a>.</p>
+  </div>
 </div>
 <script src="/config.js"></script>
 <script>
@@ -79,11 +115,35 @@ $('out').addEventListener('click', async e => {
   } catch (err) { b.textContent = 'Треки'; box.innerHTML = `<div class="m">Не получилось (${esc(err.message)}).</div>`; }
 });
 
+const CATS_OK = ['all','movie','series','anime','book','music','game'];
+let CAT = 'all';
+function drawChips() {
+  const L = {all:'Все',movie:'Фильмы',series:'Сериалы',anime:'Аниме',game:'Игры',music:'Музыка',book:'Книги'};
+  $('chips').innerHTML = ['all','game','movie','series','anime','music','book'].map(k => `<button type="button" class="gs-chip" data-k="${k}" aria-pressed="${CAT===k}">${L[k]}</button>`).join('');
+}
+$('chips').addEventListener('click', e => { const b = e.target.closest('[data-k]'); if (!b) return; CAT = b.dataset.k; drawChips(); syncUrl(); run(); });
+function syncUrl() { try { const u = new URL(location.href); u.searchParams.set('q', $('q').value.trim()); u.searchParams.set('cat', CAT); history.replaceState(null, '', u); } catch (_) {} }
+$('q').addEventListener('keydown', e => { if (e.key === 'Enter') { clearTimeout(timer); syncUrl(); run(); } });
+$('q').addEventListener('input', syncUrl);
+// тема — та же, что выбрана на сайте
+const THEMES = [['auto','Авто'],['light','Светлая'],['dark','Тёмная'],['crimson','Малиновая']];
+function applyTheme(th) { const r = document.documentElement; if (!th || th === 'auto') r.removeAttribute('data-theme'); else r.setAttribute('data-theme', th); }
+function curTheme() { try { return JSON.parse(localStorage.getItem('prof_settings') || '{}').theme || 'auto'; } catch (_) { return 'auto'; } }
+function drawThemes() {
+  const c = curTheme();
+  $('themes').innerHTML = THEMES.map(([id, l]) => `<button type="button" data-th="${id}" aria-pressed="${c === id}">${l}</button>`).join('');
+}
+$('themes').addEventListener('click', e => {
+  const b = e.target.closest('[data-th]'); if (!b) return;
+  try { const s = JSON.parse(localStorage.getItem('prof_settings') || '{}'); s.theme = b.dataset.th; localStorage.setItem('prof_settings', JSON.stringify(s)); } catch (_) {}
+  applyTheme(b.dataset.th); drawThemes();
+});
+applyTheme(curTheme()); drawThemes(); drawChips();
 const DEBUG = location.search.includes('debug');
 let timer, ctrl;
 
 function render(list, warn) {
-  if (!list.length) { $('out').innerHTML = '<div class="st">Такого нет. Можно предложить добавить.</div>'; return; }
+  if (!list.length) { $('out').innerHTML = '<div class="st">Ничего не найдено. Проверьте написание или выберите другую категорию.</div>'; return; }
   $('out').innerHTML = (warn ? '<div class="warn">Часть внешних баз сейчас недоступна, показаны найденные результаты.</div>' : '') +
     list.map(t => {
       const src = thumb(t.cover_url);
@@ -104,11 +164,11 @@ function render(list, warn) {
 async function run() {
   const q = $('q').value.trim();
   if (ctrl) ctrl.abort();
-  if (q.length < 2) { $('out').innerHTML = ''; return; }
+  if (q.length < 2) { $('out').innerHTML = '<div class="st">Введите хотя бы 2 буквы.</div>'; return; }
   ctrl = new AbortController();
   $('out').innerHTML = '<div class="st">Ищу…</div>';
   try {
-    const r = await fetch(`${SUPABASE_URL}/functions/v1/search?q=${encodeURIComponent(q)}&cat=${$('cat').value}`,
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/search?q=${encodeURIComponent(q)}&cat=${CAT}`,
       {signal: ctrl.signal, headers: {apikey: PUBLISHABLE_KEY, Authorization: 'Bearer ' + PUBLISHABLE_KEY}});
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || r.status);
@@ -120,6 +180,5 @@ async function run() {
 }
 const deb = () => { clearTimeout(timer); timer = setTimeout(run, 250); };   // debounce 250 мс
 $('q').addEventListener('input', deb);
-$('cat').addEventListener('change', run);
-{const p = new URLSearchParams(location.search); if (p.get('q')) { $('q').value = p.get('q'); if ([...$('cat').options].some(o => o.value === p.get('cat'))) $('cat').value = p.get('cat'); run(); }}
+{const p = new URLSearchParams(location.search); if (p.get('q')) { $('q').value = p.get('q'); if (CATS_OK.includes(p.get('cat'))) CAT = p.get('cat'); run(); }}
 </script></body></html>
