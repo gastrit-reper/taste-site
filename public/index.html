@@ -510,6 +510,40 @@ textarea.fld{min-height:96px;resize:vertical}
 .lbv{width:min(94vw,1280px);aspect-ratio:16/9;background:#000;border-radius:10px;overflow:hidden}.lbv iframe,.lbv video{width:100%;height:100%;border:0;display:block}
 .ms.mt{position:relative;background:#000}.ms.mt img{opacity:.75}.ms.mt .mp{position:absolute;inset:0;margin:auto;width:46px;height:46px;border-radius:50%;background:rgb(0 0 0 / .65);color:#fff;display:grid;place-items:center;font-size:18px;padding-left:3px}.ms.mt:hover .mp{background:var(--accent)}.ms.mt .mn{position:absolute;left:8px;top:8px;bottom:auto;right:auto;background:var(--accent);color:var(--accent-fg);border-radius:6px;padding:2px 8px;font-size:12px;font-weight:600;text-shadow:none;pointer-events:none}
 .lbc{position:absolute;bottom:14px;left:0;right:0;text-align:center;color:#ccc;font-size:13px}
+/* главная */
+.home{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px;align-items:start}
+@media (max-width:900px){.home{grid-template-columns:minmax(0,1fr)}}
+.hm-main{display:flex;flex-direction:column;gap:12px;min-width:0}
+.hm-side{display:flex;flex-direction:column;gap:12px;min-width:0}
+.hm-comp{display:grid;grid-template-columns:40px 1fr;gap:12px}
+.hm-comp textarea{width:100%;min-height:44px;resize:vertical;border:1px solid var(--line);background:var(--surface2);color:var(--fg);border-radius:12px;padding:10px 12px;font:inherit}
+.hm-comp .row2{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;color:var(--muted);font-size:12px}
+.hm-av{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:600;flex:none}
+.hm-bar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between}
+.hm-chips{display:flex;flex-wrap:wrap;gap:6px}
+.hc{background:var(--surface);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.hc-h{display:flex;align-items:center;gap:10px}
+.hc-h .t{min-width:0;flex:1}.hc-h b{font-weight:600}.hc-h .sub{font-size:12px;color:var(--muted)}
+.hc-chip{font-size:12px;border-radius:999px;padding:2px 10px;background:var(--surface2);color:var(--muted);white-space:nowrap}
+.hc-body{display:flex;gap:12px;text-align:left;width:100%;border:1px solid var(--line);background:var(--surface2);border-radius:12px;padding:10px}
+.hc-body:hover{border-color:var(--accent)}
+.hc-body .cover{width:64px;height:92px;border-radius:8px;flex:none}
+.hc-body .i{min-width:0;flex:1}.hc-body b{display:block;font-weight:600}.hc-body .sub{font-size:12px;color:var(--muted)}
+.hc-body p{margin:6px 0 0;font-size:14px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.hm-sc{display:inline-grid;place-items:center;min-width:30px;height:26px;padding:0 6px;border-radius:8px;font-weight:700;font-size:14px;border:1.5px solid var(--line);float:right}
+.hm-sc.good{color:var(--good);border-color:var(--good)}.hm-sc.mid{color:var(--mid);border-color:var(--mid)}.hm-sc.bad{color:var(--bad);border-color:var(--bad)}
+.hc-post{font-size:15px;white-space:pre-wrap;overflow-wrap:anywhere}
+.hc-f{display:flex;gap:6px;flex-wrap:wrap}
+.hc-f button{border:0;background:none;color:var(--muted);padding:4px 10px;border-radius:8px;font-size:13px;display:inline-flex;gap:6px;align-items:center}
+.hc-f button:hover{background:var(--surface2);color:var(--fg)}.hc-f button.on{color:var(--st-fav)}
+.hc-f svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2}.hc-f .on svg{fill:currentColor}
+.hm-why{font-size:12px;color:var(--accent)}
+.hm-li{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;text-align:left;padding:6px 4px;border-radius:10px}
+.hm-li:hover{background:var(--surface2)}
+.hm-li .cover{width:34px;height:48px;border-radius:6px;flex:none}.hm-li .i{min-width:0;flex:1}.hm-li b{display:block;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.hm-li .sub{font-size:12px;color:var(--muted)}
+.hm-rk{width:18px;text-align:center;color:var(--muted);font-weight:700;flex:none}
+.hm-empty{text-align:center;color:var(--muted);padding:28px 8px}
+.hm-more{align-self:center}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -553,7 +587,8 @@ textarea.fld{min-height:96px;resize:vertical}
   <div class="proto">
     <span>Прототип. Все данные на странице — примеры.</span>
     <span class="pr"><span class="seg" role="group" aria-label="Чей профиль смотрим">
-      <button id="v-other" aria-pressed="true">Чужой профиль</button>
+      <button id="v-home" aria-pressed="true">Главная</button>
+      <button id="v-other" aria-pressed="false">Чужой профиль</button>
       <button id="v-me" aria-pressed="false">Мой профиль</button>
     </span><span class="gearwrap"><button type="button" class="ic gear" id="gear" aria-label="Настройки" aria-expanded="false" aria-controls="pop"><svg class="i" aria-hidden="true"><use href="#cog"/></svg></button><div class="pop" id="pop" hidden></div></span></span>
   </div>
@@ -563,7 +598,8 @@ textarea.fld{min-height:96px;resize:vertical}
     <div class="gs-pop" id="gs-pop" hidden></div>
   </div>
 
-  <div id="profile">
+  <div id="home"></div>
+  <div id="profile" hidden>
   <div class="banner" id="banner"><span id="bn-lbl">баннер профиля</span></div>
   <header class="head" id="head"></header>
 
@@ -580,7 +616,7 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10. Музыка пока без звука, это макет плеера.</p>
-  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-19-media7</p>
+  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-19-home1</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
@@ -695,7 +731,7 @@ const EXTRA = {
 };
 const fmtD = d => d?d.split('-').reverse().join('.'):'';
 
-const S = {wide:false,avatar:null,banner:null,page:null, me:false, view:'activity', sub:'all', sort:'recent', friend:false, editFav:false, favHidden:new Set(), posts:[...ME_POSTS], linksOpen:false, msub:'fav', al:null, ar:null, coll:null, cf:'all', collAll:false, trOpen:new Set(), playing:false, muted:false, auto:true, prog:0};
+const S = {home:true,wide:false,avatar:null,banner:null,page:null, me:false, view:'activity', sub:'all', sort:'recent', friend:false, editFav:false, favHidden:new Set(), posts:[...ME_POSTS], linksOpen:false, msub:'fav', al:null, ar:null, coll:null, cf:'all', collAll:false, trOpen:new Set(), playing:false, muted:false, auto:true, prog:0};
 
 const all = k => DATA[k].map(r=>({k,t:r[0],a:r[1],s:r[2],st:r[3],rv:r[4],d:r[5]}));
 const total = () => ORDER.reduce((n,k)=>n+DATA[k].filter(r=>r[2]).length,0)+Object.values(TRK).filter(t=>t.s).length;
@@ -1301,7 +1337,7 @@ function renderTitle(){
   const revs=[0,1,2].map(i=>{const p=POOL[Math.floor(rnd(h,40+i)*POOL.length)],n=PEOPLE[Math.floor(rnd(h,50+i)*PEOPLE.length)];return `<article class="row" style="grid-template-columns:40px minmax(0,1fr) auto"><div class="friend" style="padding:0"><div class="av" style="background:hsl(${hue(n)} 50% 45%);width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:600">${n[0]}</div></div><div><b>${n}</b><p class="review">${p[0]}</p></div><div class="score ${scoreCls(p[1])}">${p[1]}</div></article>`}).join('');
   const mine=row&&row[4]?`<article class="row" style="grid-template-columns:40px minmax(0,1fr) auto"><div class="ava" style="width:40px;height:40px;border:0;font-size:16px">${esc(P.nick[0].toUpperCase())}</div><div><b>${esc(P.nick)}</b> <span class="sub">· ваш отзыв</span><p class="review">${renderText(row[4])}</p></div><div class="score ${scoreCls(score)}">${score||'—'}</div></article>`:'';
   document.getElementById('tp').innerHTML=`
-    <div><button class="btn" data-back>← К профилю</button></div>
+    <div><button class="btn" data-back>${S.home?'← На главную':'← К профилю'}</button></div>
     ${bn}
     <section class="tp-hero">
       <div class="tp-left">${cover(c.t,'big',k)}
@@ -1906,13 +1942,15 @@ function bindHead(){
 }
 
 function render(){
-  const tp=document.getElementById('tp'),pf=document.getElementById('profile');
+  const tp=document.getElementById('tp'),pf=document.getElementById('profile'),hm=document.getElementById('home');
+  if(hm)hm.hidden=true;
   if(S.page){pf.hidden=true;tp.hidden=false;renderTitle();return}
   if(S.coll){pf.hidden=true;tp.hidden=false;renderColl();return}
+  if(S.home&&typeof renderHome==='function'){pf.hidden=true;tp.hidden=true;hm.hidden=false;renderHome();return}
   pf.hidden=false;tp.hidden=true;renderHead();renderTabs();renderMain();renderFriends();renderSide();applyBanner();
 }
 function setProfile(me){
-  S.me=me;S.page=null;S.coll=null;S.al=null;S.ar=null;S.editFav=false;S.view='activity';S.sub='all';S.prog=0;
+  S.home=false;document.getElementById('v-home').setAttribute('aria-pressed',false);S.me=me;S.page=null;S.coll=null;S.al=null;S.ar=null;S.editFav=false;S.view='activity';S.sub='all';S.prog=0;
   document.getElementById('v-me').setAttribute('aria-pressed',me);
   document.getElementById('v-other').setAttribute('aria-pressed',!me);
   render();
@@ -1920,6 +1958,7 @@ function setProfile(me){
   if(S.auto && S.interacted) setPlaying(true); else setPlaying(false);
 }
 document.addEventListener('click',()=>{S.interacted=true},{once:true,capture:true});
+document.getElementById('v-home').onclick=()=>{S.home=true;S.page=null;S.coll=null;['v-home','v-me','v-other'].forEach(i=>document.getElementById(i).setAttribute('aria-pressed',i==='v-home'));render();window.scrollTo(0,0)};
 document.getElementById('v-me').onclick=()=>setProfile(true);
 document.getElementById('v-other').onclick=()=>setProfile(false);
 /* настройки: небольшое окно у шестерёнки */
@@ -2379,6 +2418,105 @@ const st=document.createElement('style');st.textContent='.imp-drop{display:grid;
     persistLive();
     S.page=key;render();window.scrollTo(0,0);
   }catch(e){console.error(e)}
+})();
+</script>
+<script>
+/* ===== главная: лента друзей, рекомендации, тренды. Лента примерная, пока нет аккаунтов ===== */
+(function(){
+const HK='home_prefs_v1';
+const HS={tab:'friends',cat:'all',n:10,liked:new Set()};
+try{const p=JSON.parse(localStorage.getItem(HK)||'{}');if(['friends','foryou','trend'].includes(p.tab))HS.tab=p.tab;if(p.cat==='all'||CATS[p.cat])HS.cat=p.cat;(p.liked||[]).forEach(x=>HS.liked.add(x))}catch(_){}
+const saveH=()=>{try{localStorage.setItem(HK,JSON.stringify({tab:HS.tab,cat:HS.cat,liked:[...HS.liked].slice(-300)}))}catch(_){}};
+const ALL=()=>ORDER.flatMap(k=>Object.values(CAT_IDX).filter(c=>c.k===k&&!c.ext).map(c=>({k,c,key:kk(k,c.t)})));
+let EV=null;
+const CHIP_ST={rate:'Оценка',start:'Начало',done:'Завершено',list:'Сборник',post:'Пост'};
+function build(){
+  const all=ALL(),out=[];
+  FRIENDS.forEach(([name],fi)=>{
+    for(let j=0;j<6;j++){
+      const h=hue(name+j)+j*7,it=all[Math.floor(rnd(h,1)*all.length)];if(!it)continue;
+      const r=rnd(h,2),pool=POOL[Math.floor(rnd(h,3)*POOL.length)],d=Math.floor(rnd(h,4)*5+j*2.2+fi*.3);
+      const st=CATS[it.k].st,base={id:name+'|'+j,who:name,d,key:it.key,k:it.k,c:it.c};
+      if(r<.5)out.push({...base,t:'rate',score:pool[1],text:pool[0]});
+      else if(r<.7&&st.length)out.push({...base,t:'start',status:st[0]});
+      else if(r<.85&&st.length)out.push({...base,t:'done',status:st.find(x=>/Просмотрено|Прошёл|Прочитано/.test(x))||st[1]||st[0]});
+      else if(r<.93){const cl=COLL[Math.floor(rnd(h,5)*COLL.length)];out.push({...base,t:'list',coll:cl})}
+      else out.push({id:name+'|p'+j,who:name,d,t:'post',text:pool[0]});
+    }
+  });
+  return out;
+}
+function mine(){
+  const out=[];
+  ORDER.forEach(k=>DATA[k].forEach(r=>{const key=kk(k,r[0]),c=CAT_IDX[key];if(!c||r[5]>14)return;out.push({id:'me|'+key,who:'me',d:r[5],t:r[2]?'rate':'start',key,k,c,score:r[2],text:r[4],status:r[3]})}));
+  S.posts.forEach((p,i)=>{if(p.d<=14)out.push({id:'me|p'+i+'|'+p.t.slice(0,12),who:'me',d:p.d,t:'post',text:p.t})});
+  return out;
+}
+const nick=()=>P.nick;
+const avatar=who=>{const n=who==='me'?nick():who;return `<span class="hm-av" style="background:hsl(${hue(n)} 45% 42%)">${esc(n[0].toUpperCase())}</span>`};
+function card(e){
+  const nm=e.who==='me'?'Вы':e.who,liked=HS.liked.has(e.id),likes=Math.floor(rnd(hue(e.id),9)*14)+(liked?1:0);
+  const chip=e.t==='start'||e.t==='done'?e.status:CHIP_ST[e.t];
+  let body='';
+  if(e.t==='post')body=`<div class="hc-post">${renderText(e.text)}</div>`;
+  else{
+    const c=e.c;
+    const extra=e.t==='list'?`<p>Добавил(а) в сборник «${esc(e.coll.name)}»</p>`:e.t==='rate'&&e.text?`<p>${esc(e.text)}</p>`:e.t==='start'?`<p>${esc(e.status)}</p>`:e.t==='done'?`<p>${esc(e.status)}</p>`:'';
+    body=`<button type="button" class="hc-body" data-hopen="${esc(e.key)}">${cover(c.t,'',e.k)}<div class="i">${e.t==='rate'&&e.score?`<span class="hm-sc ${scoreCls(e.score)}">${e.score}</span>`:''}<b>${esc(c.t)}</b><span class="sub">${esc(CATS[e.k].one)} · ${esc(c.by||'')}${c.y?' · '+c.y:''}</span>${extra}</div></button>`;
+  }
+  return `<article class="hc"><div class="hc-h">${avatar(e.who)}<div class="t"><b>${esc(nm)}</b><div class="sub">${ago(e.d)}</div></div><span class="hc-chip ${e.status?stc(e.status):''}">${esc(chip)}</span></div>${body}
+    <div class="hc-f"><button type="button" data-hlike="${esc(e.id)}" class="${liked?'on':''}" aria-pressed="${liked}"><svg viewBox="0 0 24 24"><use href="#heart"/></svg>${likes||''}</button><button type="button" data-hcom>Комментарий</button>${e.key&&!rated(e.key)?`<button type="button" data-hopen="${esc(e.key)}">Оценить</button>`:''}</div></article>`;
+}
+function recs(){
+  // жанры из высоко оценённого у вас: чем выше оценка, тем сильнее вес
+  const w={};ORDER.forEach(k=>DATA[k].forEach(r=>{const c=CAT_IDX[kk(k,r[0])];if(c&&r[2]>=8)(c.g||[]).forEach(g=>w[g]=(w[g]||0)+r[2]-7)}));
+  const likedBy=key=>FRIENDS.filter(([n])=>rnd(hue(n+key),6)<.28).map(f=>f[0]).slice(0,2);
+  return ALL().filter(x=>!rated(x.key)).map(x=>{const gs=(x.c.g||[]).filter(g=>w[g]);const sc=gs.reduce((a,g)=>a+w[g],0)+rnd(hue(x.key),8);return {...x,sc,gs}}).sort((a,b)=>b.sc-a.sc).slice(0,24);
+}
+function trend(){return ALL().map(x=>({...x,n:Math.floor(500+rnd(hue(x.key),11)*9000)})).sort((a,b)=>b.n-a.n)}
+function render2(){
+  const fl=HS.cat==='all'?null:HS.cat;let list=[],note='';
+  if(HS.tab==='friends'){list=[...EV,...mine()].sort((a,b)=>a.d-b.d||(a.who==='me'?-1:1)).filter(e=>!fl||e.k===fl||(e.t==='post'&&false));if(fl)list=list.filter(e=>e.k===fl)}
+  const cards=[];
+  if(HS.tab==='friends')list.slice(0,HS.n).forEach(e=>cards.push(card(e)));
+  else if(HS.tab==='foryou'){const r=recs().filter(x=>!fl||x.k===fl);r.slice(0,HS.n).forEach(x=>{const fr=FRIENDS.filter(([n])=>rnd(hue(n+x.key),6)<.28).map(f=>f[0]).slice(0,2);cards.push(`<article class="hc"><div class="hc-h"><span class="hm-av" style="background:var(--accent);color:var(--accent-fg)">★</span><div class="t"><b>Рекомендация</b><div class="sub hm-why">${x.gs.length?'Вам нравится: '+esc(x.gs.slice(0,2).join(', ')):'Популярное в этой категории'}${fr.length?' · оценили друзья: '+esc(fr.join(', ')):''}</div></div></div><button type="button" class="hc-body" data-hopen="${esc(x.key)}">${cover(x.c.t,'',x.k)}<div class="i"><b>${esc(x.c.t)}</b><span class="sub">${esc(CATS[x.k].one)} · ${esc(x.c.by||'')}${x.c.y?' · '+x.c.y:''}</span><p>${esc(x.c.d||'')}</p></div></button></article>`)});list=r}
+  else{const r=trend().filter(x=>!fl||x.k===fl);r.slice(0,HS.n).forEach((x,i)=>cards.push(`<article class="hc"><div class="hc-h"><span class="hm-rk" style="font-size:18px">${i+1}</span><div class="t"><b>В тренде</b><div class="sub">${kfmt(x.n)} оценок за неделю</div></div></div><button type="button" class="hc-body" data-hopen="${esc(x.key)}">${cover(x.c.t,'',x.k)}<div class="i"><b>${esc(x.c.t)}</b><span class="sub">${esc(CATS[x.k].one)} · ${esc(x.c.by||'')}${x.c.y?' · '+x.c.y:''}</span><p>${esc(x.c.d||'')}</p></div></button></article>`));list=r}
+  return {cards,total:list.length};
+}
+function side(){
+  const prog=[];ORDER.forEach(k=>DATA[k].forEach(r=>{if(/^(Играю|Смотрю|Читаю)$/.test(r[3])){const c=CAT_IDX[kk(k,r[0])];if(c)prog.push({k,c,key:kk(k,r[0]),st:r[3]})}}));
+  const li=(x,rk)=>`<button type="button" class="hm-li" data-hopen="${esc(x.key)}">${rk?`<span class="hm-rk">${rk}</span>`:''}${cover(x.c.t,'',x.k)}<span class="i"><b>${esc(x.c.t)}</b><span class="sub">${esc(x.st||CATS[x.k].one)}${x.c.y?' · '+x.c.y:''}</span></span></button>`;
+  const tr=trend().slice(0,5);
+  return `${prog.length?`<section class="card"><h3>Сейчас в процессе</h3>${prog.slice(0,5).map(x=>li(x)).join('')}</section>`:''}
+  <section class="card"><h3>В тренде на неделе</h3>${tr.map((x,i)=>li(x,i+1)).join('')}</section>
+  <section class="card"><h3>Друзья</h3>${FRIENDS.map(([n,on])=>`<div class="hm-li" style="cursor:default">${avatar(n)}<span class="i"><b>${esc(n)}</b><span class="sub">${on?'в сети':'не в сети'}</span></span></div>`).join('')}</section>
+  <section class="card"><h3>Сборники</h3>${COLL.slice(0,4).map(c=>`<button type="button" class="hm-li" data-hcoll="${esc(c.id)}"><span class="i"><b>${esc(c.name)}</b><span class="sub">${c.owner==='me'?'ваш':esc(c.owner)} · ${c.items.length} поз.</span></span></button>`).join('')}</section>`;
+}
+window.renderHome=function(){
+  const hm=document.getElementById('home');if(!EV)EV=build();
+  const r=render2(),tabs=[['friends','Друзья'],['foryou','Для вас'],['trend','В тренде']];
+  const empty=!r.cards.length?`<div class="hc hm-empty">${HS.tab==='friends'?'Здесь появятся оценки и посты друзей.':'Пока ничего не нашлось в этой категории.'}</div>`:'';
+  hm.innerHTML=`<div class="home"><div class="hm-main">
+    <section class="card hm-comp" aria-label="Новый пост">${avatar('me')}<div><textarea id="hm-t" maxlength="${POST_MAX}" rows="1" placeholder="О чём думаете?" aria-label="Текст поста"></textarea><div class="row2"><span>Пост появится в вашем профиле</span><button type="button" class="btn primary" id="hm-send">Опубликовать</button></div></div></section>
+    <div class="hm-bar"><span class="seg" role="tablist" aria-label="Лента">${tabs.map(([id,l])=>`<button type="button" role="tab" data-htab="${id}" aria-pressed="${HS.tab===id}">${l}</button>`).join('')}</span>
+    <div class="hm-chips" role="group" aria-label="Категория">${[['all','Все'],...ORDER.map(k=>[k,CATS[k].name])].map(([id,l])=>`<button type="button" class="gs-chip" data-hcat="${id}" aria-pressed="${HS.cat===id}">${l}</button>`).join('')}</div></div>
+    ${r.cards.join('')}${empty}${r.total>HS.n?`<button type="button" class="btn hm-more" data-hmore>Показать ещё</button>`:''}
+    <p class="note" style="margin:0">Лента друзей пока примерная: настоящая появится вместе с аккаунтами.</p>
+  </div><aside class="hm-side">${side()}</aside></div>`;
+};
+document.addEventListener('click',e=>{
+  const hm=document.getElementById('home');if(!hm||hm.hidden||!hm.contains(e.target))return;
+  let b;
+  if(b=e.target.closest('[data-htab]')){HS.tab=b.dataset.htab;HS.n=10;saveH();renderHome();return}
+  if(b=e.target.closest('[data-hcat]')){HS.cat=b.dataset.hcat;HS.n=10;saveH();renderHome();return}
+  if(e.target.closest('[data-hmore]')){HS.n+=10;renderHome();return}
+  if(b=e.target.closest('[data-hlike]')){const id=b.dataset.hlike;HS.liked.has(id)?HS.liked.delete(id):HS.liked.add(id);saveH();const y=window.scrollY;renderHome();window.scrollTo(0,y);return}
+  if(e.target.closest('[data-hcom]')){toast('Комментарии появятся вместе с аккаунтами');return}
+  if(b=e.target.closest('[data-hopen]')){S.page=b.dataset.hopen;render();window.scrollTo(0,0);return}
+  if(b=e.target.closest('[data-hcoll]')){S.coll=b.dataset.hcoll;S.page=null;S.cf='all';render();window.scrollTo(0,0);return}
+  if(e.target.closest('#hm-send')){const t=document.getElementById('hm-t'),v=t.value.trim();if(!v)return;if(v.length>POST_MAX){toast('Пост слишком длинный');return}S.posts.unshift({t:v,d:0});toast('Опубликовано');renderHome()}
+});
+render();
 })();
 </script>
 </body></html>
