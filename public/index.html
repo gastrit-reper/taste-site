@@ -122,6 +122,24 @@ svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stro
 .stats{display:flex;align-items:baseline;gap:10px;margin-top:14px}
 .stats strong{font-family:var(--font-display);font-size:28px;font-weight:600;font-variant-numeric:tabular-nums}
 .stats span{color:var(--muted);font-size:13px}
+.stats2{margin-top:2px;color:var(--muted);font-size:13px}.stats2 b{color:var(--fg);font-variant-numeric:tabular-nums}
+.pcal{background:var(--surface2);border-radius:14px;padding:10px}
+.pc-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}.pc-h b{font-weight:600}
+.pc-h .ic{width:28px;height:28px;border:0;background:none;color:var(--fg);border-radius:8px;font-size:18px}.pc-h .ic:hover{background:var(--surface)}
+.pc-g{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}
+.pc-dw{font-size:11px;color:var(--muted);padding:2px 0}
+.pc-d{position:relative;border:0;background:none;color:var(--fg);height:34px;border-radius:8px;font-size:13px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.pc-d:hover{background:var(--surface)}.pc-d.today span{color:var(--accent);font-weight:700}
+.pc-d.sel{background:var(--accent);color:var(--accent-fg)}.pc-d.sel.today span{color:var(--accent-fg)}
+.pc-d i{display:flex;gap:2px;height:4px}.pc-d u{width:4px;height:4px;border-radius:50%;display:block;background:var(--accent)}
+.pc-d u.k-play{background:var(--good)}.pc-d u.k-post{background:var(--st-done)}.pc-d.sel u{background:var(--accent-fg)}
+.pc-sel{margin-top:8px;border-top:1px solid var(--line);padding-top:8px;display:flex;flex-direction:column;gap:4px}
+.pc-sd{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.pc-e{display:flex;align-items:center;gap:8px;border:0;background:var(--surface);border-radius:10px;padding:6px 8px;text-align:left;color:var(--fg);width:100%}
+button.pc-e:hover{outline:1px solid var(--accent)}
+.pc-k{font-size:11px;border-radius:999px;padding:1px 8px;background:var(--accent-soft);color:var(--accent);flex:none}
+.pc-k.k-play{background:transparent;border:1px solid var(--good);color:var(--good)}.pc-k.k-post{background:transparent;border:1px solid var(--st-done);color:var(--st-done)}
+.pc-t{min-width:0}.pc-t b{display:block;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pc-t small{color:var(--muted);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* вкладки */
 .tabs{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:16px;background:var(--surface);border-radius:14px;padding:8px}
@@ -648,7 +666,7 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10. Музыка пока без звука, это макет плеера.</p>
-  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-21-home4</p>
+  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-21-cal1</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
@@ -773,6 +791,41 @@ function favInfo(k){
   if(k==='music'){const t=trk(v);return t?{t:t.name,sub:'Песня'}:null}
   return {t:v,sub:CATS[k].one};
 }
+
+/* оценки за этот год и календарь активности в профиле */
+const dayIso=n=>{const d=new Date();d.setDate(d.getDate()-n);return isoOf(d.getFullYear(),d.getMonth(),d.getDate())};
+const totalYear=()=>{const y=String(new Date().getFullYear());return ORDER.reduce((n,k)=>n+DATA[k].filter(r=>r[2]&&dayIso(r[5]).startsWith(y)).length,0)};
+const PC={y:new Date().getFullYear(),m:new Date().getMonth(),sel:''};
+function calEvents(){
+  const ev={};const add=(iso,e)=>{(ev[iso]=ev[iso]||[]).push(e)};
+  ORDER.forEach(k=>DATA[k].forEach(r=>{
+    const key=kk(k,r[0]);
+    add(dayIso(r[5]),{kind:'rate',k,key,title:r[0],text:(r[3]||'')+(r[2]?' · оценка '+r[2]:'')});
+    const j=(EXTRA[key]||{}).journal;
+    if(j)Object.entries(j).forEach(([iso,t])=>add(iso,{kind:'play',k,key,title:r[0],text:mkLabel(k,t)}));
+  }));
+  S.posts.forEach(p=>{const tx=String(p.t).replace(/\{\{(.+?)\}\}/g,'$1');add(dayIso(p.d),{kind:'post',title:'Пост',text:tx.slice(0,90)+(tx.length>90?'…':'')})});
+  return ev;
+}
+function drawCal(){
+  const el=document.getElementById('pcal');if(!el)return;
+  if(!PC.sel)PC.sel=todayIso();
+  const ev=calEvents(),{y,m}=PC,first=(new Date(y,m,1).getDay()+6)%7,days=new Date(y,m+1,0).getDate(),t0=todayIso();
+  let cells=DOW.map(d=>`<span class="pc-dw">${d}</span>`).join('')+'<span></span>'.repeat(first);
+  for(let d=1;d<=days;d++){
+    const iso=isoOf(y,m,d),es=ev[iso]||[],kinds=[...new Set(es.map(e=>e.kind))];
+    cells+=`<button type="button" class="pc-d${iso===PC.sel?' sel':''}${iso===t0?' today':''}${es.length?' has':''}" data-pcd="${iso}" aria-label="${fmtLong(iso)}${es.length?', событий: '+es.length:''}"><span>${d}</span>${kinds.length?`<i>${kinds.map(k=>`<u class="k-${k}"></u>`).join('')}</i>`:''}</button>`;
+  }
+  const es=ev[PC.sel]||[],ICON={rate:'Оценка',play:'Дневник',post:'Пост'};
+  const list=es.length?es.map(e=>`<${e.key?'button type="button" data-pce="'+esc(e.key)+'"':'div'} class="pc-e"><span class="pc-k k-${e.kind}">${ICON[e.kind]}</span><span class="pc-t"><b>${esc(e.title)}</b>${e.k?`<small>${esc(CATS[e.k].one)} · ${esc(e.text)}</small>`:`<small>${esc(e.text)}</small>`}</span></${e.key?'button':'div'}>`).join(''):'<div class="sub" style="padding:6px 2px">В этот день ничего не отмечено.</div>';
+  el.innerHTML=`<div class="pc-h"><button type="button" class="ic" data-pcm="-1" aria-label="Предыдущий месяц">‹</button><b>${MONTHS[m]} ${y}</b><button type="button" class="ic" data-pcm="1" aria-label="Следующий месяц">›</button></div><div class="pc-g">${cells}</div><div class="pc-sel"><div class="pc-sd">${fmtLong(PC.sel)}</div>${list}</div>`;
+}
+document.addEventListener('click',e=>{
+  let b;
+  if(b=e.target.closest('[data-pcm]')){PC.m+=+b.dataset.pcm;if(PC.m<0){PC.m=11;PC.y--}else if(PC.m>11){PC.m=0;PC.y++}drawCal();return}
+  if(b=e.target.closest('[data-pcd]')){PC.sel=b.dataset.pcd;drawCal();return}
+  if(b=e.target.closest('[data-pce]')){S.page=b.dataset.pce;S.home=false;render();window.scrollTo(0,0)}
+});
 function renderHead(){
   const links = S.linksOpen?P.links:P.links.slice(0,MAXLINKS);
   const linkHtml = links.map(h=>`<a href="${esc(h)}" target="_blank" rel="noopener" aria-label="${esc(h.replace(/^https?:\/\//,''))}" title="${esc(h.replace(/^https?:\/\//,''))}">${ico(ICON_LINK(h))}</a>`).join('')
@@ -812,13 +865,16 @@ function renderHead(){
     <div>
       <div class="sec-title"><span>Любимое</span>${S.me?`<span>${S.editFav?'<button data-editprof style="margin-right:10px">Выбрать</button>':''}<button id="fav-edit">${S.editFav?'Готово':'Настроить'}</button></span>`:''}</div>
       <div class="favs">${favHtml||`<div class="sub">${S.me?'Пока ничего не выбрано.':'Пользователь скрыл любимое.'}</div>`}</div>
+      <div class="sec-title" style="margin-top:16px"><span>Календарь</span></div>
+      <div class="pcal" id="pcal"></div>
     </div>
     <div>
       <div class="sec-title"><span>Сейчас играет в профиле</span></div>
       ${playerHtml}
-      <div class="stats"><strong id="tot">${total()}</strong><span>оценок всего</span></div>
+      <div class="stats"><strong id="tot-y">${totalYear()}</strong><span>оценок в этом году</span></div>
+      <div class="stats2"><b id="tot">${total()}</b> оценок всего</div>
     </div>`;
-  bindHead();applyAvatar();
+  bindHead();applyAvatar();drawCal();
 }
 
 function renderTabs(){
