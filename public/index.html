@@ -536,6 +536,9 @@ textarea.fld{min-height:96px;resize:vertical}
 .hm-now .w{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600}.hm-now .w .hm-av{width:22px;height:22px;font-size:11px}
 .hm-now .st{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hm-wel{display:flex;flex-direction:column;gap:10px}
+.th-t{display:block;font-size:16px;font-weight:600;margin-bottom:4px}.th-p{margin:0;color:var(--muted);font-size:14px}
+.th-ref{border:1px solid var(--line);border-radius:12px;padding:8px}.th-ref:hover{border-color:var(--accent)}
+.th-rep{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line);padding-top:10px}.th-r{display:flex;gap:10px}.th-r p{margin:2px 0 0;font-size:14px}
 .hm-wel h3{margin:0;font-size:17px}.hm-wel ol{margin:0;padding:0;list-style:none;display:grid;gap:8px}
 .hm-wel li{display:flex;align-items:center;gap:10px;justify-content:space-between;background:var(--surface2);border-radius:12px;padding:10px 12px}
 .hm-wel li span{min-width:0}.hm-wel li small{display:block;color:var(--muted)}
@@ -645,7 +648,7 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10. Музыка пока без звука, это макет плеера.</p>
-  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-21-home3</p>
+  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-21-home4</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
@@ -2453,7 +2456,7 @@ const st=document.createElement('style');st.textContent='.imp-drop{display:grid;
 /* ===== главная: лента друзей, рекомендации, тренды. Лента примерная, пока нет аккаунтов ===== */
 (function(){
 const HK='home_prefs_v1';
-const HS={tab:'friends',cat:'all',n:10,liked:new Set()};
+const HS={tab:'friends',cat:'all',n:10,liked:new Set(),view:'home',wsort:'hot',openTh:new Set()};
 try{const p=JSON.parse(localStorage.getItem(HK)||'{}');if(['friends','foryou','trend'].includes(p.tab))HS.tab=p.tab;if(p.cat==='all'||p.cat==='posts'||CATS[p.cat])HS.cat=p.cat;(p.liked||[]).forEach(x=>HS.liked.add(x))}catch(_){}
 const saveH=()=>{try{localStorage.setItem(HK,JSON.stringify({tab:HS.tab,cat:HS.cat,liked:[...HS.liked].slice(-300)}))}catch(_){}};
 const ALL=()=>ORDER.flatMap(k=>Object.values(CAT_IDX).filter(c=>c.k===k&&!c.ext).map(c=>({k,c,key:kk(k,c.t)})));
@@ -2512,6 +2515,38 @@ function render2(){
   else{const r=trend().filter(x=>!fl||x.k===fl);r.slice(0,HS.n).forEach((x,i)=>cards.push(`<article class="hc"><div class="hc-h"><span class="hm-rk" style="font-size:18px">${i+1}</span><div class="t"><b>В тренде</b><div class="sub">${kfmt(x.n)} оценок за неделю</div></div></div><button type="button" class="hc-body" data-hopen="${esc(x.key)}">${cover(x.c.t,'',x.k)}<div class="i"><b>${esc(x.c.t)}</b><span class="sub">${esc(CATS[x.k].one)} · ${esc(x.c.by||'')}${x.c.y?' · '+x.c.y:''}</span><p>${esc(x.c.d||'')}</p></div></button></article>`));list=r}
   return {cards,total:list.length};
 }
+
+/* ===== Мир: популярные обсуждения (примерные, пока нет аккаунтов) ===== */
+const W_USERS=['north_wind','kinofan_77','pixel_witch','old_reader','mira.k','tape_deck','late_night','grey_cat','vova_plays','lena_reads'];
+const W_T=[t=>`Стоит ли начинать «${t}»?`,t=>`«${t}»: переоценено или нет?`,t=>`Любимый момент в «${t}» (без спойлеров)`,t=>`Что после «${t}»? Посоветуйте похожее`,t=>`Чего вы ждали от «${t}» и что получили?`,t=>`«${t}» спустя годы: как вам сейчас?`];
+let TH=null;
+function threads(){
+  if(TH)return TH;
+  TH=ALL().map((x,i)=>{
+    const h=hue(x.key)+i*3,tpl=W_T[Math.floor(rnd(h,1)*W_T.length)],pool=POOL[Math.floor(rnd(h,2)*POOL.length)];
+    const rep=Math.floor(8+Math.pow(rnd(h,3),2)*900),likes=Math.floor(rep*(.6+rnd(h,4)*2));
+    return {id:'th|'+x.key,key:x.key,k:x.k,c:x.c,title:tpl(x.c.t),text:pool[0],who:W_USERS[Math.floor(rnd(h,5)*W_USERS.length)],d:Math.floor(rnd(h,6)*8),rep,likes,hot:rep*2+likes};
+  });
+  return TH;
+}
+function threadCard(t){
+  const open=HS.openTh.has(t.id),liked=HS.liked.has(t.id),h=hue(t.id);
+  const replies=open?`<div class="th-rep">${[0,1,2].map(i=>{const p=POOL[Math.floor(rnd(h,10+i)*POOL.length)],n=W_USERS[Math.floor(rnd(h,20+i)*W_USERS.length)];return `<div class="th-r"><span class="hm-av" style="background:hsl(${hue(n)} 45% 42%);width:28px;height:28px;font-size:12px">${esc(n[0].toUpperCase())}</span><div><b>${esc(n)}</b><p>${esc(p[0])}</p></div></div>`}).join('')}<p class="note" style="margin:0">Это пример: настоящие ответы появятся вместе с аккаунтами.</p></div>`:'';
+  return `<article class="hc"><div class="hc-h"><span class="hm-av" style="background:hsl(${hue(t.who)} 45% 42%)">${esc(t.who[0].toUpperCase())}</span><div class="t"><b>${esc(t.who)}</b><div class="sub">${ago(t.d)}</div></div><span class="hc-chip">${esc(CATS[t.k].one)}</span></div>
+    <div><b class="th-t">${esc(t.title)}</b><p class="th-p">${esc(t.text)}</p></div>
+    <button type="button" class="hm-li th-ref" data-hopen="${esc(t.key)}">${cover(t.c.t,'',t.k)}<span class="i"><b>${esc(t.c.t)}</b><span class="sub">${esc(t.c.by||'')}${t.c.y?' · '+t.c.y:''}</span></span></button>
+    <div class="hc-f"><button type="button" data-hlike="${esc(t.id)}" class="${liked?'on':''}" aria-pressed="${liked}"><svg viewBox="0 0 24 24"><use href="#heart"/></svg>${t.likes+(liked?1:0)}</button><button type="button" data-hth="${esc(t.id)}" aria-expanded="${open}">${open?'Скрыть ответы':t.rep+' ответов'}</button></div>${replies}</article>`;
+}
+function worldMain(){
+  const fl=HS.cat==='all'||HS.cat==='posts'?null:HS.cat;
+  let list=threads().filter(t=>!fl||t.k===fl);
+  list=[...list].sort(HS.wsort==='hot'?(a,b)=>b.hot-a.hot:(a,b)=>a.d-b.d||b.hot-a.hot);
+  const sorts=[['hot','Популярное'],['new','Свежее']];
+  return `<div class="hm-main"><div class="hm-bar"><span class="seg" style="display:inline-flex" role="tablist" aria-label="Порядок">${sorts.map(([id,l])=>`<button type="button" role="tab" data-wsort="${id}" aria-pressed="${HS.wsort===id}">${l}</button>`).join('')}</span>
+    <div class="hm-chips" role="group" aria-label="Категория">${[['all','Все'],...ORDER.map(k=>[k,CATS[k].name])].map(([id,l])=>`<button type="button" class="gs-chip" data-hcat="${id}" aria-pressed="${(HS.cat==='posts'?'all':HS.cat)===id}">${l}</button>`).join('')}</div></div>
+    ${list.slice(0,HS.n).map(threadCard).join('')||'<div class="hc hm-empty">В этой категории пока нет обсуждений.</div>'}${list.length>HS.n?'<button type="button" class="btn hm-more" data-hmore>Показать ещё</button>':''}
+    <p class="note" style="margin:0">Обсуждения пока примерные: настоящие появятся вместе с аккаунтами.</p></div>`;
+}
 function side(){
   const prog=[];ORDER.forEach(k=>DATA[k].forEach(r=>{if(/^(Играю|Смотрю|Читаю)$/.test(r[3])){const c=CAT_IDX[kk(k,r[0])];if(c)prog.push({k,c,key:kk(k,r[0]),st:r[3]})}}));
   const li=(x,rk)=>`<button type="button" class="hm-li" data-hopen="${esc(x.key)}">${rk?`<span class="hm-rk">${rk}</span>`:''}${cover(x.c.t,'',x.k)}<span class="i"><b>${esc(x.c.t)}</b><span class="sub">${esc(x.st||CATS[x.k].one)}${x.c.y?' · '+x.c.y:''}</span></span></button>`;
@@ -2519,18 +2554,18 @@ function side(){
   return `${prog.length?`<section class="card"><h3>Сейчас в процессе</h3>${prog.slice(0,5).map(x=>li(x)).join('')}</section>`:''}
   <section class="card"><h3>В тренде на неделе</h3>${tr.map((x,i)=>li(x,i+1)).join('')}</section>
   <section class="card"><h3>Друзья</h3>${FRIENDS.map(([n,on])=>`<div class="hm-li" style="cursor:default">${avatar(n)}<span class="i"><b>${esc(n)}</b><span class="sub">${on?'в сети':'не в сети'}</span></span></div>`).join('')}</section>
-  <section class="card"><h3>Сборники</h3>${COLL.slice(0,4).map(c=>`<button type="button" class="hm-li" data-hcoll="${esc(c.id)}"><span class="i"><b>${esc(c.name)}</b><span class="sub">${c.owner==='me'?'ваш':esc(c.owner)} · ${c.items.length} поз.</span></span></button>`).join('')}</section>`;
+  <section class="card"><h3>Обсуждают в мире</h3>${[...threads()].sort((a,b)=>b.hot-a.hot).slice(0,4).map(t=>`<button type="button" class="hm-li" data-hworld><span class="i"><b>${esc(t.title)}</b><span class="sub">${t.rep} ответов · ${esc(CATS[t.k].one)}</span></span></button>`).join('')}</section>`;
 }
-const IC={home:'<path d="M3 11l9-8 9 8v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z"/>',search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/>',coll:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5"/>',cog:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',plus:'<path d="M12 5v14M5 12h14"/>'};
+const IC={home:'<path d="M3 11l9-8 9 8v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z"/>',search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/>',coll:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5"/>',cog:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',plus:'<path d="M12 5v14M5 12h14"/>',globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>'};
 const svg=n=>`<svg viewBox="0 0 24 24" aria-hidden="true">${IC[n]}</svg>`;
 function nav(){
   const sub=[['friends','Друзья'],['foryou','Для вас'],['trend','В тренде']];
-  return `<nav class="hm-nav" aria-label="Разделы"><button type="button" data-hnav="home" aria-current="page" aria-expanded="${!!HS.open}" aria-controls="hm-sub">${svg('home')}<span style="flex:1">Главная</span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
-    <div class="hm-sub${HS.open?' open':''}" id="hm-sub"><div>${sub.map(([id,l])=>`<button type="button" data-htab="${id}" ${HS.tab===id?'aria-current="true"':''}>${l}</button>`).join('')}</div></div>
-    <button type="button" data-hnav="me">${svg('user')}Мой профиль</button><button type="button" data-hnav="coll">${svg('coll')}Сборники</button><button type="button" data-hnav="set">${svg('cog')}Настройки</button></nav>`;
+  return `<nav class="hm-nav" aria-label="Разделы"><button type="button" data-hnav="home" ${HS.view==='home'?'aria-current="page"':''} aria-expanded="${!!HS.open}" aria-controls="hm-sub">${svg('home')}<span style="flex:1">Главная</span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+    <div class="hm-sub${HS.open?' open':''}" id="hm-sub"><div>${sub.map(([id,l])=>`<button type="button" data-htab="${id}" ${HS.view==='home'&&HS.tab===id?'aria-current="true"':''}>${l}</button>`).join('')}</div></div>
+    <button type="button" data-hnav="world" ${HS.view==='world'?'aria-current="page"':''}>${svg('globe')}Мир</button><button type="button" data-hnav="me">${svg('user')}Мой профиль</button><button type="button" data-hnav="set">${svg('cog')}Настройки</button></nav>`;
 }
 function tabbar(){
-  return `<nav class="hm-tabbar" aria-label="Разделы"><button type="button" data-hnav="home" aria-current="page">${svg('home')}Главная</button><button type="button" data-hnav="coll">${svg('coll')}Сборники</button><button type="button" data-hnav="me">${svg('user')}Профиль</button><button type="button" data-hnav="set">${svg('cog')}Ещё</button></nav>`;
+  return `<nav class="hm-tabbar" aria-label="Разделы"><button type="button" data-hnav="home" ${HS.view==='home'?'aria-current="page"':''}>${svg('home')}Главная</button><button type="button" data-hnav="world" ${HS.view==='world'?'aria-current="page"':''}>${svg('globe')}Мир</button><button type="button" data-hnav="me">${svg('user')}Профиль</button><button type="button" data-hnav="set">${svg('cog')}Ещё</button></nav>`;
 }
 const VERB={games:'играет',series:'смотрит',movies:'смотрит',anime:'смотрит',music:'слушает',books:'читает'};
 function nowStrip(fl){
@@ -2554,6 +2589,7 @@ window.renderHome=function(){
   document.body.classList.add('on-home');
   const r=render2(),tabs=[['friends','Друзья'],['foryou','Для вас'],['trend','В тренде']];
   const empty=!r.cards.length?`<div class="hc hm-empty">${HS.tab==='friends'?'Здесь появятся оценки и посты друзей.<br>Пока тихо: перенесите свои оценки или посмотрите, что в тренде.':'Пока ничего не нашлось в этой категории.'}<div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button type="button" class="btn primary" data-import>Импорт оценок</button><button type="button" class="btn" data-htab="trend">В тренде</button></div></div>`:'';
+  if(HS.view==='world'){hm.innerHTML=`<div class="home">${nav()}${worldMain()}<aside class="hm-side">${side()}</aside></div>${tabbar()}`;return}
   hm.innerHTML=`<div class="home">${nav()}<div class="hm-main">
     ${welcome()}
     <form class="post compose" id="cf"><span class="sub" id="ct-l">Новый пост</span><div id="ct" class="ced" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="ct-l" data-ph="О чём думаете?"></div><div class="sugg" id="sg"></div><div class="r"><span class="hint">{{ — сослаться на игру, фильм, книгу. @ — отметить человека.</span><span id="cc">0 / 5000</span><button class="btn primary" type="submit">Опубликовать</button></div></form>
@@ -2571,17 +2607,21 @@ document.addEventListener('click',e=>{if(e.target.closest('[data-gohome]')){docu
 document.addEventListener('click',e=>{
   const hm=document.getElementById('home');if(!hm||hm.hidden||!hm.contains(e.target))return;
   let b;
-  if(b=e.target.closest('[data-htab]')){HS.tab=b.dataset.htab;if(HS.tab!=='friends'&&HS.cat==='posts')HS.cat='all';HS.n=10;saveH();renderHome();return}
+  if(b=e.target.closest('[data-htab]')){HS.view='home';HS.tab=b.dataset.htab;if(HS.tab!=='friends'&&HS.cat==='posts')HS.cat='all';HS.n=10;saveH();renderHome();return}
   if(b=e.target.closest('[data-hcat]')){HS.cat=b.dataset.hcat;HS.n=10;saveH();renderHome();return}
   if(e.target.closest('[data-hmore]')){HS.n+=10;renderHome();return}
+  if(e.target.closest('[data-hworld]')){HS.view='world';HS.n=10;renderHome();window.scrollTo(0,0);return}
+  if(b=e.target.closest('[data-hth]')){const id=b.dataset.hth;HS.openTh.has(id)?HS.openTh.delete(id):HS.openTh.add(id);const y=window.scrollY;renderHome();window.scrollTo(0,y);return}
+  if(b=e.target.closest('[data-wsort]')){HS.wsort=b.dataset.wsort;HS.n=10;renderHome();return}
   if(e.target.closest('[data-hwel]')){try{localStorage.setItem(WK,'1')}catch(_){}renderHome();return}
   if(b=e.target.closest('[data-hnav]')){
     const a=b.dataset.hnav;
-    if(a==='home'){HS.open=!HS.open;const sb=document.getElementById('hm-sub');if(sb)sb.classList.toggle('open',HS.open);b.setAttribute('aria-expanded',HS.open);if(!hm.querySelector('.hm-nav')||getComputedStyle(hm.querySelector('.hm-nav')).display==='none')window.scrollTo({top:0,behavior:'smooth'})}
+    if(a==='world'){HS.view='world';HS.n=10;renderHome();window.scrollTo(0,0)}
+    else if(a==='home'&&HS.view==='world'){HS.view='home';HS.open=true;HS.n=10;renderHome();window.scrollTo(0,0)}
+    else if(a==='home'){HS.open=!HS.open;const sb=document.getElementById('hm-sub');if(sb)sb.classList.toggle('open',HS.open);b.setAttribute('aria-expanded',HS.open);if(!hm.querySelector('.hm-nav')||getComputedStyle(hm.querySelector('.hm-nav')).display==='none')window.scrollTo({top:0,behavior:'smooth'})}
     else if(a==='me')setProfile(true);
     else if(a==='search'){window.scrollTo(0,0);const q=document.getElementById('gs-q');if(q)q.focus()}
-    else if(a==='coll'){const c=COLL.find(x=>x.owner==='me')||COLL[0];if(c){S.coll=c.id;S.page=null;S.cf='all';render();window.scrollTo(0,0)}}
-    else if(a==='set'){window.scrollTo(0,0);const g=document.getElementById('gear');if(g)g.click()}
+        else if(a==='set'){window.scrollTo(0,0);const g=document.getElementById('gear');if(g)g.click()}
     else if(a==='add')openEditor('movies',null);
     return;
   }
