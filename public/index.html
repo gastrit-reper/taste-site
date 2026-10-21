@@ -123,19 +123,20 @@ svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stro
 .stats strong{font-family:var(--font-display);font-size:28px;font-weight:600;font-variant-numeric:tabular-nums}
 .stats span{color:var(--muted);font-size:13px}
 .stats2{margin-top:2px;color:var(--muted);font-size:13px}.stats2 b{color:var(--fg);font-variant-numeric:tabular-nums}
-.pcal{background:var(--surface2);border-radius:14px;padding:10px}
-.pc-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}.pc-h b{font-weight:600}
+.pcal{background:var(--surface2);border-radius:14px;padding:8px 10px}
+.pc-h{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px}.pc-sel2{display:flex;gap:6px}.pc-h select{background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:2px 6px;font:inherit;font-size:13px;font-weight:600}
 .pc-h .ic{width:28px;height:28px;border:0;background:none;color:var(--fg);border-radius:8px;font-size:18px}.pc-h .ic:hover{background:var(--surface)}
-.pc-g{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}
-.pc-dw{font-size:11px;color:var(--muted);padding:2px 0}
-.pc-d{position:relative;border:0;background:none;color:var(--fg);height:34px;border-radius:8px;font-size:13px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.pc-g{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;text-align:center}
+.pc-dw{font-size:10px;color:var(--muted);padding:0}
+.pc-d{position:relative;border:0;background:none;color:var(--fg);height:26px;border-radius:7px;font-size:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;line-height:1}
 .pc-d:hover{background:var(--surface)}.pc-d.today span{color:var(--accent);font-weight:700}
 .pc-d.sel{background:var(--accent);color:var(--accent-fg)}.pc-d.sel.today span{color:var(--accent-fg)}
 .pc-d i{display:flex;gap:2px;height:4px}.pc-d u{width:4px;height:4px;border-radius:50%;display:block;background:var(--accent)}
 .pc-d u.k-play{background:var(--good)}.pc-d u.k-post{background:var(--st-done)}.pc-d.sel u{background:var(--accent-fg)}
-.pc-sel{margin-top:8px;border-top:1px solid var(--line);padding-top:8px;display:flex;flex-direction:column;gap:4px}
-.pc-sd{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
-.pc-e{display:flex;align-items:center;gap:8px;border:0;background:var(--surface);border-radius:10px;padding:6px 8px;text-align:left;color:var(--fg);width:100%}
+.pc-sel{margin-top:6px;border-top:1px solid var(--line);padding-top:6px;display:flex;flex-direction:column;gap:4px}.pc-list{display:flex;flex-direction:column;gap:4px;max-height:108px;overflow:auto}
+.pc-sd{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}.pc-sd .lnk{text-transform:none;letter-spacing:0;font-size:12px}
+.post.flash{outline:2px solid var(--accent);outline-offset:2px;transition:outline-color .3s}
+.pc-e{display:flex;align-items:center;gap:8px;border:0;background:var(--surface);border-radius:10px;padding:4px 8px;text-align:left;color:var(--fg);width:100%}
 button.pc-e:hover{outline:1px solid var(--accent)}
 .pc-k{font-size:11px;border-radius:999px;padding:1px 8px;background:var(--accent-soft);color:var(--accent);flex:none}
 .pc-k.k-play{background:transparent;border:1px solid var(--good);color:var(--good)}.pc-k.k-post{background:transparent;border:1px solid var(--st-done);color:var(--st-done)}
@@ -666,7 +667,7 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10. Музыка пока без звука, это макет плеера.</p>
-  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-21-cal1</p>
+  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-22-cal2</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
@@ -804,7 +805,7 @@ function calEvents(){
     const j=(EXTRA[key]||{}).journal;
     if(j)Object.entries(j).forEach(([iso,t])=>add(iso,{kind:'play',k,key,title:r[0],text:mkLabel(k,t)}));
   }));
-  S.posts.forEach(p=>{const tx=String(p.t).replace(/\{\{(.+?)\}\}/g,'$1');add(dayIso(p.d),{kind:'post',title:'Пост',text:tx.slice(0,90)+(tx.length>90?'…':'')})});
+  S.posts.forEach((p,pi)=>{const tx=String(p.t).replace(/\{\{(.+?)\}\}/g,'$1');add(dayIso(p.d),{kind:'post',pi,title:'Пост',text:tx.slice(0,90)+(tx.length>90?'…':'')})});
   return ev;
 }
 function drawCal(){
@@ -817,14 +818,24 @@ function drawCal(){
     cells+=`<button type="button" class="pc-d${iso===PC.sel?' sel':''}${iso===t0?' today':''}${es.length?' has':''}" data-pcd="${iso}" aria-label="${fmtLong(iso)}${es.length?', событий: '+es.length:''}"><span>${d}</span>${kinds.length?`<i>${kinds.map(k=>`<u class="k-${k}"></u>`).join('')}</i>`:''}</button>`;
   }
   const es=ev[PC.sel]||[],ICON={rate:'Оценка',play:'Дневник',post:'Пост'};
-  const list=es.length?es.map(e=>`<${e.key?'button type="button" data-pce="'+esc(e.key)+'"':'div'} class="pc-e"><span class="pc-k k-${e.kind}">${ICON[e.kind]}</span><span class="pc-t"><b>${esc(e.title)}</b>${e.k?`<small>${esc(CATS[e.k].one)} · ${esc(e.text)}</small>`:`<small>${esc(e.text)}</small>`}</span></${e.key?'button':'div'}>`).join(''):'<div class="sub" style="padding:6px 2px">В этот день ничего не отмечено.</div>';
-  el.innerHTML=`<div class="pc-h"><button type="button" class="ic" data-pcm="-1" aria-label="Предыдущий месяц">‹</button><b>${MONTHS[m]} ${y}</b><button type="button" class="ic" data-pcm="1" aria-label="Следующий месяц">›</button></div><div class="pc-g">${cells}</div><div class="pc-sel"><div class="pc-sd">${fmtLong(PC.sel)}</div>${list}</div>`;
+  const open=e=>e.kind==='post'?`data-pcpost="${e.pi}"`:S.me?`data-edit="${esc(e.key)}"`:`data-open="${esc(e.key)}"`;
+  const list=es.length?es.map(e=>`<button type="button" ${open(e)} class="pc-e"><span class="pc-k k-${e.kind}">${ICON[e.kind]}</span><span class="pc-t"><b>${esc(e.title)}</b>${e.k?`<small>${esc(CATS[e.k].one)} · ${esc(e.text)}</small>`:`<small>${esc(e.text)}</small>`}</span></button>`).join(''):'<div class="sub" style="padding:4px 2px;font-size:13px">В этот день ничего не отмечено.</div>';
+  const cy=new Date().getFullYear(),y0=Math.min(cy-12,y),yrs=[];for(let i=cy+1;i>=y0;i--)yrs.push(i);
+  el.innerHTML=`<div class="pc-h"><button type="button" class="ic" data-pcm="-1" aria-label="Предыдущий месяц">‹</button><span class="pc-sel2"><select data-pcms aria-label="Месяц">${MONTHS.map((n,i)=>`<option value="${i}" ${i===m?'selected':''}>${n}</option>`).join('')}</select><select data-pcys aria-label="Год">${yrs.map(n=>`<option ${n===y?'selected':''}>${n}</option>`).join('')}</select></span><button type="button" class="ic" data-pcm="1" aria-label="Следующий месяц">›</button></div><div class="pc-g">${cells}</div><div class="pc-sel"><div class="pc-sd"><span>${fmtLong(PC.sel)}</span>${PC.sel!==t0?'<button type="button" class="lnk" data-pct>Сегодня</button>':''}</div><div class="pc-list">${list}</div></div>`;
 }
 document.addEventListener('click',e=>{
   let b;
   if(b=e.target.closest('[data-pcm]')){PC.m+=+b.dataset.pcm;if(PC.m<0){PC.m=11;PC.y--}else if(PC.m>11){PC.m=0;PC.y++}drawCal();return}
   if(b=e.target.closest('[data-pcd]')){PC.sel=b.dataset.pcd;drawCal();return}
-  if(b=e.target.closest('[data-pce]')){S.page=b.dataset.pce;S.home=false;render();window.scrollTo(0,0)}
+  if(e.target.closest('[data-pct]')){const d=new Date();PC.y=d.getFullYear();PC.m=d.getMonth();PC.sel=todayIso();drawCal();return}
+  if(b=e.target.closest('[data-pcpost]')){
+    const i=b.dataset.pcpost;S.view='posts';render();
+    setTimeout(()=>{const el=document.getElementById('po-'+i);if(el){el.scrollIntoView({block:'center',behavior:'smooth'});el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),2200)}},60);
+  }
+});
+document.addEventListener('change',e=>{
+  if(e.target.matches('[data-pcms]')){PC.m=+e.target.value;drawCal()}
+  else if(e.target.matches('[data-pcys]')){PC.y=+e.target.value;drawCal()}
 });
 function renderHead(){
   const links = S.linksOpen?P.links:P.links.slice(0,MAXLINKS);
@@ -1287,8 +1298,8 @@ function ratingRow(r,showCat){
 }
 const POST_MAX=5000;   // длина поста
 function postCard(p){
-  const long=p.t.length>700;   // длинные посты свёрнуты, разворачиваются кнопкой
-  return `<article class="post"><div class="tag">${ico('posts')}Пост · ${ago(p.d)}</div><p${long?' class="clamp"':''}>${renderText(p.t)}</p>${long?'<button type="button" class="more-post" data-morepost>Показать полностью</button>':''}</article>`;
+  const pi=S.posts.indexOf(p),long=p.t.length>700;   // длинные посты свёрнуты, разворачиваются кнопкой
+  return `<article class="post" id="po-${pi}"><div class="tag">${ico('posts')}Пост · ${ago(p.d)}</div><p${long?' class="clamp"':''}>${renderText(p.t)}</p>${long?'<button type="button" class="more-post" data-morepost>Показать полностью</button>':''}</article>`;
 }
 function compose(){
   return S.me?`<div class="addbar">${addBtn(ORDER.includes(S.view)?S.view:'')}</div><form class="post compose" id="cf"><span class="sub" id="ct-l">Новый пост</span><div id="ct" class="ced" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="ct-l" data-ph="О чём думаете?"></div><div class="sugg" id="sg"></div><div class="r"><span class="hint">{{ — сослаться на игру, фильм, книгу. @ — отметить человека.</span><span id="cc">0 / 5000</span><button class="btn primary" type="submit">Опубликовать</button></div></form>`:'';
@@ -1632,7 +1643,7 @@ function drawEditor(focus){
   const foot=ro?'<button type="button" class="lnk" id="e-tp" style="margin-right:auto">Страница игры</button><button type="button" class="btn primary" id="e-cancel">Закрыть</button>'
     :`${!c||E.lock?'':'<button type="button" class="lnk" id="e-change" style="margin-right:auto">Выбрать другое название</button>'}<button type="button" class="btn" id="e-cancel">Отмена</button><button class="btn primary" type="submit">Сохранить</button>`;
   ov.innerHTML=`<form class="dlg${wide?' wide':''}" id="ed" role="dialog" aria-modal="true" aria-labelledby="e-h">
-    <div class="dh"><h2 id="e-h">${head}${ro?'<span class="rob">Запись пользователя ${esc(P.nick)}, только просмотр</span>':''}</h2><div class="dhb">${c&&innerWidth>=900?`<button type="button" class="ic" id="e-wide" aria-label="${wide?'Свернуть окно':'Развернуть окно'}" title="${wide?'Свернуть':'Развернуть, чтобы всё было в одном окне'}">${ico(wide?'shrink':'expand')}</button>`:''}<button type="button" class="ic" id="e-x" aria-label="Закрыть">${ico('close')}</button></div></div>
+    <div class="dh"><h2 id="e-h">${head}${ro?`<span class="rob">Запись пользователя ${esc(P.nick)}, только просмотр</span>`:''}</h2><div class="dhb">${c&&innerWidth>=900?`<button type="button" class="ic" id="e-wide" aria-label="${wide?'Свернуть окно':'Развернуть окно'}" title="${wide?'Свернуть':'Развернуть, чтобы всё было в одном окне'}">${ico(wide?'shrink':'expand')}</button>`:''}<button type="button" class="ic" id="e-x" aria-label="Закрыть">${ico('close')}</button></div></div>
     <div class="dg${wide?' wide':''}">${left}${cols}</div>
     <div class="df">${foot}</div>
   </form>`;
