@@ -667,7 +667,7 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10. Музыка пока без звука, это макет плеера.</p>
-  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-22-sync1</p>
+  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-22-soc1</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
@@ -845,7 +845,7 @@ function renderHead(){
     + (P.links.length>MAXLINKS?`<button class="links more btn" id="morelinks" style="border:0;background:var(--surface2);border-radius:10px;height:34px">${S.linksOpen?'Скрыть':'+'+(P.links.length-MAXLINKS)}</button>`:'');
   const btns = S.me
     ? `<button class="btn" id="b-edit" data-editprof>${ico('edit')}Редактировать профиль</button><button class="btn" id="b-import" data-import>${ico('plus')}Импорт</button>`
-    : `<button class="btn ${S.friend?'on':'primary'}" id="b-friend">${ico(S.friend?'check':'userplus')}${S.friend?'В друзьях':'Добавить в друзья'}</button><button class="btn" id="b-msg">${ico('mail')}Написать</button>`;
+    : (window.SOCIAL&&SOCIAL.on()&&SOCIAL.viewing()?SOCIAL.headBtns():`<button class="btn ${S.friend?'on':'primary'}" id="b-friend">${ico(S.friend?'check':'userplus')}${S.friend?'В друзьях':'Добавить в друзья'}</button><button class="btn" id="b-msg">${ico('mail')}Написать</button>`);
   const favHtml = ORDER.map(k=>{
     const off = S.favHidden.has(k), f = favInfo(k);
     if(!f || (off && !S.editFav)) return '';
@@ -870,7 +870,7 @@ function renderHead(){
     <div class="id">
       <div class="ava"><div class="cropbox" id="av-box"></div>${S.avatar?'':`<span class="ava-l">${esc(P.nick[0].toUpperCase())}</span>`}${S.me?`<button type="button" class="ava-edit" data-img="avatar" aria-label="Сменить аватар">${ico('camera')}</button>`:''}${ST.online?'<i></i>':''}</div>
       <div class="nick">${esc(P.nick)}</div>
-      <div class="sub">${ST.online?'был в сети только что · ':''}с нами с марта 2025</div>
+      <div class="sub">${window.SOCIAL&&SOCIAL.on()?SOCIAL.since():(ST.online?'был в сети только что · ':'')+'с нами с марта 2025'}</div>
       <div class="links">${linkHtml}</div>
       <div class="btns">${btns}</div>
       ${P.about?`<p class="about">${esc(P.about)}</p>`:''}
@@ -1275,7 +1275,7 @@ const fmtLong=iso=>{const [y,m,d]=iso.split('-');return `${+d} ${MONTHS_G[+m-1]}
 function renderText(t){
   return esc(t)
     .replace(/\{\{(.+?)\}\}/g,(m,name)=>{const c=findCat(name);return c?`<a href="#" class="mention game" data-goto="${esc(kk(c.k,c.t))}">${ico(c.k)}${esc(c.t)}</a>`:`<span class="mention none" title="Такого названия нет в базе">${name}</span>`})
-    .replace(/@([\p{L}\p{N}_]+)/gu,(m,n)=>PEOPLE.includes(n)||n===P.nick?`<span class="mention user" title="Профиль пользователя">@${n}</span>`:m);
+    .replace(/@([\p{L}\p{N}_]+)/gu,(m,n)=>{if(window.SOCIAL&&SOCIAL.on())return SOCIAL.known(n)?`<a href="#" class="mention user" data-user="${n}" title="Профиль пользователя">@${n}</a>`:m;return PEOPLE.includes(n)||n===P.nick?`<span class="mention user" title="Профиль пользователя">@${n}</span>`:m});
 }
 
 const addBtn = k => S.me?`<button class="btn primary" data-add="${k||''}">${ico('plus')}Оценить</button>`:'';
@@ -1301,10 +1301,10 @@ function ratingRow(r,showCat){
 const POST_MAX=5000;   // длина поста
 function postCard(p){
   const pi=S.posts.indexOf(p),long=p.t.length>700;   // длинные посты свёрнуты, разворачиваются кнопкой
-  return `<article class="post" id="po-${pi}"><div class="tag">${ico('posts')}Пост · ${ago(p.d)}</div><p${long?' class="clamp"':''}>${renderText(p.t)}</p>${long?'<button type="button" class="more-post" data-morepost>Показать полностью</button>':''}</article>`;
+  return `<article class="post" id="po-${pi}"><div class="tag">${ico('posts')}Пост · ${ago(p.d)}${p.vis==='friends'?' · для друзей':''}</div><p${long?' class="clamp"':''}>${renderText(p.t)}</p>${long?'<button type="button" class="more-post" data-morepost>Показать полностью</button>':''}${p.id&&S.me?`<button type="button" class="lnk" data-delpost="${esc(p.id)}">Удалить пост</button>`:''}</article>`;
 }
 function compose(){
-  return S.me?`<div class="addbar">${addBtn(ORDER.includes(S.view)?S.view:'')}</div><form class="post compose" id="cf"><span class="sub" id="ct-l">Новый пост</span><div id="ct" class="ced" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="ct-l" data-ph="О чём думаете?"></div><div class="sugg" id="sg"></div><div class="r"><span class="hint">{{ — сослаться на игру, фильм, книгу. @ — отметить человека.</span><span id="cc">0 / 5000</span><button class="btn primary" type="submit">Опубликовать</button></div></form>`:'';
+  return S.me?`<div class="addbar">${addBtn(ORDER.includes(S.view)?S.view:'')}</div><form class="post compose" id="cf"><span class="sub" id="ct-l">Новый пост</span><div id="ct" class="ced" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="ct-l" data-ph="О чём думаете?"></div><div class="sugg" id="sg"></div><div class="r"><span class="hint">{{ — сослаться на игру, фильм, книгу. @ — отметить человека.</span><span id="cc">0 / 5000</span>${window.SOCIAL?SOCIAL.visSel():''}<button class="btn primary" type="submit">Опубликовать</button></div></form>`:'';
 }
 
 /* редактор поста: подсказки превращаются в подсвеченные метки без скобок */
@@ -1342,7 +1342,7 @@ function bindCompose(){
     if(!c){sg.innerHTML='';return}
     const q=c.q.trim().toLowerCase();
     let items;
-    if(c.kind==='@') items=PEOPLE.filter(n=>n.toLowerCase().includes(q)).slice(0,6).map(n=>({html:'@'+esc(n),pick:()=>place(ctx(),userChip(n))}));
+    if(c.kind==='@') items=(window.SOCIAL&&SOCIAL.on()?SOCIAL.nicks():PEOPLE).filter(n=>n.toLowerCase().includes(q)).slice(0,6).map(n=>({html:'@'+esc(n),pick:()=>place(ctx(),userChip(n))}));
     else{
       const lv=liveKeys(c.q,'all').map(k=>CAT_IDX[k]).filter(Boolean);
       const loc=Object.values(CAT_IDX).filter(x=>!lv.includes(x)&&(!q||x.t.toLowerCase().includes(q))).sort((a,b)=>rated(kk(b.k,b.t))-rated(kk(a.k,a.t)));
@@ -1377,6 +1377,7 @@ function bindCompose(){
     e.preventDefault();
     const v=serialize(ed).trim();
     if(!v||v.length>POST_MAX)return;
+    if(window.SOCIAL&&SOCIAL.on()){const vs=cf.querySelector('.cvis');SOCIAL.publish(v,vs?vs.value:'all');return}
     S.posts.unshift({t:v,d:0});render();
   };
 }
@@ -1856,6 +1857,7 @@ document.addEventListener('click',e=>{
 });
 
 function renderFriends(){
+  if(window.SOCIAL&&SOCIAL.on()){SOCIAL.renderFriends();return}
   document.getElementById('fcount').textContent = FRIENDS.length+(S.friend?1:0)+' (пример)';
   document.getElementById('friends').innerHTML = FRIENDS.map(([n,on])=>`<div class="friend"><div class="av" style="background:hsl(${hue(n)} 50% 45%)">${n[0]}${on?'<i></i>':''}</div><span>${n}</span></div>`).join('');
 }
@@ -2031,7 +2033,7 @@ function setPlaying(v){S.playing=v;clearInterval(timer);if(v)timer=setInterval(t
 function bindHead(){
   const $=id=>document.getElementById(id);
   const ml=$('morelinks'); if(ml) ml.onclick=()=>{S.linksOpen=!S.linksOpen;renderHead()};
-  const bf=$('b-friend'); if(bf) bf.onclick=()=>{S.friend=!S.friend;renderHead();renderFriends()};
+  const bf=$('b-friend'); if(bf) bf.onclick=()=>{if(window.SOCIAL&&SOCIAL.on())return;S.friend=!S.friend;renderHead();renderFriends()};
   if($('pp')){
     $('pp').onclick=()=>setPlaying(!S.playing);
     $('mu').onclick=()=>{S.muted=!S.muted;$('mu').innerHTML=ico(S.muted?'mute':'vol');$('mu').setAttribute('aria-label',S.muted?'Включить звук':'Выключить звук')};
@@ -2064,7 +2066,7 @@ document.getElementById('v-me').onclick=()=>setProfile(true);
 document.getElementById('v-other').onclick=()=>setProfile(false);
 /* настройки: небольшое окно у шестерёнки */
 const SETK='prof_settings';
-const ST={theme:'auto',auto:true,spoilers:false,notif:true,vis:'all',msg:'all',online:true,steam:true};
+const ST={theme:'auto',auto:true,spoilers:false,notif:true,vis:'all',pvis:'all',msg:'all',online:true,steam:true};
 function loadSet(){try{Object.assign(ST,JSON.parse(localStorage.getItem(SETK)||'{}'))}catch(e){}}
 function saveSet(){try{localStorage.setItem(SETK,JSON.stringify(ST))}catch(e){}}
 function applyTheme(){const r=document.documentElement;if(ST.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',ST.theme)}
@@ -2080,7 +2082,7 @@ function renderPop(){
   let body='';
   if(SP.tab==='look')body=`<div class="prow"><span><b>Профиль</b><small>Ник, описание, ссылки, любимое, музыка</small></span><button type="button" class="btn" data-editprof>Изменить</button></div><div class="themes">${THEMES.map(([id,l,c])=>`<button type="button" class="tbtn" data-theme-set="${id}" aria-pressed="${ST.theme===id}"><span class="tsw">${c.map(x=>`<i style="background:${x}"></i>`).join('')}</span><b>${l}${ST.theme===id?ico('check'):''}</b></button>`).join('')}</div>`;
   else if(SP.tab==='gen')body=sw('auto','Музыка при заходе в профиль','Играет после первого клика на сайте')+sw('spoilers','Показывать спойлеры','Отзывы со спойлерами откроются сразу')+sw('notif','Уведомления об отметках','Когда вас отметили через @ или {{ }}')+sel('lang','Язык',[['ru','Русский']]);
-  else body=sel('vis','Кто видит профиль',[['all','Все'],['friends','Друзья'],['me','Только я']])+sel('msg','Кто может писать мне',[['all','Все'],['friends','Друзья'],['none','Никто']])+sw('online','Показывать, что я в сети')+sw('steam','Показывать часы и достижения','Из Steam и других сервисов');
+  else body=sel('pvis','Кто видит новые посты',[['all','Все'],['friends','Друзья']])+sel('msg','Кто может писать мне',[['all','Все'],['friends','Друзья'],['none','Никто']])+sw('online','Показывать, что я в сети')+sw('steam','Показывать часы и достижения','Из Steam и других сервисов');
   pop.innerHTML=`<div class="seg" role="tablist">${tabs.map(([id,l])=>`<button type="button" role="tab" data-ptab="${id}" aria-pressed="${SP.tab===id}">${l}</button>`).join('')}</div><div class="pbody">${body}</div><div class="pfoot">Сохраняется в этом браузере.</div>`;
   pop.querySelectorAll('[data-ptab]').forEach(b=>b.onclick=()=>{SP.tab=b.dataset.ptab;renderPop()});
   pop.querySelectorAll('[data-theme-set]').forEach(b=>b.onclick=()=>{ST.theme=b.dataset.themeSet;saveSet();applyTheme();renderPop()});
@@ -2153,6 +2155,7 @@ const plain=t=>String(t).replace(/\{\{(.+?)\}\}/g,'$1');
 const nrm2=x=>String(x||'').toLowerCase().replace(/ё/g,'е');
 const GS_SRC=[
   {id:'people',label:'Люди',max:4,find:q=>{
+    if(window.SOCIAL&&SOCIAL.on())return SOCIAL.people(q);
     const names=[...new Set([P.nick,...FRIENDS.map(f=>f[0])])];
     return names.filter(n=>nrm2(n).includes(q)).map(n=>({id:'u:'+n,ava:n,t:n,sub:n===P.nick?'Это вы':'Друг',go:()=>{n===P.nick?setProfile(true):toast('Страницы других людей появятся вместе с аккаунтами')}}));
   }},
@@ -2532,6 +2535,7 @@ const ALL=()=>ORDER.flatMap(k=>Object.values(CAT_IDX).filter(c=>c.k===k&&!c.ext)
 let EV=null;
 const CHIP_ST={rate:'Оценка',start:'Начало',done:'Завершено',list:'Сборник',post:'Пост'};
 function build(){
+  if(window.SOCIAL&&SOCIAL.on())return SOCIAL.events();
   const all=ALL(),out=[];
   FRIENDS.forEach(([name],fi)=>{
     for(let j=0;j<6;j++){
@@ -2556,7 +2560,7 @@ function mine(){
 const nick=()=>P.nick;
 const avatar=who=>{const n=who==='me'?nick():who;return `<span class="hm-av" style="background:hsl(${hue(n)} 45% 42%)">${esc(n[0].toUpperCase())}</span>`};
 function card(e){
-  const nm=e.who==='me'?'Вы':e.who,liked=HS.liked.has(e.id),likes=Math.floor(rnd(hue(e.id),9)*14)+(liked?1:0);
+  const nm=e.who==='me'?'Вы':e.who,liked=HS.liked.has(e.id),likes=Math.floor(rnd(hue(e.id),9)*14)+(liked?1:0),real=e.real||(e.who==='me'&&window.SOCIAL&&SOCIAL.on());
   const chip=e.t==='start'||e.t==='done'?e.status:CHIP_ST[e.t];
   let body='';
   if(e.t==='post')body=`<div class="hc-post">${renderText(e.text)}</div>`;
@@ -2565,8 +2569,8 @@ function card(e){
     const extra=e.t==='list'?`<p>Добавил(а) в сборник «${esc(e.coll.name)}»</p>`:e.t==='rate'&&e.text?`<p>${esc(e.text)}</p>`:e.t==='start'?`<p>${esc(e.status)}</p>`:e.t==='done'?`<p>${esc(e.status)}</p>`:'';
     body=`<button type="button" class="hc-body" data-hopen="${esc(e.key)}">${cover(c.t,'',e.k)}<div class="i">${e.t==='rate'&&e.score?`<span class="hm-sc ${scoreCls(e.score)}">${e.score}</span>`:''}<b>${esc(c.t)}</b><span class="sub">${esc(CATS[e.k].one)} · ${esc(c.by||'')}${c.y?' · '+c.y:''}</span>${extra}</div></button>`;
   }
-  return `<article class="hc"><div class="hc-h">${avatar(e.who)}<div class="t"><b>${esc(nm)}</b><div class="sub">${ago(e.d)}</div></div><span class="hc-chip ${e.status?stc(e.status):''}">${esc(chip)}</span></div>${body}
-    <div class="hc-f"><button type="button" data-hlike="${esc(e.id)}" class="${liked?'on':''}" aria-pressed="${liked}"><svg viewBox="0 0 24 24"><use href="#heart"/></svg>${likes||''}</button><button type="button" data-hcom>Комментарий</button>${e.key&&!rated(e.key)?`<button type="button" data-hopen="${esc(e.key)}">Оценить</button>`:''}</div></article>`;
+  return `<article class="hc"><div class="hc-h">${avatar(e.who)}<div class="t"><b${real&&e.who!=='me'?` class="hm-who" data-user="${esc(e.who)}"`:''}>${esc(nm)}</b><div class="sub">${ago(e.d)}</div></div><span class="hc-chip ${e.status?stc(e.status):''}">${esc(chip)}</span></div>${body}
+    <div class="hc-f">${real?'':`<button type="button" data-hlike="${esc(e.id)}" class="${liked?'on':''}" aria-pressed="${liked}"><svg viewBox="0 0 24 24"><use href="#heart"/></svg>${likes||''}</button><button type="button" data-hcom>Комментарий</button>`}${e.key&&!rated(e.key)?`<button type="button" data-hopen="${esc(e.key)}">Оценить</button>`:''}</div></article>`;
 }
 function recs(){
   // жанры из высоко оценённого у вас: чем выше оценка, тем сильнее вес
@@ -2622,7 +2626,7 @@ function side(){
   const tr=trend().slice(0,5);
   return `${prog.length?`<section class="card"><h3>Сейчас в процессе</h3>${prog.slice(0,5).map(x=>li(x)).join('')}</section>`:''}
   <section class="card"><h3>В тренде на неделе</h3>${tr.map((x,i)=>li(x,i+1)).join('')}</section>
-  <section class="card"><h3>Друзья</h3>${FRIENDS.map(([n,on])=>`<div class="hm-li" style="cursor:default">${avatar(n)}<span class="i"><b>${esc(n)}</b><span class="sub">${on?'в сети':'не в сети'}</span></span></div>`).join('')}</section>
+  ${window.SOCIAL&&SOCIAL.on()?SOCIAL.sideHtml():`<section class="card"><h3>Друзья</h3>${FRIENDS.map(([n,on])=>`<div class="hm-li" style="cursor:default">${avatar(n)}<span class="i"><b>${esc(n)}</b><span class="sub">${on?'в сети':'не в сети'}</span></span></div>`).join('')}</section>`}
   <section class="card"><h3>Обсуждают в мире</h3>${[...threads()].sort((a,b)=>b.hot-a.hot).slice(0,4).map(t=>`<button type="button" class="hm-li" data-hworld><span class="i"><b>${esc(t.title)}</b><span class="sub">${t.rep} ответов · ${esc(CATS[t.k].one)}</span></span></button>`).join('')}</section>`;
 }
 const IC={home:'<path d="M3 11l9-8 9 8v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z"/>',search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/>',coll:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5"/>',cog:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',plus:'<path d="M12 5v14M5 12h14"/>',globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>'};
@@ -2654,19 +2658,19 @@ function welcome(){
     <button type="button" class="x" data-hwel>Скрыть</button></section>`;
 }
 window.renderHome=function(){
-  const hm=document.getElementById('home');if(!EV)EV=build();
+  const hm=document.getElementById('home');if(!EV||(window.SOCIAL&&SOCIAL.on()))EV=build();
   document.body.classList.add('on-home');
   const r=render2(),tabs=[['friends','Друзья'],['foryou','Для вас'],['trend','В тренде']];
-  const empty=!r.cards.length?`<div class="hc hm-empty">${HS.tab==='friends'?'Здесь появятся оценки и посты друзей.<br>Пока тихо: перенесите свои оценки или посмотрите, что в тренде.':'Пока ничего не нашлось в этой категории.'}<div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button type="button" class="btn primary" data-import>Импорт оценок</button><button type="button" class="btn" data-htab="trend">В тренде</button></div></div>`:'';
+  const empty=!r.cards.length?`<div class="hc hm-empty">${HS.tab==='friends'?(window.SOCIAL&&SOCIAL.on()?'Здесь появятся оценки и посты друзей и тех, на кого вы подписаны.<br>Найдите людей по нику через поиск вверху.':'Здесь появятся оценки и посты друзей.<br>Пока тихо: перенесите свои оценки или посмотрите, что в тренде.'):'Пока ничего не нашлось в этой категории.'}<div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button type="button" class="btn primary" data-import>Импорт оценок</button><button type="button" class="btn" data-htab="trend">В тренде</button></div></div>`:'';
   if(HS.view==='world'){hm.innerHTML=`<div class="home">${nav()}${worldMain()}<aside class="hm-side">${side()}</aside></div>${tabbar()}`;return}
   hm.innerHTML=`<div class="home">${nav()}<div class="hm-main">
     ${welcome()}
-    <form class="post compose" id="cf"><span class="sub" id="ct-l">Новый пост</span><div id="ct" class="ced" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="ct-l" data-ph="О чём думаете?"></div><div class="sugg" id="sg"></div><div class="r"><span class="hint">{{ — сослаться на игру, фильм, книгу. @ — отметить человека.</span><span id="cc">0 / 5000</span><button class="btn primary" type="submit">Опубликовать</button></div></form>
+    <form class="post compose" id="cf"><span class="sub" id="ct-l">Новый пост</span><div id="ct" class="ced" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="ct-l" data-ph="О чём думаете?"></div><div class="sugg" id="sg"></div><div class="r"><span class="hint">{{ — сослаться на игру, фильм, книгу. @ — отметить человека.</span><span id="cc">0 / 5000</span>${window.SOCIAL?SOCIAL.visSel():''}<button class="btn primary" type="submit">Опубликовать</button></div></form>
     <div class="hm-bar"><span class="seg" role="tablist" aria-label="Лента">${tabs.map(([id,l])=>`<button type="button" role="tab" data-htab="${id}" aria-pressed="${HS.tab===id}">${l}</button>`).join('')}</span>
     <div class="hm-chips" role="group" aria-label="Категория">${[['all','Все'],...(HS.tab==='friends'?[['posts','Только посты']]:[]),...ORDER.map(k=>[k,CATS[k].name])].map(([id,l])=>`<button type="button" class="gs-chip" data-hcat="${id}" aria-pressed="${HS.cat===id}">${l}</button>`).join('')}</div></div>
     ${HS.tab==='friends'&&HS.cat!=='posts'?nowStrip(HS.cat==='all'?null:HS.cat):''}
     ${r.cards.join('')}${empty}${r.total>HS.n?`<button type="button" class="btn hm-more" data-hmore>Показать ещё</button>`:''}
-    <p class="note" style="margin:0">Лента друзей пока примерная: настоящая появится вместе с аккаунтами.</p>
+    ${window.SOCIAL&&SOCIAL.on()?(HS.tab==='friends'?'':'<p class="note" style="margin:0">Рекомендации и тренды пока примерные.</p>'):'<p class="note" style="margin:0">Лента друзей пока примерная: настоящая появится вместе с аккаунтами.</p>'}
   </div><aside class="hm-side">${side()}</aside></div>${tabbar()}`;
   bindCompose();
 };
@@ -2703,5 +2707,6 @@ document.addEventListener('click',e=>{
 render();
 })();
 </script>
+<script src="/social.js"></script>
 <script src="/sync.js"></script>
 </body></html>

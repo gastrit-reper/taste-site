@@ -51,7 +51,7 @@
   async function loadProfile() {
     AUTH.profile = null;
     if (!AUTH.user) return;
-    const { data } = await sb.from('profiles').select('id,nick,about').eq('id', AUTH.user.id).maybeSingle();
+    const { data } = await sb.from('profiles').select('id,nick,about,links,fav,song,created_at').eq('id', AUTH.user.id).maybeSingle();
     AUTH.profile = data || null;
   }
   async function setUser(u) {
