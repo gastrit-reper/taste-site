@@ -1,14 +1,15 @@
 /* Синхронизация оценок и профиля с аккаунтом. Подключается в самом конце index.html (после всех скриптов).
    Вошли в аккаунт: демо-данные прячутся, профиль строится из таблицы ratings.
    Любые изменения оценок замечаются сами (сравнение до/после) и уходят на сервер через ~1 секунду.
-   «Чужой профиль» по-прежнему показывает демо-данные. Не вошли: сайт работает как раньше (всё в браузере). */
+   Три набора данных: demo (гость), acct (ваш аккаунт), other (открытый чужой профиль, собирает social.js).
+   Не вошли: сайт работает как раньше (всё в браузере). */
 (function () {
   'use strict';
   const AUTH = window.AUTH;
   if (!AUTH || !AUTH.client) return;
   const sb = AUTH.client;
   const NICK = /^[\p{L}\p{N}_]{2,24}$/u;
-  const store = { demo: null, acct: null };   // два набора данных: демо и аккаунт
+  const store = { demo: null, acct: null, other: null };
   let cur = 'demo', uid = null, loading = false, timer = null, chain = Promise.resolve(), lastErr = 0;
   const synced = new Map();   // ключ записи -> {sig, tid}: что уже лежит на сервере
   const fails = new Map(), warned = new Set();
@@ -42,10 +43,11 @@
     COLL_K = cur === 'acct' && uid ? 'prof_coll_' + uid : 'prof_coll';
   }
   function swap(t) { store[cur] = snapshot(); restore(store[t]); cur = t; setKeys(); }
-  function ensureView() {   // «Чужой профиль» = демо-данные, всё остальное = аккаунт
+  function ensureView() {   // чужой профиль (S.me=false на странице профиля): открытый человек, иначе ваши данные
     if (!uid || loading || !store.demo) return;
-    const demoView = S.home === false && S.me === false && !S.page && !S.coll;
-    const t = demoView ? 'demo' : 'acct';
+    const profView = S.home === false && S.me === false && !S.page && !S.coll;
+    const viewing = window.SOCIAL && SOCIAL.viewing && SOCIAL.viewing();
+    const t = profView && viewing && store.other ? 'other' : 'acct';
     if (t !== cur) swap(t);
   }
   const _render = window.render;
@@ -77,7 +79,7 @@
     });
     return d;
   }
-  function addRec(rec) {
+  function addRec(rec, track = true) {
     const t = rec.titles; if (!t) return;
     const key = regLive(t, true); if (!key) return;
     const c = CAT_IDX[key], k = c.k;
@@ -88,7 +90,7 @@
     if (rec.liked) x.liked = true;
     if (rec.spoiler) x.spoiler = true;
     if (Object.keys(x).length) EXTRA[key] = x;
-    synced.set(key, { sig: sigOf(k, row), tid: t.id });
+    if (track) synced.set(key, { sig: sigOf(k, row), tid: t.id });
   }
   async function loadRatings() {
     synced.clear();
@@ -96,20 +98,26 @@
     for (let from = 0; ; from += 1000) {
       const { data, error } = await sb.from('ratings').select(cols).eq('user_id', uid).order('rated_at', { ascending: false }).order('id').range(from, from + 999);
       if (error) throw error;
-      (data || []).forEach(addRec);
+      (data || []).forEach(r => addRec(r));
       if (!data || data.length < 1000) break;
     }
   }
   async function enter(user, profile) {
     if (uid === user.id) return;
-    loading = true; uid = user.id;
+    loading = true; uid = user.id; AUTH.syncOn = true;
+    const vo = document.getElementById('v-other'); if (vo) vo.hidden = true;   // «Чужой профиль»-пример нужен только гостям
     store.demo = snapshot();
     blank(); cur = 'acct'; setKeys();
     let sv = {};
     try { sv = JSON.parse(localStorage.getItem('prof_profile_' + uid) || '{}'); } catch (e) {}
     Object.assign(P, { about: sv.about || '', links: sv.links || [], fav: sv.fav || {}, song: sv.song || '' });
     P.nick = profile ? profile.nick : String(user.email || 'user').split('@')[0];
-    if (profile && profile.about) P.about = profile.about;
+    if (profile) {   // с сервера: что там есть, то главнее; старое из браузера уйдёт на сервер само
+      if (profile.about) P.about = profile.about;
+      if (profile.links && profile.links.length) P.links = profile.links;
+      if (profile.fav && Object.keys(profile.fav).length) P.fav = profile.fav;
+      if (profile.song) P.song = profile.song;
+    }
     try {
       const c = JSON.parse(localStorage.getItem('prof_coll_' + uid) || 'null');
       if (c && c.coll) { COLL.push(...c.coll); (c.saved || []).forEach(x => SAVED.add(x)); }
@@ -118,16 +126,18 @@
     loading = false;
     S.view = 'activity'; S.sub = 'all'; S.al = null; S.ar = null;
     release(); render();
+    document.dispatchEvent(new CustomEvent('sync-entered'));
     offerMigration();
   }
   function leave() {
     release();
     if (!uid) return;
     clearTimeout(timer);
-    if (cur === 'acct' && store.demo) restore(store.demo);
-    uid = null; cur = 'demo'; store.demo = store.acct = null; synced.clear(); fails.clear(); setKeys();
-    S.view = 'activity'; S.sub = 'all'; S.al = null; S.ar = null;
-    render();
+    if (store.demo) restore(store.demo);
+    uid = null; cur = 'demo'; AUTH.syncOn = false; store.demo = store.acct = store.other = null; synced.clear(); fails.clear(); setKeys();
+    const vo = document.getElementById('v-other'); if (vo) vo.hidden = false;
+    S.view = 'activity'; S.sub = 'all'; S.al = null; S.ar = null; S.page = null; S.coll = null; S.me = false;
+    const vh = document.getElementById('v-home'); if (vh) vh.click(); else render();
   }
   function handle() { if (!AUTH.ready) return; if (AUTH.user) enter(AUTH.user, AUTH.profile); else leave(); }
   document.addEventListener('auth-changed', handle);
@@ -210,13 +220,14 @@
     }
     /* ник и «о себе» */
     const pr = AUTH.profile;
-    if (pr && uid === me && cur === 'acct' && P.nick && (P.nick !== pr.nick || (P.about || '') !== (pr.about || ''))) {
+    const prSig = p => JSON.stringify([p.nick, p.about || '', p.links || [], p.fav || {}, p.song || '']);
+    if (pr && uid === me && cur === 'acct' && P.nick && prSig(P) !== prSig(pr)) {
       if (!NICK.test(P.nick)) { P.nick = pr.nick; }
       else {
-        const { data, error } = await sb.from('profiles').update({ nick: P.nick, about: P.about || '' }).eq('id', me).select('id,nick,about').maybeSingle();
+        const { data, error } = await sb.from('profiles').update({ nick: P.nick, about: P.about || '', links: (P.links || []).slice(0, 12), fav: P.fav || {}, song: String(P.song || '').slice(0, 300) }).eq('id', me).select('id,nick,about,links,fav,song,created_at').maybeSingle();
         if (error || !data) {
           toast(error && error.code === '23505' ? 'Этот ник уже занят, оставил прежний.' : 'Не удалось сохранить профиль на сервере.');
-          P.nick = pr.nick; P.about = pr.about || '';
+          P.nick = pr.nick; P.about = pr.about || ''; P.links = pr.links || P.links; P.fav = pr.fav || P.fav; P.song = pr.song || '';
           res.ok = false;
         } else AUTH.setProfile(data);
       }
@@ -266,6 +277,20 @@
       else toast('Не всё сохранилось на сервере. Предложу перенести ещё раз при следующем входе.');
     };
   }
+
+  /* ---------- для social.js: чужие профили и свои посты ---------- */
+  AUTH.daysSince = daysSince;
+  AUTH.setOther = function (prof, recs, posts) {   // собираем данные чужого профиля, не трогая ваши
+    const keep = snapshot();
+    try {
+      blank();
+      Object.assign(P, { nick: prof.nick, about: prof.about || '', links: prof.links || [], fav: prof.fav || {}, song: prof.song || '' });
+      (recs || []).forEach(r => addRec(r, false));
+      S.posts = posts || [];
+      store.other = snapshot();
+    } finally { restore(keep); }
+  };
+  AUTH.setMyPosts = function (posts) { if (cur === 'acct') S.posts = posts; else if (store.acct) store.acct.posts = posts; };
 
   handle();
 })();
