@@ -1,0 +1,271 @@
+/* Синхронизация оценок и профиля с аккаунтом. Подключается в самом конце index.html (после всех скриптов).
+   Вошли в аккаунт: демо-данные прячутся, профиль строится из таблицы ratings.
+   Любые изменения оценок замечаются сами (сравнение до/после) и уходят на сервер через ~1 секунду.
+   «Чужой профиль» по-прежнему показывает демо-данные. Не вошли: сайт работает как раньше (всё в браузере). */
+(function () {
+  'use strict';
+  const AUTH = window.AUTH;
+  if (!AUTH || !AUTH.client) return;
+  const sb = AUTH.client;
+  const NICK = /^[\p{L}\p{N}_]{2,24}$/u;
+  const store = { demo: null, acct: null };   // два набора данных: демо и аккаунт
+  let cur = 'demo', uid = null, loading = false, timer = null, chain = Promise.resolve(), lastErr = 0;
+  const synced = new Map();   // ключ записи -> {sig, tid}: что уже лежит на сервере
+  const fails = new Map(), warned = new Set();
+
+  function release() { document.documentElement.classList.remove('sy-wait'); }   // класс ставит auth.js
+
+  /* ---------- два набора данных ---------- */
+  const clearObj = o => { Object.keys(o).forEach(k => delete o[k]); };
+  const snapshot = () => ({
+    DATA: Object.fromEntries(ORDER.map(k => [k, DATA[k].slice()])),
+    EXTRA: { ...EXTRA }, TRK: { ...TRK }, posts: S.posts.slice(), P: JSON.parse(JSON.stringify(P)),
+    COLL: COLL.slice(), SAVED: [...SAVED]
+  });
+  function restore(s) {
+    ORDER.forEach(k => { DATA[k] = s.DATA[k].slice(); });
+    clearObj(EXTRA); Object.assign(EXTRA, s.EXTRA);
+    clearObj(TRK); Object.assign(TRK, s.TRK);
+    S.posts = s.posts.slice();
+    clearObj(P); Object.assign(P, s.P);
+    COLL.length = 0; COLL.push(...s.COLL);
+    SAVED.clear(); s.SAVED.forEach(x => SAVED.add(x));
+  }
+  function blank() {
+    ORDER.forEach(k => { DATA[k] = []; });
+    clearObj(EXTRA); clearObj(TRK); S.posts = [];
+    clearObj(P); Object.assign(P, { nick: '', about: '', links: [], fav: {}, song: '' });
+    COLL.length = 0; SAVED.clear();
+  }
+  function setKeys() {   // куда index.html сохраняет профиль и сборники (PK и COLL_K объявлены там через let)
+    PK = cur === 'acct' && uid ? 'prof_profile_' + uid : 'prof_profile';
+    COLL_K = cur === 'acct' && uid ? 'prof_coll_' + uid : 'prof_coll';
+  }
+  function swap(t) { store[cur] = snapshot(); restore(store[t]); cur = t; setKeys(); }
+  function ensureView() {   // «Чужой профиль» = демо-данные, всё остальное = аккаунт
+    if (!uid || loading || !store.demo) return;
+    const demoView = S.home === false && S.me === false && !S.page && !S.coll;
+    const t = demoView ? 'demo' : 'acct';
+    if (t !== cur) swap(t);
+  }
+  const _render = window.render;
+  window.render = function () {
+    try { ensureView(); } catch (e) { console.error(e); }
+    const r = _render.apply(this, arguments);
+    if (uid) schedule(900);
+    return r;
+  };
+
+  /* ---------- загрузка из аккаунта ---------- */
+  const daysSince = iso => {
+    const a = new Date(); a.setHours(0, 0, 0, 0);
+    const b = new Date(iso); b.setHours(0, 0, 0, 0);
+    return Math.max(0, Math.round((a - b) / 864e5));
+  };
+  const sigOf = (k, row) => {
+    const x = EXTRA[kk(k, row[0])] || {};
+    return JSON.stringify([row[2] || 0, row[3] || '', row[4] || '', x.plat || '', x.own || '', x.ed || '', x.runs || 0, x.val || 0, x.mins || 0, x.src || '', x.ach || null, x.journal || {}, !!x.spoiler, !!x.liked]);
+  };
+  const DET = ['plat', 'own', 'ed', 'runs', 'val', 'mins', 'src', 'ach', 'journal'];
+  function detailsOf(x) {
+    const d = {};
+    DET.forEach(f => {
+      const v = x[f];
+      if (v === undefined || v === null || v === '' || v === 0) return;
+      if (f === 'journal' && !Object.keys(v).length) return;
+      d[f] = v;
+    });
+    return d;
+  }
+  function addRec(rec) {
+    const t = rec.titles; if (!t) return;
+    const key = regLive(t, true); if (!key) return;
+    const c = CAT_IDX[key], k = c.k;
+    if (!DATA[k] || DATA[k].some(r => r[0] === c.t)) return;
+    const row = [c.t, `${c.by} · ${c.y}`, rec.score || 0, rec.status || '', rec.review || '', daysSince(rec.rated_at)];
+    DATA[k].push(row);
+    const x = { ...(rec.details || {}) };
+    if (rec.liked) x.liked = true;
+    if (rec.spoiler) x.spoiler = true;
+    if (Object.keys(x).length) EXTRA[key] = x;
+    synced.set(key, { sig: sigOf(k, row), tid: t.id });
+  }
+  async function loadRatings() {
+    synced.clear();
+    const cols = 'score,status,review,spoiler,liked,details,rated_at,titles(id,source,external_id,category,title,original_title,alt_titles,year,creators,genres,description,cover_url,banner_url,extra)';
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await sb.from('ratings').select(cols).eq('user_id', uid).order('rated_at', { ascending: false }).order('id').range(from, from + 999);
+      if (error) throw error;
+      (data || []).forEach(addRec);
+      if (!data || data.length < 1000) break;
+    }
+  }
+  async function enter(user, profile) {
+    if (uid === user.id) return;
+    loading = true; uid = user.id;
+    store.demo = snapshot();
+    blank(); cur = 'acct'; setKeys();
+    let sv = {};
+    try { sv = JSON.parse(localStorage.getItem('prof_profile_' + uid) || '{}'); } catch (e) {}
+    Object.assign(P, { about: sv.about || '', links: sv.links || [], fav: sv.fav || {}, song: sv.song || '' });
+    P.nick = profile ? profile.nick : String(user.email || 'user').split('@')[0];
+    if (profile && profile.about) P.about = profile.about;
+    try {
+      const c = JSON.parse(localStorage.getItem('prof_coll_' + uid) || 'null');
+      if (c && c.coll) { COLL.push(...c.coll); (c.saved || []).forEach(x => SAVED.add(x)); }
+    } catch (e) {}
+    try { await loadRatings(); } catch (e) { console.error(e); toast('Не удалось загрузить оценки с сервера. Обновите страницу.'); }
+    loading = false;
+    S.view = 'activity'; S.sub = 'all'; S.al = null; S.ar = null;
+    release(); render();
+    offerMigration();
+  }
+  function leave() {
+    release();
+    if (!uid) return;
+    clearTimeout(timer);
+    if (cur === 'acct' && store.demo) restore(store.demo);
+    uid = null; cur = 'demo'; store.demo = store.acct = null; synced.clear(); fails.clear(); setKeys();
+    S.view = 'activity'; S.sub = 'all'; S.al = null; S.ar = null;
+    render();
+  }
+  function handle() { if (!AUTH.ready) return; if (AUTH.user) enter(AUTH.user, AUTH.profile); else leave(); }
+  document.addEventListener('auth-changed', handle);
+
+  /* ---------- отправка изменений ---------- */
+  const isoDays = d => { const x = new Date(); x.setHours(12, 0, 0, 0); x.setDate(x.getDate() - (d || 0)); return x.toISOString(); };
+  function schedule(ms) { clearTimeout(timer); timer = setTimeout(pass, ms); }
+  const pass = () => (chain = chain.then(run).catch(e => { console.error(e); return false; }));
+  AUTH.flush = pass;
+  function fail(e) {
+    console.error('sync', e);
+    if (Date.now() - lastErr > 60000) { lastErr = Date.now(); toast('Не удалось сохранить на сервере. Попробую ещё раз чуть позже.'); }
+    schedule(20000);
+  }
+  async function resolve(key) {   // у записи из демо-каталога ещё нет номера в базе: ищем её
+    const c = CAT_IDX[key]; if (!c) return false;
+    const head = c.t.split(/\s*[:–—]\s*|\s+-\s+/)[0].trim(), tries = [c.t];
+    if (head && head !== c.t && head.length >= 2) tries.push(head);
+    try {
+      for (const q of tries) {
+        const r = await fetch(`${APPC.SUPABASE_URL}/functions/v1/search?q=${encodeURIComponent(q)}&cat=${LIVE_CAT[c.k]}`, { headers: liveHeaders() });
+        const j = await r.json(); if (!r.ok) throw 0;
+        const m = pickMatch(c, j.results);
+        if (m) { applyEnr(key, m); saveEnr(); return !!(c.ext && c.ext.title_id); }
+      }
+    } catch (e) { return false; }   // нет связи: не считаем неудачей
+    fails.set(key, (fails.get(key) || 0) + 1);
+    return false;
+  }
+  async function run() {
+    let ok = true;
+    for (let round = 0; round < 4; round++) {
+      if (!uid || cur !== 'acct' || loading) return ok;
+      const r = await once();
+      ok = r.ok;
+      if (!r.again) break;
+    }
+    return ok;
+  }
+  async function once() {
+    const res = { ok: true, again: false }, me = uid;
+    const now = new Map();
+    ORDER.forEach(k => DATA[k].forEach(r => now.set(kk(k, r[0]), { k, r })));
+    const items = [], need = [];
+    for (const [key, { k, r }] of now) {
+      const sig = sigOf(k, r), s = synced.get(key);
+      if (s && s.sig === sig) continue;
+      const c = CAT_IDX[key], tid = c && c.ext && c.ext.title_id;
+      if (!tid) {
+        res.ok = false;
+        if ((fails.get(key) || 0) < 3) need.push(key);
+        else if (!warned.has(key)) { warned.add(key); toast('«' + r[0] + '»: не нашёл в каталоге, пока сохранено только в этом браузере.'); }
+        continue;
+      }
+      const x = EXTRA[key] || {};
+      items.push({ key, sig, tid, rec: {
+        user_id: me, title_id: tid, score: r[2] || 0, status: String(r[3] || '').slice(0, 30), review: String(r[4] || '').slice(0, 2000),
+        spoiler: !!x.spoiler, liked: !!x.liked, details: detailsOf(x), rated_at: isoDays(r[5])
+      } });
+    }
+    if (items.length) {
+      const recs = [...new Map(items.map(i => [i.tid, i.rec])).values()];
+      for (let i = 0; i < recs.length; i += 200) {
+        const part = recs.slice(i, i + 200), tids = new Set(part.map(p => p.title_id));
+        const { error } = await sb.from('ratings').upsert(part, { onConflict: 'user_id,title_id' });
+        if (error) { res.ok = false; fail(error); continue; }
+        items.filter(it => tids.has(it.tid)).forEach(it => synced.set(it.key, { sig: it.sig, tid: it.tid }));
+      }
+    }
+    const gone = [...synced].filter(([key]) => !now.has(key));
+    for (let i = 0; i < gone.length; i += 100) {
+      const part = gone.slice(i, i + 100);
+      const { error } = await sb.from('ratings').delete().eq('user_id', me).in('title_id', part.map(g => g[1].tid));
+      if (error) { res.ok = false; fail(error); continue; }
+      part.forEach(g => synced.delete(g[0]));
+    }
+    if (need.length) {
+      await Promise.all(need.map(resolve)); res.again = true;
+      if (need.some(k => !(CAT_IDX[k].ext && CAT_IDX[k].ext.title_id) && (fails.get(k) || 0) < 3)) schedule(30000);   // не было связи: повторим позже
+    }
+    /* ник и «о себе» */
+    const pr = AUTH.profile;
+    if (pr && uid === me && cur === 'acct' && P.nick && (P.nick !== pr.nick || (P.about || '') !== (pr.about || ''))) {
+      if (!NICK.test(P.nick)) { P.nick = pr.nick; }
+      else {
+        const { data, error } = await sb.from('profiles').update({ nick: P.nick, about: P.about || '' }).eq('id', me).select('id,nick,about').maybeSingle();
+        if (error || !data) {
+          toast(error && error.code === '23505' ? 'Этот ник уже занят, оставил прежний.' : 'Не удалось сохранить профиль на сервере.');
+          P.nick = pr.nick; P.about = pr.about || '';
+          res.ok = false;
+        } else AUTH.setProfile(data);
+      }
+      try { saveP(); } catch (e) {}
+      render();
+    }
+    return res;
+  }
+  ['click', 'change', 'input', 'keyup', 'submit'].forEach(ev => document.addEventListener(ev, () => { if (uid) schedule(1200); }, true));
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && uid) pass(); });
+
+  /* ---------- перенос старого импорта из браузера ---------- */
+  const stClass = v => /^(просмотр|прочит|прошё)/i.test(v) ? 'done' : /^(смотр|читаю|играю)/i.test(v) ? 'doing' : /отлож/i.test(v) ? 'hold' : /бросил/i.test(v) ? 'drop' : 'plan';
+  function normSt(v, k) {
+    const st = (CATS[k] && CATS[k].st) || []; if (!st.length) return '';
+    const want = stClass(v), cls = st.map(stClass);
+    let i = cls.indexOf(want); if (i < 0 && want === 'hold') i = cls.indexOf('plan'); if (i < 0 && want === 'doing') i = cls.indexOf('done');
+    return st[i < 0 ? 0 : i];
+  }
+  function offerMigration() {
+    try { if (localStorage.getItem('mig_skip_' + uid)) return; } catch (e) { return; }
+    let all = []; try { all = JSON.parse(localStorage.getItem('imported_v1') || '[]'); } catch (e) {}
+    const have = new Set([...synced.values()].map(s => s.tid));
+    const todo = all.filter(e => e && e.r && e.r.id && !have.has(e.r.id));
+    if (!todo.length) { if (all.length) try { localStorage.removeItem('imported_v1'); } catch (e) {} return; }
+    const ov = document.createElement('div'); ov.id = 'sy-ov'; ov.className = 'ov';
+    ov.innerHTML = `<div class="dlg" role="dialog" aria-modal="true" aria-labelledby="sy-h" style="width:min(460px,100%)"><div class="dh"><h2 id="sy-h">Перенести оценки в аккаунт?</h2></div><div class="dr pb"><p style="margin:0">В этом браузере лежит импорт оценок: <b>${todo.length}</b>. Перенести их в ваш аккаунт, чтобы они были на всех устройствах?</p></div><div class="df"><button type="button" class="lnk" id="sy-never" style="margin-right:auto">Не спрашивать</button><button type="button" class="btn" id="sy-later">Не сейчас</button><button type="button" class="btn primary" id="sy-go">Перенести</button></div></div>`;
+    document.body.appendChild(ov);
+    const $ = id => document.getElementById(id);
+    $('sy-later').onclick = () => ov.remove();
+    $('sy-never').onclick = () => { try { localStorage.setItem('mig_skip_' + uid, '1'); } catch (e) {} ov.remove(); };
+    $('sy-go').onclick = async () => {
+      $('sy-go').disabled = true; $('sy-go').textContent = 'Переношу…';
+      if (cur !== 'acct') { S.home = true; render(); }
+      let added = 0;
+      todo.forEach(e => {
+        const key = regLive(e.r, true); if (!key) return;
+        const c = CAT_IDX[key], k = c.k;
+        if (DATA[k].some(x => x[0] === c.t)) return;
+        DATA[k].push([c.t, `${c.by} · ${c.y}`, e.score || 0, normSt(e.status, k), e.review || '', e.days || 0]);
+        added++;
+      });
+      render();
+      const ok = await pass();
+      ov.remove();
+      if (ok) { try { localStorage.removeItem('imported_v1'); } catch (e) {} toast('Перенесено в аккаунт: ' + added); }
+      else toast('Не всё сохранилось на сервере. Предложу перенести ещё раз при следующем входе.');
+    };
+  }
+
+  handle();
+})();

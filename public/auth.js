@@ -6,6 +6,14 @@
   const AUTH = window.AUTH = { user: null, profile: null, ready: false, client: null };
   const lib = window.supabase;
   if (!lib || !A.SUPABASE_URL || !A.PUBLISHABLE_KEY || /ВСТАВЬТЕ/.test(A.PUBLISHABLE_KEY)) { console.warn('auth: нет библиотеки или config.js'); return; }
+  /* пока проверяем сохранённый вход, прячем демо-данные (их место займут данные аккаунта); sync.js снимает класс */
+  try {
+    if (Object.keys(localStorage).some(k => /^sb-.+-auth-token$/.test(k))) {
+      const w = document.createElement('style'); w.textContent = 'html.sy-wait #home,html.sy-wait #profile,html.sy-wait #tp{visibility:hidden}';
+      document.head.appendChild(w); document.documentElement.classList.add('sy-wait');
+      setTimeout(() => document.documentElement.classList.remove('sy-wait'), 8000);
+    }
+  } catch (e) {}
   const sb = AUTH.client = lib.createClient(A.SUPABASE_URL, A.PUBLISHABLE_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
   const NICK = /^[\p{L}\p{N}_]{2,24}$/u;
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -67,7 +75,7 @@
     let body, foot = '';
     if (AUTH.user) {
       body = `<div class="au-who"><b>${esc(AUTH.profile ? AUTH.profile.nick : 'Аккаунт')}</b><span class="sub">${esc(AUTH.user.email || '')}</span></div>
-        <div class="hint">Вы вошли. Оценки и посты пока хранятся в этом браузере, перенос на сервер будет следующим этапом.</div>`;
+        <div class="hint">Вы вошли. Оценки и статусы сохраняются в аккаунте. Посты, сборники и друзья пока хранятся только в этом браузере.</div>`;
       foot = '<button type="button" class="btn" id="au-c">Закрыть</button><button type="button" class="btn primary" id="au-out">Выйти</button>';
     } else {
       const reg = mode === 'up';
@@ -122,6 +130,7 @@
   slot.onclick = () => open('in');
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.getElementById('au-ov')) close(); });
   AUTH.open = open;
+  AUTH.setProfile = p => { AUTH.profile = p; paintBtn(); };
 
   /* состояние входа: при загрузке, входе, выходе, обновлении сессии */
   sb.auth.onAuthStateChange((ev, session) => {
