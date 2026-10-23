@@ -28,7 +28,7 @@
 </style></head><body>
 <title>Профиль оценок</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&family=Unbounded:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&family=Unbounded:wght@500;600&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&family=Unbounded:wght@500;600&display=swap"></noscript>
 <style>
 /* Макет: баннер → шапка (аватар+ник+ссылки | любимое | музыка+статистика) → вкладки с иконками → контент слева, друзья и группы справа */
 :root{
@@ -667,14 +667,13 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10. Музыка пока без звука, это макет плеера.</p>
-  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-22-soc1</p>
+  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-23-load1</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
 <input type="file" id="imgin" accept="image/*" hidden>
 <script src="/config.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="/auth.js"></script>
+<script>/* пока проверяем сохранённый вход, прячем демо-данные (не дольше 8 с) */try{if(Object.keys(localStorage).some(function(k){return /^sb-.+-auth-token$/.test(k)})){var w=document.createElement('style');w.textContent='html.sy-wait #home,html.sy-wait #profile,html.sy-wait #tp{visibility:hidden}';document.head.appendChild(w);document.documentElement.classList.add('sy-wait');setTimeout(function(){document.documentElement.classList.remove('sy-wait')},8000)}}catch(e){}</script>
 <script>
 const CATS = {
   games:  {name:'Игры',    one:'Игра',    st:['Играю','Прошёл','Отложено','В планах','Бросил']},
@@ -2707,6 +2706,15 @@ document.addEventListener('click',e=>{
 render();
 })();
 </script>
-<script src="/social.js"></script>
-<script src="/sync.js"></script>
+<script>
+/* вход, друзья и посты подключаются ПОСЛЕ загрузки сайта: если библиотека не загрузилась (блокировка, медленная сеть), сайт всё равно работает как гостевой */
+(function(){
+  function rel(){document.documentElement.classList.remove('sy-wait')}
+  function add(src,ok,bad){var s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=bad;document.body.appendChild(s)}
+  function seq(l,i){if(i<l.length)add(l[i],function(){seq(l,i+1)},function(){rel();seq(l,i+1)})}
+  function cdn(){add('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js',function(){window.supabase?go():rel()},rel)}
+  function go(){seq(['/auth.js','/social.js','/sync.js'],0)}
+  add('/supabase.js',function(){window.supabase?go():cdn()},cdn);   // сначала своя копия, потом внешний адрес
+})();
+</script>
 </body></html>
