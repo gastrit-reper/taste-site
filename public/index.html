@@ -667,7 +667,7 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10. Музыка пока без звука, это макет плеера.</p>
-  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-25-lk1</p>
+  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-26-imp1</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
@@ -2351,6 +2351,32 @@ function fromGoodreads(csvs){
   return {items:out,info:`Goodreads: ${out.length} книг`};
 }
 
+/* --- Игры из файла (Backloggd и похожие): столбцы Name/Title/Game, Rating, Status, Date, Review --- */
+const GM_ST=[[/(complet|beat|finish|прошё|прошел|пройден)/i,'Прошёл'],[/(playing|current|играю|в процессе)/i,'Играю'],[/(abandon|retir|drop|бросил|dnf)/i,'Бросил'],[/(shelv|pause|hold|отлож)/i,'Отложено'],[/(back|wish|plan|want|to.?play|в планах|хочу)/i,'В планах'],[/(played|owned|library|играл)/i,'Отложено']];
+const gmSt=v=>{v=String(v||'');const m=GM_ST.find(x=>x[0].test(v));return m?m[1]:''};
+function gameRows(csvs,jsons){
+  const rows=[];csvs.forEach(c=>parseCsv(c.text).forEach(r=>rows.push(r)));jsons.forEach(a=>a.forEach(r=>{if(r&&typeof r==='object')rows.push(r)}));
+  const pick=(r,names)=>{for(const k of Object.keys(r)){if(names.includes(k.trim().toLowerCase()))return r[k]}return ''};
+  const base=rows.map(r=>({r,title:String(pick(r,['game','name','title'])||'').replace(/[™®]/g,'').trim(),rate:parseFloat(pick(r,['rating','my rating','score','your rating','my score'])),st:pick(r,['status','playing status','shelf','list','state']),date:pick(r,['date','finished','date finished','played','last played','updated','added','date added','completed']),rev:pick(r,['review','notes','comment','my review','text']),year:Number(String(pick(r,['year','release year','released'])).slice(0,4))||0})).filter(x=>x.title);
+  const mx=Math.max(0,...base.map(x=>x.rate||0));
+  const k=mx<=5?2:mx<=10?1:0.1;   // звёзды 0.5-5 -> 1-10, сто-балльная -> 1-10
+  const out=base.map(x=>{const sc=x.rate>0?Math.min(10,Math.max(1,Math.round(x.rate*k))):0;let st=gmSt(x.st);if(!st)st=sc?'Прошёл':'В планах';
+    return {title:x.title,year:x.year,kind:'game',score:st==='В планах'?0:sc,status:st,review:tx(x.rev).slice(0,1900),days:daysAgo(String(x.date||'').replace(/\//g,'-'))}});
+  return {items:out,info:`игр из файла: ${out.length}`};
+}
+/* --- Steam: список игр через нашу серверную функцию --- */
+async function steamLoad(profile,onlyPlayed,oldSt){
+  const r=await fetch(`${APPC.SUPABASE_URL}/functions/v1/search?steamlib=1`,{method:'POST',headers:{...liveHeaders(),'Content-Type':'application/json'},body:JSON.stringify({profile})});
+  let j={};try{j=await r.json()}catch(_){}
+  if(!r.ok){
+    const m={no_key:'На сервере ещё не добавлен ключ Steam (секрет STEAM_KEY).',bad_profile:'Не похоже на ссылку на профиль Steam. Вставьте адрес вида steamcommunity.com/id/ник.',not_found:'Такой профиль в Steam не найден.',private:'Список игр скрыт. В Steam: Профиль → Редактировать → Настройки приватности → «Сведения об играх» → Открытый.',rate_limited:'Слишком много запросов, подождите минуту.'};
+    throw new Error(m[j.error]||'Steam не ответил. Попробуйте позже.');
+  }
+  let g=j.games||[];if(onlyPlayed)g=g.filter(x=>x.minutes>0);
+  const out=g.map(x=>({title:String(x.name).replace(/[™®]/g,'').trim(),year:0,kind:'game',score:0,status:x.minutes<=0?'В планах':x.recent>0?'Играю':oldSt,review:'',days:x.last?Math.max(0,Math.round((Date.now()/1000-x.last)/86400)):0}));
+  return {items:out,info:`Steam: ${out.length} игр`};
+}
+
 /* --- подбор тайтлов через сервер --- */
 async function matchAll(){
   imp.state='matching';imp.done=0;imp.found=new Array(imp.items.length).fill(undefined);imp.ctrl=new AbortController();draw();
@@ -2404,16 +2430,21 @@ function commit(){
   });
   entries.forEach(e=>{e.score=e.sc.length?Math.round(e.sc.reduce((a,b)=>a+b,0)/e.sc.length):0;delete e.sc});
   let added=0;entries.forEach(e=>{if(applyOne(e))added++});
-  let saved=[];try{saved=JSON.parse(localStorage.getItem(IMP_LS)||'[]')}catch(_){}
-  const have=new Set(saved.map(e=>e.r.external_id));entries.forEach(e=>{if(!have.has(e.r.external_id))saved.push(e)});
-  try{localStorage.setItem(IMP_LS,JSON.stringify(saved))}catch(_){imp.err='Браузер не дал сохранить такой объём: оценки добавлены только до перезагрузки.'}
+  if(window.AUTH&&AUTH.syncOn){   // вошли в аккаунт: оценки уезжают на сервер сами, в браузере копию не держим
+    imp.sess=(imp.sess||[]).concat(entries.map(e=>e.r));
+  }else{
+    let saved=[];try{saved=JSON.parse(localStorage.getItem(IMP_LS)||'[]')}catch(_){}
+    const have=new Set(saved.map(e=>e.r.external_id));entries.forEach(e=>{if(!have.has(e.r.external_id))saved.push(e)});
+    try{localStorage.setItem(IMP_LS,JSON.stringify(saved))}catch(_){imp.err='Браузер не дал сохранить такой объём: оценки добавлены только до перезагрузки.'}
+  }
   imp.added=added;imp.state='done';draw();render();
 }
 function clearAll(){
   let saved=[];try{saved=JSON.parse(localStorage.getItem(IMP_LS)||'[]')}catch(_){}
+  if(window.AUTH&&AUTH.syncOn)saved=(imp.sess||[]).map(r=>({r}));
   saved.forEach(e=>{const key=kk(LIVE_BACK[e.r.category]||'movies',e.r.title);const k=LIVE_BACK[e.r.category];if(k)DATA[k]=DATA[k].filter(x=>x[0]!==(CAT_IDX[key]&&CAT_IDX[key].t||e.r.title))});
-  try{localStorage.removeItem(IMP_LS)}catch(_){}
-  imp.state='idle';imp.items=[];imp.found=[];draw();render();
+  try{if(!(window.AUTH&&AUTH.syncOn))localStorage.removeItem(IMP_LS)}catch(_){}
+  imp.sess=[];imp.state='idle';imp.items=[];imp.found=[];draw();render();
 }
 
 /* --- окно --- */
@@ -2434,10 +2465,15 @@ function draw(soft){
     <p><b>Trakt</b> — Settings → Data → Export (файлы .json; для некоторых выгрузок нужен VIP).</p>
     <p><b>MyAnimeList</b> — профиль → Export My List → XML (можно .xml.gz как есть).</p>
     <p><b>Shikimori</b> — настройки → Экспорт списков → файл с аниме (.json) или экспорт для MAL (.xml).</p>
-    <p><b>Goodreads</b> — My Books → Import and export → Export Library → CSV.</p></div></details>
+    <p><b>Goodreads</b> — My Books → Import and export → Export Library → CSV.</p>
+    <p><b>Игры (Backloggd и другие)</b> — у Backloggd нет официальной выгрузки. Подойдёт любой CSV с первой строкой вроде <code>Name,Rating,Status,Date</code> (рейтинг 0.5–5 звёзд или 1–10, статус: Playing, Completed, Backlog, Abandoned…). Выгрузку от сторонних сервисов тоже можно попробовать.</p></div></details>
+    <div class="imp-steam"><label for="imp-sl"><b>Игры из Steam</b></label><div style="display:flex;gap:8px"><input id="imp-sl" class="fld" placeholder="ссылка на профиль: steamcommunity.com/id/…" value="${esc(imp.steam||'')}" style="flex:1"><button type="button" class="btn" id="imp-sgo">Загрузить</button></div>
+    <label style="display:flex;gap:6px;align-items:center;margin-top:6px"><input type="checkbox" id="imp-so" ${imp.sonly===false?'':'checked'}> только игры, в которые играли</label>
+    <label style="display:flex;gap:6px;align-items:center;margin-top:4px">Игры, в которые играли давно, считать:<select id="imp-sst" class="fld" style="width:auto"><option value="Отложено" ${imp.sst==='Прошёл'?'':'selected'}>Отложено</option><option value="Прошёл" ${imp.sst==='Прошёл'?'selected':''}>Прошёл</option></select></label>
+    <div class="hint">Профиль и «Сведения об играх» в Steam должны быть открытыми. Оценок в Steam нет, их поставите сами.</div></div>
     <label class="imp-drop" id="imp-drop"><input type="file" id="imp-file" accept=".zip,.csv,.json,.xml,.gz" multiple hidden><b>Выберите файл или перетащите сюда</b><span class="hint">можно несколько файлов сразу, из разных сайтов</span></label>
     ${imp.err?`<div class="err" role="alert">${esc(imp.err)}</div>`:''}
-    <p class="hint">Данные хранятся только в этом браузере, пока на сайте нет аккаунтов.</p>`;
+    <p class="hint">${window.AUTH&&AUTH.user?'Импортированные оценки сохранятся в вашем аккаунте.':'Войдите в аккаунт, чтобы оценки сохранились на сервере. Без входа они лежат только в этом браузере.'}</p>`;
   }else if(imp.state==='matching'){
     body=`<p>Подбираю тайтлы в каталоге…</p><div class="imp-track"><div class="imp-bar" id="imp-bar" style="width:${Math.round(imp.done/n*100)}%"></div></div><p class="hint" id="imp-cnt">${imp.done} из ${n}</p>`;
   }else if(imp.state==='ready'){
@@ -2448,7 +2484,7 @@ function draw(soft){
   }else if(imp.state==='done'){
     body=`<p>Добавлено в профиль: <b>${imp.added}</b>${imp.added<ok?` (остальные уже были)`:''}.</p>${imp.err?`<div class="err">${esc(imp.err)}</div>`:''}`;
   }
-  const saved=(()=>{try{return JSON.parse(localStorage.getItem(IMP_LS)||'[]').length}catch(_){return 0}})();
+  const saved=(window.AUTH&&AUTH.syncOn)?(imp.sess||[]).length:(()=>{try{return JSON.parse(localStorage.getItem(IMP_LS)||'[]').length}catch(_){return 0}})();
   const foot=imp.state==='ready'?`<button type="button" class="btn" id="imp-c">Отмена</button><button type="button" class="btn primary" id="imp-go" ${ok?'':'disabled'}>Добавить ${ok-fz.filter(i=>imp.skip.has(i)).length}</button>`
     :imp.state==='done'?`<button type="button" class="btn primary" id="imp-c">Готово</button>`
     :imp.state==='matching'?`<button type="button" class="btn" id="imp-c">Отмена</button>`
@@ -2461,6 +2497,12 @@ function draw(soft){
   ov.querySelectorAll('[data-fz]').forEach(c=>c.onchange=()=>{const i=Number(c.dataset.fz);c.checked?imp.skip.delete(i):imp.skip.add(i);const g=$('imp-go');if(g){const m=imp.found.filter((x,j)=>x&&!imp.skip.has(j)).length;g.textContent='Добавить '+m;g.disabled=!m}});
   const cl=$('imp-clear');if(cl)cl.onclick=()=>{if(confirm('Удалить все импортированные оценки из профиля?'))clearAll()};
   const fi=$('imp-file');if(fi)fi.onchange=()=>take([...fi.files]);
+  const sg=$('imp-sgo');if(sg)sg.onclick=async()=>{
+    imp.steam=$('imp-sl').value;imp.sonly=$('imp-so').checked;imp.sst=$('imp-sst').value;imp.err='';
+    sg.disabled=true;sg.textContent='Загружаю…';
+    try{const p=await steamLoad(imp.steam,imp.sonly,imp.sst);if(!p.items.length)throw new Error('В Steam не нашлось игр.');imp.items=p.items.slice(0,5000);imp.info=p.info;imp.skip=new Set();matchAll()}
+    catch(e){imp.err=e.message||String(e);draw()}
+  };
   const dz=$('imp-drop');if(dz){['dragover','dragenter'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.add('on')}));['dragleave','drop'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.remove('on')}));dz.addEventListener('drop',e=>take([...e.dataTransfer.files]))}
 }
 async function gunzip(f){return await new Response(f.stream().pipeThrough(new DecompressionStream('gzip'))).text()}
@@ -2475,17 +2517,18 @@ async function take(files){
       else if(/\.(csv|json|xml)$/i.test(name))docs.push({name,text:await f.text()});
     }
     if(!docs.length)throw new Error('В файлах не нашлось CSV, JSON или XML.');
-    const g={lb:[],imdb:[],gr:[],mal:[],tr:[],sh:[]};
+    const g={lb:[],imdb:[],gr:[],mal:[],tr:[],sh:[],gm:[],gmj:[]};
     docs.forEach(d=>{
       const head=d.text.slice(0,600).replace(/^﻿/,'');
       if(/\.json$/i.test(d.name)||/^\s*[\[{]/.test(head)){
         let j;try{j=JSON.parse(d.text)}catch(_){return}
         if(!Array.isArray(j))j=Object.values(j).find(Array.isArray)||[];
-        if(j[0]&&('target_title' in j[0]))g.sh.push(j);else if(j[0]&&(j[0].movie||j[0].show))g.tr.push(j);
+        if(j[0]&&('target_title' in j[0]))g.sh.push(j);else if(j[0]&&(j[0].movie||j[0].show))g.tr.push(j);else if(j[0]&&typeof j[0]==='object'&&Object.keys(j[0]).some(k=>/^(game|name|title)$/i.test(k)))g.gmj.push(j);
       }else if(/^\s*</.test(head)){if(/<anime>|<myanimelist|series_title/i.test(d.text.slice(0,4000)))g.mal.push(d.text)}
       else if(/Letterboxd URI/.test(head))g.lb.push(d);
       else if(/\bConst\b/.test(head.split('\n')[0])&&/Title Type|Your Rating|Created/.test(head.split('\n')[0]))g.imdb.push(d);
       else if(/Book Id/.test(head.split('\n')[0])&&/Exclusive Shelf/.test(head.split('\n')[0]))g.gr.push(d);
+      else if(/(^|,)"?(game|name|title)"?(,|$)/i.test(head.split('\n')[0].replace(/\r/,'')))g.gm.push(d);
     });
     const parts=[];
     if(g.lb.length)parts.push(fromLetterboxd(g.lb));
@@ -2494,7 +2537,8 @@ async function take(files){
     if(g.mal.length)parts.push(fromMalXml(g.mal));
     if(g.sh.length)parts.push(fromShiki(g.sh));
     if(g.gr.length)parts.push(fromGoodreads(g.gr));
-    if(!parts.length)throw new Error('Не узнал формат. Подходят выгрузки Letterboxd, IMDb, Trakt, MyAnimeList, Shikimori и Goodreads.');
+    if(g.gm.length||g.gmj.length)parts.push(gameRows(g.gm,g.gmj));
+    if(!parts.length)throw new Error('Не узнал формат. Подходят выгрузки Letterboxd, IMDb, Trakt, MyAnimeList, Shikimori, Goodreads и таблица игр (CSV со столбцами Name, Rating, Status).');
     const items=parts.flatMap(p=>p.items);
     if(!items.length)throw new Error('В файлах нет оценок или списков.');
     if(!liveOn('all'))throw new Error('Не настроено подключение к базе (config.js).');
