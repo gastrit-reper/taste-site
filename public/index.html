@@ -5,7 +5,7 @@
 .cmb-list{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:30;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px;box-shadow:0 10px 30px rgb(0 0 0 / .35);max-height:260px}
 /* общий поиск */
 .gs{position:relative;margin:0 0 12px}
-.gs-row{display:flex;align-items:center;gap:10px}.gs-row .gs-box{flex:1;min-width:0}.sy-in .proto{display:none}.sy-in .gs{margin-top:16px}
+.gs-row{display:flex;align-items:stretch;gap:10px}.gs-row .pr{align-items:stretch}.gs-row .gearwrap{display:flex;position:relative}.gs-row .au-btn,.gs-row .gear{height:100%;min-height:46px;border-radius:14px}.gs-row .gear{width:46px}.gs-row .gs-box{flex:1;min-width:0}.sy-in .proto{display:none}.sy-in .gs{margin-top:16px}
 .gs-box{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:0 12px}
 .gs-box:focus-within{border-color:var(--accent)}
 .gs-box svg{width:18px;height:18px;flex:none;stroke:var(--muted);fill:none;stroke-width:2;stroke-linecap:round}
@@ -668,7 +668,7 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10. Музыка пока без звука, это макет плеера.</p>
-  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-26-nav1</p>
+  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-26-mus1</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
@@ -851,17 +851,18 @@ function renderHead(){
     if(!f || (off && !S.editFav)) return '';
     return `<div class="fav ${off?'off':''}">${cover(f.t,'',k)}<div style="min-width:0"><div class="t" title="${esc(f.t)}">${esc(f.t)}</div><div class="k">${ico(k)}${f.sub}</div></div>${S.editFav?`<label><input type="checkbox" data-fav="${k}" ${off?'':'checked'}>показывать</label>`:''}</div>`;
   }).join('');
-  const sg = P.song && trk(P.song);
-  DUR = sg ? durOf(P.song) : 251;
+  const sg = songObj(P.song);
+  if(S.playing && (!sg || (sg.real && AUDID && AUDID!==sg.id) || (!sg.real && AUDID)))setPlaying(false);
+  DUR = !sg ? 251 : sg.real ? ((AUD && AUDID===sg.id && AUD.duration>0) ? AUD.duration : 30) : durOf(sg.ref);
   const playerHtml = sg ? `
       <div class="player ${S.playing?'playing':''}" id="player">
-        <div class="cover" style="background:linear-gradient(145deg,hsl(${hue(sg.album)} 55% 48%),hsl(${(hue(sg.album)+50)%360} 55% 32%))">${esc(sg.album[0].toUpperCase())}<span class="eq"><b></b><b></b><b></b><b></b></span></div>
-        <div style="min-width:0"><div class="pt">${esc(sg.name)}</div><div class="pa">${esc(sg.artist)} · ${esc(sg.album)}</div></div>
+        <div class="cover" style="background:linear-gradient(145deg,hsl(${hue(sg.album||sg.name)} 55% 48%),hsl(${(hue(sg.album||sg.name)+50)%360} 55% 32%))">${sg.real&&sg.c?`<img alt="" src="/img/dz/${sg.c}/250.jpg" onerror="this.remove()">`:''}${esc((sg.album||sg.name||'?')[0].toUpperCase())}<span class="eq"><b></b><b></b><b></b><b></b></span></div>
+        <div style="min-width:0"><div class="pt">${esc(sg.name)}</div><div class="pa">${esc(sg.artist)}${sg.album?' · '+esc(sg.album):''}</div></div>
         <div class="bar"><div id="prog"></div></div>
         <div class="pc">
           <button class="ic main" id="pp" aria-label="${S.playing?'Пауза':'Играть'}">${pp(S.playing)}</button>
           <button class="ic" id="mu" aria-label="${S.muted?'Включить звук':'Выключить звук'}">${ico(S.muted?'mute':'vol')}</button>
-          <span class="time" id="time">0:00 / ${fmt(DUR)}</span>
+          <span class="time" id="time">0:00 / ${fmt(DUR)}</span>${sg.real?'<span class="sub" style="margin-left:8px">фрагмент 30 с</span>':''}
         </div>
       </div>
       <label class="auto"><input type="checkbox" id="autoplay" ${S.auto?'checked':''}> Запускать музыку при заходе в профиль</label>`
@@ -1161,6 +1162,12 @@ const trk=ref=>{if(!ref)return null;const j=ref.lastIndexOf('|'),a=ALB[ref.slice
   const x=SONGX[ref];   // песня из внешней базы: список песен после перезагрузки не хранится, помним саму выбранную
   return x?{ref,al:a||{t:x.album,by:x.artist,y:'',g:[],d:'',tr:[]},i,name:x.name,artist:x.artist,album:x.album}:null};
 const tkey=(a,i)=>a+'|'+i;
+/* песня профиля: настоящая (JSON с номером Deezer, играет 30-секундный фрагмент) или старая демо-ссылка «Альбом|номер» */
+const songObj=v=>{
+  if(!v)return null;
+  if(v[0]==='{'){try{const o=JSON.parse(v);return o&&o.d?{real:true,id:String(o.d),name:String(o.t||''),artist:String(o.a||''),album:String(o.al||''),c:/^[0-9a-f]{32}$/.test(o.c||'')?o.c:''}:null}catch(_){return null}}
+  const t=trk(v);return t?{real:false,ref:v,name:t.name,artist:t.artist,album:t.album}:null;
+};
 const albKey=t=>kk('music',t);
 const albRow=t=>DATA.music.find(r=>r[0]===t);
 const albFav=t=>!!(EXTRA[albKey(t)]||{}).liked;
@@ -2023,18 +2030,42 @@ function drawProf(focus){
     const songChanged=PD.song!==P.song;
     Object.assign(P,{nick,about:PD.about.trim(),links,fav:{...PD.fav},song:PD.song});
     saveP();closeProf();
-    if(songChanged){S.prog=0;setPlaying(false)}
+    if(songChanged){S.prog=0;setPlaying(false);if(AUD){AUD.pause();AUDID=null}}
     render();toast('Профиль сохранён');
   };
   if(focus){const f=ov.querySelector(`[data-l="${focus.slice(1)}"]`);if(f)f.focus()}
 }
 
-/* плеер: прогресс имитируется, звука нет */
+/* плеер: у настоящих песен играет 30-секундный фрагмент (через наш сайт), у демо-песен прогресс имитируется */
 let DUR=251; let timer=null;
+let AUD=null, AUDID=null;
+function audioEl(){
+  if(AUD)return AUD;
+  AUD=new Audio();AUD.preload='none';
+  AUD.addEventListener('timeupdate',()=>{if(AUDID){S.prog=AUD.currentTime;if(AUD.duration>0)DUR=AUD.duration;paint()}});
+  AUD.addEventListener('ended',()=>{S.prog=0;setPlaying(false)});
+  AUD.addEventListener('error',()=>{if(!AUDID)return;setPlaying(false);toast('Не удалось загрузить фрагмент песни. Попробуйте позже.')});
+  return AUD;
+}
 const fmt=s=>Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0');
 function tick(){S.prog=(S.prog+1)%DUR;paint()}
 function paint(){const p=document.getElementById('prog'),t=document.getElementById('time');if(p)p.style.width=(S.prog/DUR*100)+'%';if(t)t.textContent=fmt(S.prog)+' / '+fmt(DUR)}
-function setPlaying(v){S.playing=v;clearInterval(timer);if(v)timer=setInterval(tick,1000);const pl=document.getElementById('player');if(pl)pl.classList.toggle('playing',v);const b=document.getElementById('pp');if(b){b.innerHTML=pp(v);b.setAttribute('aria-label',v?'Пауза':'Играть')}}
+function setPlaying(v){
+  const sg=songObj(P.song);
+  if(v&&!sg)v=false;
+  S.playing=v;clearInterval(timer);
+  if(sg&&sg.real){
+    const a=audioEl();
+    if(v){
+      if(AUDID!==sg.id){a.src='/audio/dz/'+sg.id+'.mp3';AUDID=sg.id;S.prog=0}
+      a.muted=!!S.muted;
+      const pr=a.play();if(pr&&pr.catch)pr.catch(()=>{S.playing=false;const b=document.getElementById('pp');if(b){b.innerHTML=pp(false);b.setAttribute('aria-label','Играть')};const pl=document.getElementById('player');if(pl)pl.classList.remove('playing')});
+    }else a.pause();
+  }else{
+    if(AUD&&AUDID){AUD.pause();AUDID=null}
+    if(v)timer=setInterval(tick,1000);
+  }
+const pl=document.getElementById('player');if(pl)pl.classList.toggle('playing',v);const b=document.getElementById('pp');if(b){b.innerHTML=pp(v);b.setAttribute('aria-label',v?'Пауза':'Играть')}}
 
 function bindHead(){
   const $=id=>document.getElementById(id);
@@ -2042,7 +2073,7 @@ function bindHead(){
   const bf=$('b-friend'); if(bf) bf.onclick=()=>{if(window.SOCIAL&&SOCIAL.on())return;S.friend=!S.friend;renderHead();renderFriends()};
   if($('pp')){
     $('pp').onclick=()=>setPlaying(!S.playing);
-    $('mu').onclick=()=>{S.muted=!S.muted;$('mu').innerHTML=ico(S.muted?'mute':'vol');$('mu').setAttribute('aria-label',S.muted?'Включить звук':'Выключить звук')};
+    $('mu').onclick=()=>{S.muted=!S.muted;if(AUD)AUD.muted=!!S.muted;$('mu').innerHTML=ico(S.muted?'mute':'vol');$('mu').setAttribute('aria-label',S.muted?'Включить звук':'Выключить звук')};
     $('autoplay').onchange=e=>{S.auto=ST.auto=e.target.checked;saveSet()};
   }
   const fe=$('fav-edit'); if(fe) fe.onclick=()=>{S.editFav=!S.editFav;renderHead()};
@@ -2053,6 +2084,7 @@ function bindHead(){
 function render(){
   const tp=document.getElementById('tp'),pf=document.getElementById('profile'),hm=document.getElementById('home');
   if(hm)hm.hidden=true;document.body.classList.remove('on-home');
+  if((S.page||S.coll||S.home)&&S.playing)setPlaying(false);   // музыка играет только на странице профиля
   if(S.page){pf.hidden=true;tp.hidden=false;renderTitle();return}
   if(S.coll){pf.hidden=true;tp.hidden=false;renderColl();return}
   if(S.home&&typeof renderHome==='function'){pf.hidden=true;tp.hidden=true;hm.hidden=false;renderHome();return}
@@ -2112,7 +2144,18 @@ new ResizeObserver(()=>applyBanner()).observe(bannerEl);
 render();
 
 /* ===== поиск в «Любимом» (вместо длинных списков) ===== */
-function favLabel(k,v){if(!v)return '';if(k==='music'||k==='song'){const t=trk(v);return t?t.name:''}return v}
+function favLabel(k,v){if(!v)return '';if(k==='song'){const t=songObj(v);return t?t.name:''}if(k==='music'){const t=trk(v);return t?t.name:''}return v}
+const DZS=new Map();let dzT=null;   // поиск песен: запрос -> {list|loading|err}
+function dzFind(q,cb){
+  q=q.trim();if(q.length<2||DZS.has(q))return;
+  clearTimeout(dzT);
+  dzT=setTimeout(async()=>{
+    DZS.set(q,{loading:true});
+    try{const r=await fetch('/api/music/search?q='+encodeURIComponent(q));if(!r.ok)throw new Error(r.status);const j=await r.json();DZS.set(q,{list:j.results||[]})}
+    catch(_){DZS.set(q,{err:1,list:[]});setTimeout(()=>DZS.delete(q),4000)}
+    if(cb)cb();
+  },350);
+}
 function mountCmb(box){
   const k=box.dataset.cmb,inp=box.querySelector('input'),list=box.querySelector('.cmb-list'),x=box.querySelector('.cmb-x');
   let alb=null;   // для песни: открытый альбом, из которого выбираем песню
@@ -2133,7 +2176,16 @@ function mountCmb(box){
     liveKeys(q,k).map(key=>CAT_IDX[key]).filter(c=>c&&c.k===k&&!out.some(o=>o.v===c.t)).forEach(c=>out.push({v:c.t,l:c.t,sub:(c.by||'')+(c.y?' · '+c.y:''),live:1}));
     return out.slice(0,10);
   };
+  const drawSong=()=>{
+    const q=inp.value.trim(),r=q.length>=2?DZS.get(q):null;
+    const it=((r&&r.list)||[]).map(t=>({v:JSON.stringify({d:t.id,t:String(t.t||'').slice(0,60),a:String(t.a||'').slice(0,50),al:String(t.al||'').slice(0,60),c:t.c||''}),l:t.t,sub:(t.a||'')+(t.al?' — '+t.al:'')}));
+    list.innerHTML=it.map((o,i)=>`<button type="button" class="opt" data-i="${i}"><span><b>${esc(o.l)}</b><span class="sub">${esc(o.sub)}</span></span></button>`).join('')
+      +(q.length<2?'<div class="sub">Введите название песни или исполнителя. В профиле играет 30-секундный фрагмент.</div>':!r||r.loading?'<div class="sub">Ищу…</div>':r.err?'<div class="sub">Не удалось найти, попробуйте ещё раз.</div>':!it.length?'<div class="sub">Ничего не нашёл.</div>':'');
+    list.hidden=false;
+    list.onmousedown=e=>{const b=e.target.closest('[data-i]');if(!b)return;e.preventDefault();const o=it[+b.dataset.i];PD.song=o.v;inp.value=o.l;x.hidden=false;list.hidden=true};
+  };
   const draw=()=>{
+    if(k==='song'){drawSong();return}
     const q=inp.value;const st=k==='song'?(alb?'off':q.trim().length>=2?liveState(q,'music'):'off'):k!=='music'&&q.trim().length>=2?liveState(q,k):'off';
     const it=items(q);
     list.innerHTML=it.map((o,i)=>`<button type="button" class="opt" data-i="${i}"><span><b>${esc(o.l)}</b><span class="sub">${esc(o.sub)}</span></span></button>`).join('')
@@ -2148,7 +2200,7 @@ function mountCmb(box){
       alb=null;inp.value=o.l;x.hidden=false;list.hidden=true;
     };
   };
-  const search=()=>{draw();if(k!=='music'&&inp.value.trim().length>=2)liveSearch(inp.value,k==='song'?'music':k,()=>{if(document.activeElement===inp)draw()})};
+  const search=()=>{if(k==='song'){drawSong();dzFind(inp.value,()=>{if(document.activeElement===inp)drawSong()});return}draw();if(k!=='music'&&inp.value.trim().length>=2)liveSearch(inp.value,k==='song'?'music':k,()=>{if(document.activeElement===inp)draw()})};
   inp.addEventListener('focus',()=>{inp.select();search()});
   inp.addEventListener('input',()=>{alb=null;search()});
   inp.addEventListener('blur',()=>{alb=null;list.hidden=true;inp.value=favLabel(k,k==='song'?PD.song:PD.fav[k])});   // не выбрали - возвращаем прежнее
