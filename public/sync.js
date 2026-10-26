@@ -211,6 +211,8 @@
   }
   let migrated = false;
   AUTH.newId = newId;
+  AUTH.mediaIn = mediaIn;
+  AUTH.myAvatar = () => (cur === 'acct' ? S.avatar : (store.acct && store.acct.avatar)) || null;
   AUTH.fetchColls = async function (userId) {   // сборники другого человека (для его профиля); ошибки не мешают открыть профиль
     try {
       if (!collOk) return [];
@@ -370,7 +372,8 @@
     /* ник, «о себе», музыка, аватар и баннер */
     const pr = AUTH.profile;
     if (pr && uid === me && cur === 'acct' && mediaOk) await syncMedia(me);
-    const prSig = (p, av, bn) => JSON.stringify([p.nick, p.about || '', p.links || [], p.fav || {}, p.song || '', av, bn]);
+    const mSig = m => m ? JSON.stringify([m.p, m.nw, m.nh, r5(m.cxn), r5(m.cyn), r5(m.wn), r5(m.hn)]) : null;   // порядок ключей из базы бывает другим
+    const prSig = (p, av, bn) => JSON.stringify([p.nick, p.about || '', p.links || [], p.fav || {}, p.song || '', mSig(av), mSig(bn)]);
     const mine = () => prSig(P, mediaOut('avatar'), mediaOut('banner')), theirs = () => prSig(pr, mediaOk ? (pr.avatar || null) : null, mediaOk ? (pr.banner || null) : null);
     if (pr && uid === me && cur === 'acct' && P.nick && (mediaOk ? mine() : prSig(P, null, null)) !== theirs()) {
       if (!NICK.test(P.nick)) { P.nick = pr.nick; }

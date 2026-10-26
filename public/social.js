@@ -22,11 +22,26 @@
   let events = [], loadSeq = 0, lastLoad = 0, errShown = false;
 
   const nickById = new Map();
-  const addNick = (nick, id) => { if (nick) { byNick.set(String(nick).toLowerCase(), { id: id || (byNick.get(String(nick).toLowerCase()) || {}).id, nick }); if (id) nickById.set(id, nick); } };
+  const addNick = (nick, id) => { if (nick) { byNick.set(String(nick).toLowerCase(), { id: id || (byNick.get(String(nick).toLowerCase()) || {}).id, nick }); if (id) { nickById.set(id, nick); wantAvatar(id); } } };
+  /* аватары других людей: подгружаем одним запросом по мере того, как узнаём новых людей */
+  const avAsked = new Set(); let avPend = [], avT = null, avDead = false;
+  function wantAvatar(id) { if (avDead || !id || avAsked.has(id) || (AUTH.user && id === AUTH.user.id)) return; avAsked.add(id); avPend.push(id); clearTimeout(avT); avT = setTimeout(fetchAv, 200); }
+  function setAv(nick, a) { if (!nick || !a || !a.p || !AUTH.mediaIn) return false; const o = AUTH.mediaIn(a); (window.AVMAP || (window.AVMAP = {}))[String(nick).toLowerCase()] = o; return true; }
+  async function fetchAv() {
+    const ids = avPend.splice(0); let any = false;
+    for (let i = 0; i < ids.length; i += 100) {
+      try {
+        const { data, error } = await sb.from('profiles').select('id,nick,avatar').in('id', ids.slice(i, i + 100));
+        if (error) { avDead = true; return; }
+        (data || []).forEach(p => { if (setAv(p.nick, p.avatar)) any = true; });
+      } catch (e) { return; }
+    }
+    if (any && SO.on()) SO.safeRender && SO.safeRender();
+  }
   const state = id => { const r = rel.get(id) || {}; return r.i && r.t ? 'friend' : r.i ? 'sent' : r.t ? 'incoming' : 'none'; };
   const stClass = v => /^(просмотр|прочит|прошё)/i.test(v) ? 'done' : /^(смотр|читаю|играю)/i.test(v) ? 'doing' : /отлож/i.test(v) ? 'hold' : /бросил/i.test(v) ? 'drop' : 'plan';
   const mapPost = p => ({ t: p.body, d: AUTH.daysSince(p.created_at), id: p.id, vis: p.visibility });
-  const avatarOf = n => `<span class="hm-av" style="background:hsl(${hue(n)} 45% 42%);width:30px;height:30px;font-size:13px">${esc(n[0].toUpperCase())}</span>`;
+  const avatarOf = n => window.avaHtml ? avaHtml(n, 'hm-av', 'width:30px;height:30px;font-size:13px') : `<span class="hm-av" style="background:hsl(${hue(n)} 45% 42%);width:30px;height:30px;font-size:13px">${esc(n[0].toUpperCase())}</span>`;
 
   const st = document.createElement('style');
   st.textContent = '.so-row{display:flex;align-items:center;gap:8px;padding:6px 0}.so-nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:none;border:0;text-align:left;padding:0;font-weight:500;cursor:pointer;color:inherit}.so-nm:hover{text-decoration:underline}.so-b{display:flex;gap:6px}.so-b .btn{padding:4px 10px;font-size:13px}.hm-who{cursor:pointer}.hm-who:hover{text-decoration:underline}.friend[data-user]{cursor:pointer}.cvis{max-width:150px}a.mention.user{text-decoration:none}.so-pbar{display:flex;gap:4px;margin-top:6px}.so-act{display:inline-flex;align-items:center;gap:6px;border:0;background:none;color:var(--muted);padding:4px 8px;border-radius:8px;cursor:pointer;font:inherit}.so-act:hover{background:var(--surface2)}.so-act svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round}.so-act[aria-pressed="true"]{color:var(--accent)}.so-act[aria-pressed="true"] svg{fill:currentColor}.so-cm{border-top:1px solid var(--line);margin-top:8px;padding-top:8px;display:grid;gap:8px}.so-c{display:flex;gap:8px}.so-ct{min-width:0;flex:1}.so-ct p{margin:2px 0 0;overflow-wrap:anywhere}.so-cf{display:flex;gap:8px;align-items:flex-end}.so-cf textarea{flex:1;min-width:0;resize:vertical;background:var(--surface2);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:8px;font:inherit}';
@@ -71,7 +86,7 @@
     if (S.me === false) { fc.textContent = ''; fe.innerHTML = '<div class="sub">Список друзей виден только владельцу.</div>'; return; }
     const fr = [...rel].filter(([, r]) => r.i && r.t && r.nick);
     fc.textContent = String(fr.length);
-    fe.innerHTML = fr.length ? fr.slice(0, 12).map(([, r]) => `<div class="friend" data-user="${esc(r.nick)}"><div class="av" style="background:hsl(${hue(r.nick)} 50% 45%)">${esc(r.nick[0].toUpperCase())}</div><span>${esc(r.nick)}</span></div>`).join('') : '<div class="sub">Пока никого.</div>';
+    fe.innerHTML = fr.length ? fr.slice(0, 12).map(([, r]) => `<div class="friend" data-user="${esc(r.nick)}">${window.avaHtml ? avaHtml(r.nick, 'av') : `<div class="av" style="background:hsl(${hue(r.nick)} 50% 45%)">${esc(r.nick[0].toUpperCase())}</div>`}<span>${esc(r.nick)}</span></div>`).join('') : '<div class="sub">Пока никого.</div>';
   };
 
   /* ---------- поиск людей (общий поиск сверху и @ в постах) ---------- */
@@ -211,6 +226,7 @@
       const { data: ps, error: e3 } = await sb.from('posts').select('id,body,visibility,created_at').eq('user_id', pr.id).order('created_at', { ascending: false }).limit(100);
       if (e3) throw e3;
       const colls = AUTH.fetchColls ? await AUTH.fetchColls(pr.id) : [];
+      setAv(pr.nick, pr.avatar);
       AUTH.setOther(pr, recs, (ps || []).map(mapPost), colls);
       (ps || []).forEach(p => owner.set(p.id, pr.id));
       await loadEng((ps || []).map(p => p.id));
