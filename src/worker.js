@@ -6,6 +6,8 @@
 //   /img/steam/<appid>.jpg        - вертикальная обложка игры из Steam (600x900)
 //   /img/steam/hero/<appid>.jpg   - широкий баннер игры из Steam
 //   /img/ss/<appid>/<ss_хеш.600x338|1920x1080>.jpg - скриншоты игры из Steam
+//   /api/music/search?q=...        - поиск песен (Deezer), для музыки в профиле
+//   /audio/dz/<id>.mp3            - 30-секундный фрагмент песни (Deezer), отдаётся через наш сайт
 //   /img/rawg/<420|640|1280>/<путь>.jpg - RAWG (картинки игр: уменьшенная копия, при неудаче оригинал)
 const TMDB_IMG = /^\/img\/(w92|w154|w185|w342|w500|w780|w1280|original)\/([A-Za-z0-9_-]+\.(?:jpg|png))$/;
 const OL_IMG = /^\/img\/ol\/(S|M|L)\/(\d{1,12})\.jpg$/;
@@ -16,9 +18,55 @@ const SS_IMG = /^\/img\/ss\/(\d{1,9})\/(ss_[0-9a-f]{40}\.(?:600x338|1920x1080))\
 const DZ_IMG = /^\/img\/dz\/([0-9a-f]{32})\/(250|500|1000)\.jpg$/;
 const CAA_IMG = /^\/img\/caa\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(250|500|1200)\.jpg$/;
 
+const DZ_AUDIO = /^\/audio\/dz\/(\d{1,12})\.mp3$/;
+const JSON_H = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=600' };
+
+async function musicSearch(url) {
+  const q = (url.searchParams.get('q') || '').trim().slice(0, 100);
+  if (q.length < 2) return new Response(JSON.stringify({ results: [] }), { headers: JSON_H });
+  const u = new URL('https://api.deezer.com/search/track');
+  u.searchParams.set('q', q);
+  u.searchParams.set('limit', '10');
+  try {
+    const r = await fetch(u, { cf: { cacheEverything: true, cacheTtl: 3600 } });
+    if (!r.ok) throw new Error('deezer ' + r.status);
+    const j = await r.json();
+    const results = (j.data || []).filter((t) => t && t.id && t.preview).map((t) => ({
+      id: t.id, t: t.title_short || t.title, a: t.artist && t.artist.name || '', al: t.album && t.album.title || '', c: t.album && t.album.md5_image || '',
+    }));
+    return new Response(JSON.stringify({ results }), { headers: JSON_H });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: 'unavailable' }), { status: 502, headers: { 'Content-Type': 'application/json' } });
+  }
+}
+
+// ссылка на фрагмент у Deezer живёт недолго, поэтому каждый раз берём свежую и отдаём звук через наш сайт (с поддержкой Range)
+async function musicAudio(request, id) {
+  try {
+    const r = await fetch(`https://api.deezer.com/track/${id}`);
+    const j = await r.json();
+    const src = j && j.preview;
+    if (!src || !/^https:\/\/[a-z0-9.-]+\.dzcdn\.net\//.test(src)) return new Response('not found', { status: 404 });
+    const h = {};
+    const range = request.headers.get('Range');
+    if (range) h.Range = range;
+    const up = await fetch(src, { headers: h });
+    if (!up.ok && up.status !== 206) return new Response('not found', { status: 404 });
+    const out = { 'Content-Type': 'audio/mpeg', 'Accept-Ranges': 'bytes', 'Cache-Control': 'public, max-age=3600' };
+    ['Content-Length', 'Content-Range'].forEach((k) => { const v = up.headers.get(k); if (v) out[k] = v; });
+    return new Response(request.method === 'HEAD' ? null : up.body, { status: up.status, headers: out });
+  } catch (e) {
+    return new Response('unavailable', { status: 502 });
+  }
+}
+
 export default {
   async fetch(request, env) {
-    const path = new URL(request.url).pathname;
+    const url = new URL(request.url);
+    const path = url.pathname;
+    if (path === '/api/music/search' && request.method === 'GET') return musicSearch(url);
+    const am = path.match(DZ_AUDIO);
+    if (am && (request.method === 'GET' || request.method === 'HEAD')) return musicAudio(request, am[1]);
     let upstream = null;
 
     let m = path.match(TMDB_IMG);
