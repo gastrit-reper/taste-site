@@ -119,7 +119,11 @@
     finally { const g = document.getElementById('au-go'); if (g) { g.disabled = false; g.textContent = reg ? 'Создать аккаунт' : 'Войти'; } }
   }
 
-  slot.onclick = () => open('in');
+  slot.onclick = () => {
+    if (!AUTH.user) return open('in');
+    const me = document.getElementById('v-me'); if (me) me.click();   // вошли: ник открывает ваш профиль, выход теперь в настройках
+    window.scrollTo(0, 0);
+  };
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.getElementById('au-ov')) close(); });
   AUTH.open = open;
   AUTH.setProfile = p => { AUTH.profile = p; paintBtn(); };
