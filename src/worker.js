@@ -7,6 +7,7 @@
 //   /img/steam/hero/<appid>.jpg   - широкий баннер игры из Steam
 //   /img/ss/<appid>/<ss_хеш.600x338|1920x1080>.jpg - скриншоты игры из Steam
 //   /api/music/search?q=...        - поиск песен (Deezer), для музыки в профиле
+//   /media/<id>/<avatar|banner>-<код>.<png|jpg|gif|webp> - аватары и баннеры из Supabase Storage
 //   /audio/dz/<id>.mp3            - 30-секундный фрагмент песни (Deezer), отдаётся через наш сайт
 //   /img/rawg/<420|640|1280>/<путь>.jpg - RAWG (картинки игр: уменьшенная копия, при неудаче оригинал)
 const TMDB_IMG = /^\/img\/(w92|w154|w185|w342|w500|w780|w1280|original)\/([A-Za-z0-9_-]+\.(?:jpg|png))$/;
@@ -18,6 +19,9 @@ const SS_IMG = /^\/img\/ss\/(\d{1,9})\/(ss_[0-9a-f]{40}\.(?:600x338|1920x1080))\
 const DZ_IMG = /^\/img\/dz\/([0-9a-f]{32})\/(250|500|1000)\.jpg$/;
 const CAA_IMG = /^\/img\/caa\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(250|500|1200)\.jpg$/;
 
+// адрес проекта Supabase (тот же, что в config.js); картинки профиля отдаём через свой сайт, чтобы работало и без VPN
+const SUPABASE_URL = 'https://kdcbtdypmcqwjeskctat.supabase.co';
+const MEDIA_IMG = /^\/media\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/((?:avatar|banner)-[a-z0-9]{1,16}\.(?:png|jpg|gif|webp))$/;
 const DZ_AUDIO = /^\/audio\/dz\/(\d{1,12})\.mp3$/;
 const JSON_H = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=600' };
 
@@ -85,6 +89,7 @@ export default {
       fallback = `https://cdn.cloudflare.steamstatic.com/steam/apps/${m[1]}/${m[2]}.jpg`;
       fallback2 = `https://cdn.akamai.steamstatic.com/steam/apps/${m[1]}/${m[2]}.jpg`;
     }
+    if (!upstream && (m = path.match(MEDIA_IMG))) upstream = `${SUPABASE_URL}/storage/v1/object/public/media/${m[1]}/${m[2]}`;
     if (!upstream && (m = path.match(DZ_IMG))) upstream = `https://cdn-images.dzcdn.net/images/cover/${m[1]}/${m[2]}x${m[2]}-000000-80-0-0.jpg`;
     if (!upstream && (m = path.match(CAA_IMG))) upstream = `https://coverartarchive.org/release-group/${m[1]}/front-${m[2]}`;
 
