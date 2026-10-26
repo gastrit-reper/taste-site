@@ -667,7 +667,7 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10. Музыка пока без звука, это макет плеера.</p>
-  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-26-del1</p>
+  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-26-col1</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
@@ -1842,7 +1842,7 @@ document.addEventListener('click',e=>{
   if(q('[data-allcoll]')){S.collAll=!S.collAll;renderSide();return}
   if(el=q('[data-cf]')){S.cf=el.dataset.cf;renderColl();return}
   if(el=q('[data-savecoll]')){const id=el.dataset.savecoll;SAVED.has(id)?SAVED.delete(id):SAVED.add(id);saveColl();renderColl();return}
-  if(el=q('[data-share]')){const u='example.org/c/'+el.dataset.share;try{navigator.clipboard.writeText('https://'+u).then(()=>toast('Ссылка скопирована: '+u),()=>toast('Ссылка на сборник: '+u))}catch(_){toast('Ссылка на сборник: '+u)}return}
+  if(el=q('[data-share]')){const u=(window.AUTH&&AUTH.syncOn&&/^[0-9a-f-]{36}$/i.test(el.dataset.share))?location.host+'/#c='+el.dataset.share:'example.org/c/'+el.dataset.share;try{navigator.clipboard.writeText('https://'+u).then(()=>toast('Ссылка скопирована: '+u),()=>toast('Ссылка на сборник: '+u))}catch(_){toast('Ссылка на сборник: '+u)}return}
   if(el=q('[data-al]')){e.preventDefault();openAlbum(el.dataset.al);return}
   if(el=q('[data-ar]')){e.preventDefault();S.ar=el.dataset.ar;S.al=null;renderMain();window.scrollTo(0,0);return}
   if(q('[data-mback]')){if(S.al)S.al=null;else if(S.ar)S.ar=null;renderMain();window.scrollTo(0,0);return}
@@ -1878,7 +1878,7 @@ const COLL=[
 ];
 const SAVED=new Set(['soul']);
 try{const sv=JSON.parse(localStorage.getItem(COLL_K)||'null');if(sv&&sv.coll){COLL.length=0;COLL.push(...sv.coll);SAVED.clear();(sv.saved||[]).forEach(x=>SAVED.add(x))}}catch(e){}
-const saveColl=()=>{try{localStorage.setItem(COLL_K,JSON.stringify({coll:COLL,saved:[...SAVED]}))}catch(e){}};
+const saveColl=()=>{if(window.AUTH&&AUTH.syncOn)return;try{localStorage.setItem(COLL_K,JSON.stringify({coll:COLL,saved:[...SAVED]}))}catch(e){}};
 const DONE_ST=['Прошёл','Просмотрено','Прочитано'];
 const isDone=key=>{const [k,...t]=key.split('|'),r=DATA[k]&&DATA[k].find(x=>x[0]===t.join('|'));return !!r&&(k==='music'?r[2]>0:DONE_ST.includes(r[3]))};
 const collStat=c=>{const it=c.items.filter(k=>CAT_IDX[k]),d=it.filter(isDone).length;return {n:it.length,d,pct:it.length?Math.round(d/it.length*100):0}};
@@ -1951,7 +1951,7 @@ function drawCD(){
     if(!name){$('cd-err').textContent='Введите название сборника.';return}
     if(!CD.items.length){$('cd-err').textContent='Добавьте в сборник хотя бы одну позицию.';return}
     if(CD.id){const c=COLL.find(x=>x.id===CD.id);c.name=name;c.desc=CD.desc.trim();c.items=CD.items}
-    else{const id='c'+Date.now().toString(36);COLL.unshift({id,owner:'me',name,desc:CD.desc.trim(),items:CD.items});S.coll=id;S.page=null;S.cf='all'}
+    else{const id=(window.AUTH&&AUTH.syncOn&&AUTH.newId)?AUTH.newId():'c'+Date.now().toString(36);COLL.unshift({id,owner:'me',name,desc:CD.desc.trim(),items:CD.items});S.coll=id;S.page=null;S.cf='all'}
     saveColl();closeCD();render();window.scrollTo(0,0);
   };
   drawCDres();

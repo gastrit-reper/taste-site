@@ -208,7 +208,8 @@
       }
       const { data: ps, error: e3 } = await sb.from('posts').select('id,body,visibility,created_at').eq('user_id', pr.id).order('created_at', { ascending: false }).limit(100);
       if (e3) throw e3;
-      AUTH.setOther(pr, recs, (ps || []).map(mapPost));
+      const colls = AUTH.fetchColls ? await AUTH.fetchColls(pr.id) : [];
+      AUTH.setOther(pr, recs, (ps || []).map(mapPost), colls);
       (ps || []).forEach(p => owner.set(p.id, pr.id));
       await loadEng((ps || []).map(p => p.id));
       viewing = pr; addNick(pr.nick, pr.id);

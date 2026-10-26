@@ -13,6 +13,10 @@
   let cur = 'demo', uid = null, loading = false, timer = null, chain = Promise.resolve(), lastErr = 0;
   const synced = new Map();   // ключ записи -> {sig, tid}: что уже лежит на сервере
   const fails = new Map(), warned = new Set();
+  const syncedColl = new Map(), syncedSaves = new Set();   // сборники на сервере: id -> подпись; сохранённые чужие
+  let collOk = true, localColl = [];                        // collOk=false: таблиц сборников ещё нет (не выполнен stage11.sql)
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const newId = () => (crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx'.replace(/[x]/g, () => (Math.random() * 16 | 0).toString(16)));
 
   function release() { document.documentElement.classList.remove('sy-wait'); }   // класс ставит auth.js
 
@@ -102,6 +106,105 @@
       if (!data || data.length < 1000) break;
     }
   }
+  /* ---------- сборники ---------- */
+  const TCOLS = 'id,source,external_id,category,title,original_title,alt_titles,year,creators,genres,description,cover_url,banner_url,extra';
+  const tidOf = key => { const c = CAT_IDX[key]; return c && c.ext && c.ext.title_id; };
+  const collSig = c => JSON.stringify([c.name, c.desc || '', c.items.map(tidOf).filter(Boolean)]);
+  const noTable = e => e && (e.code === '42P01' || e.code === 'PGRST205' || /does not exist|schema cache/i.test(e.message || ''));
+  async function titleKeys(ids) {   // номера тайтлов -> ключи каталога сайта
+    const out = new Map(), need = [...new Set(ids.filter(Boolean))];
+    for (let i = 0; i < need.length; i += 150) {
+      const { data, error } = await sb.from('titles').select(TCOLS).in('id', need.slice(i, i + 150));
+      if (error) throw error;
+      (data || []).forEach(t => { const k = regLive(t, true); if (k) out.set(t.id, k); });
+    }
+    return out;
+  }
+  const toColl = (row, keys, ownerName) => ({ id: row.id, owner: ownerName, name: row.name, desc: row.descr || '', items: (row.items || []).map(i => keys.get(i)).filter(Boolean) });
+  async function nickMap(ids) {
+    const m = new Map(), need = [...new Set(ids)];
+    if (!need.length) return m;
+    const { data } = await sb.from('profiles').select('id,nick').in('id', need);
+    (data || []).forEach(p => m.set(p.id, p.nick));
+    return m;
+  }
+  async function loadColls() {
+    syncedColl.clear(); syncedSaves.clear();
+    const mine = await sb.from('collections').select('id,user_id,name,descr,items').eq('user_id', uid).order('created_at', { ascending: false });
+    if (mine.error) { if (noTable(mine.error)) { collOk = false; return; } throw mine.error; }
+    const sv = await sb.from('collection_saves').select('collection_id').eq('user_id', uid);
+    if (sv.error) throw sv.error;
+    const ids = (sv.data || []).map(x => x.collection_id);
+    let others = [];
+    if (ids.length) { const r = await sb.from('collections').select('id,user_id,name,descr,items').in('id', ids); if (r.error) throw r.error; others = r.data || []; }
+    const nicks = await nickMap(others.map(c => c.user_id));
+    const keys = await titleKeys([...(mine.data || []), ...others].flatMap(c => c.items || []));
+    (mine.data || []).forEach(c => { const o = toColl(c, keys, 'me'); COLL.push(o); syncedColl.set(c.id, collSig(o)); });
+    others.forEach(c => { COLL.push(toColl(c, keys, nicks.get(c.user_id) || 'user')); SAVED.add(c.id); syncedSaves.add(c.id); });
+  }
+  async function syncColls(me, res) {
+    if (!collOk) return;
+    const mine = COLL.filter(c => c.owner === 'me' && UUID.test(c.id));
+    const need = [];
+    mine.forEach(c => c.items.forEach(k => { if (CAT_IDX[k] && !tidOf(k) && (fails.get(k) || 0) < 3 && !need.includes(k)) need.push(k); }));
+    if (need.length) { await Promise.all(need.map(resolve)); res.again = true; }
+    for (const c of mine) {
+      const ids = [...new Set(c.items.map(tidOf).filter(Boolean))].slice(0, 300);
+      if (!ids.length) continue;
+      const sig = collSig(c);
+      if (syncedColl.get(c.id) === sig) continue;
+      const { error } = await sb.from('collections').upsert({ id: c.id, user_id: me, name: String(c.name).slice(0, 60), descr: String(c.desc || '').slice(0, 200), items: ids }, { onConflict: 'id' });
+      if (error) { if (noTable(error)) { collOk = false; return; } res.ok = false; fail(error); continue; }
+      syncedColl.set(c.id, sig);
+    }
+    for (const id of [...syncedColl.keys()]) {
+      if (mine.some(c => c.id === id)) continue;
+      const { error } = await sb.from('collections').delete().eq('id', id).eq('user_id', me);
+      if (error) { res.ok = false; fail(error); continue; }
+      syncedColl.delete(id);
+    }
+    const want = [...SAVED].filter(id => UUID.test(id) && COLL.some(c => c.id === id && c.owner !== 'me'));
+    const add = want.filter(id => !syncedSaves.has(id)), del = [...syncedSaves].filter(id => !SAVED.has(id));
+    if (add.length) {
+      const { error } = await sb.from('collection_saves').upsert(add.map(id => ({ user_id: me, collection_id: id })), { onConflict: 'user_id,collection_id' });
+      if (error) { res.ok = false; fail(error); } else add.forEach(id => syncedSaves.add(id));
+    }
+    if (del.length) {
+      const { error } = await sb.from('collection_saves').delete().eq('user_id', me).in('collection_id', del);
+      if (error) { res.ok = false; fail(error); } else del.forEach(id => syncedSaves.delete(id));
+    }
+    if (res.ok && migrated && mine.every(c => syncedColl.has(c.id))) { try { localStorage.removeItem('prof_coll_' + me); } catch (e) {} migrated = false; }
+  }
+  let migrated = false;
+  AUTH.newId = newId;
+  AUTH.fetchColls = async function (userId) {   // сборники другого человека (для его профиля); ошибки не мешают открыть профиль
+    try {
+      if (!collOk) return [];
+      const { data, error } = await sb.from('collections').select('id,user_id,name,descr,items').eq('user_id', userId).order('created_at', { ascending: false }).limit(50);
+      if (error) throw error;
+      const keys = await titleKeys((data || []).flatMap(c => c.items || []));
+      return (data || []).map(c => toColl(c, keys, 'me'));
+    } catch (e) { console.error('collections', e); return []; }
+  };
+  AUTH.openColl = async function (id) {   // ссылка вида /#c=<номер>: открыть любой сборник
+    if (!uid || !UUID.test(id)) return false;
+    let c = COLL.find(x => x.id === id);
+    if (!c) {
+      try {
+        const { data, error } = await sb.from('collections').select('id,user_id,name,descr,items').eq('id', id).maybeSingle();
+        if (error) throw error;
+        if (!data) { toast('Сборник не найден.'); return false; }
+        const nicks = await nickMap([data.user_id]);
+        const keys = await titleKeys(data.items || []);
+        c = toColl(data, keys, data.user_id === uid ? 'me' : (nicks.get(data.user_id) || 'user'));
+        if (cur === 'acct') COLL.push(c); else if (store.acct) store.acct.COLL.push(c);
+      } catch (e) { console.error(e); toast('Не удалось открыть сборник.'); return false; }
+    }
+    if (cur !== 'acct') swap('acct');
+    S.page = null; S.coll = id; S.cf = 'all'; render(); window.scrollTo(0, 0);
+    return true;
+  };
+
   async function enter(user, profile) {
     if (uid === user.id) return;
     loading = true; uid = user.id; AUTH.syncOn = true;
@@ -118,11 +221,18 @@
       if (profile.fav && Object.keys(profile.fav).length) P.fav = profile.fav;
       if (profile.song) P.song = profile.song;
     }
+    localColl = [];
     try {
       const c = JSON.parse(localStorage.getItem('prof_coll_' + uid) || 'null');
-      if (c && c.coll) { COLL.push(...c.coll); (c.saved || []).forEach(x => SAVED.add(x)); }
+      if (c && c.coll) localColl = c.coll.filter(x => x && x.owner === 'me' && Array.isArray(x.items));
     } catch (e) {}
     try { await loadRatings(); } catch (e) { console.error(e); toast('Не удалось загрузить оценки с сервера. Обновите страницу.'); }
+    collOk = true;
+    try { await loadColls(); } catch (e) { console.error(e); collOk = false; toast('Не удалось загрузить сборники. Обновите страницу.'); }
+    if (collOk && localColl.length) {   // старые сборники из этого браузера уезжают на сервер
+      localColl.forEach(c => { if (CAT_IDX[c.items[0]] || c.items.some(k => CAT_IDX[k])) COLL.push({ id: newId(), owner: 'me', name: c.name, desc: c.desc || '', items: c.items.filter(k => CAT_IDX[k]) }); });
+      migrated = true; localColl = [];
+    }
     loading = false;
     S.view = 'activity'; S.sub = 'all'; S.al = null; S.ar = null;
     release(); render();
@@ -134,7 +244,7 @@
     if (!uid) return;
     clearTimeout(timer);
     if (store.demo) restore(store.demo);
-    uid = null; cur = 'demo'; AUTH.syncOn = false; store.demo = store.acct = store.other = null; synced.clear(); fails.clear(); setKeys();
+    uid = null; cur = 'demo'; AUTH.syncOn = false; store.demo = store.acct = store.other = null; synced.clear(); fails.clear(); syncedColl.clear(); syncedSaves.clear(); setKeys();
     const vo = document.getElementById('v-other'); if (vo) vo.hidden = false;
     S.view = 'activity'; S.sub = 'all'; S.al = null; S.ar = null; S.page = null; S.coll = null; S.me = false;
     const vh = document.getElementById('v-home'); if (vh) vh.click(); else render();
@@ -218,6 +328,7 @@
       await Promise.all(need.map(resolve)); res.again = true;
       if (need.some(k => !(CAT_IDX[k].ext && CAT_IDX[k].ext.title_id) && (fails.get(k) || 0) < 3)) schedule(30000);   // не было связи: повторим позже
     }
+    try { await syncColls(me, res); } catch (e) { console.error(e); res.ok = false; }
     /* ник и «о себе» */
     const pr = AUTH.profile;
     const prSig = p => JSON.stringify([p.nick, p.about || '', p.links || [], p.fav || {}, p.song || '']);
@@ -280,17 +391,26 @@
 
   /* ---------- для social.js: чужие профили и свои посты ---------- */
   AUTH.daysSince = daysSince;
-  AUTH.setOther = function (prof, recs, posts) {   // собираем данные чужого профиля, не трогая ваши
+  AUTH.setOther = function (prof, recs, posts, colls) {   // собираем данные чужого профиля, не трогая ваши
     const keep = snapshot();
     try {
       blank();
       Object.assign(P, { nick: prof.nick, about: prof.about || '', links: prof.links || [], fav: prof.fav || {}, song: prof.song || '' });
       (recs || []).forEach(r => addRec(r, false));
       S.posts = posts || [];
+      (colls || []).forEach(c => COLL.push({ ...c, owner: 'me', items: [...c.items] }));   // в его профиле они «его»
       store.other = snapshot();
+      // чтобы сборник открывался (страница сборника идёт на ваших данных), кладём копию в ваш набор под именем автора
+      (colls || []).forEach(c => {
+        const copy = { ...c, owner: prof.nick, items: [...c.items] }, tgt = cur === 'acct' ? keep.COLL : (store.acct ? store.acct.COLL : keep.COLL);
+        if (!tgt.some(x => x.id === c.id)) tgt.push(copy);
+      });
     } finally { restore(keep); }
   };
   AUTH.setMyPosts = function (posts) { if (cur === 'acct') S.posts = posts; else if (store.acct) store.acct.posts = posts; };
+
+  document.addEventListener('sync-entered', () => { const m = /^#c=([0-9a-f-]{36})$/i.exec(location.hash); if (m) AUTH.openColl(m[1]); });
+  window.addEventListener('hashchange', () => { const m = /^#c=([0-9a-f-]{36})$/i.exec(location.hash); if (m && uid) AUTH.openColl(m[1]); });
 
   handle();
 })();
