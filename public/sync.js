@@ -25,7 +25,7 @@
   const snapshot = () => ({
     DATA: Object.fromEntries(ORDER.map(k => [k, DATA[k].slice()])),
     EXTRA: { ...EXTRA }, TRK: { ...TRK }, posts: S.posts.slice(), P: JSON.parse(JSON.stringify(P)),
-    COLL: COLL.slice(), SAVED: [...SAVED]
+    COLL: COLL.slice(), SAVED: [...SAVED], avatar: S.avatar || null, banner: S.banner || null
   });
   function restore(s) {
     ORDER.forEach(k => { DATA[k] = s.DATA[k].slice(); });
@@ -35,12 +35,14 @@
     clearObj(P); Object.assign(P, s.P);
     COLL.length = 0; COLL.push(...s.COLL);
     SAVED.clear(); s.SAVED.forEach(x => SAVED.add(x));
+    S.avatar = s.avatar || null; S.banner = s.banner || null;
   }
   function blank() {
     ORDER.forEach(k => { DATA[k] = []; });
     clearObj(EXTRA); clearObj(TRK); S.posts = [];
     clearObj(P); Object.assign(P, { nick: '', about: '', links: [], fav: {}, song: '' });
     COLL.length = 0; SAVED.clear();
+    S.avatar = null; S.banner = null;
   }
   function setKeys() {   // куда index.html сохраняет профиль и сборники (PK и COLL_K объявлены там через let)
     PK = cur === 'acct' && uid ? 'prof_profile_' + uid : 'prof_profile';
@@ -106,6 +108,38 @@
       if (!data || data.length < 1000) break;
     }
   }
+  /* ---------- аватар и баннер: файл в хранилище, в профиле путь и кадрирование ---------- */
+  const MEDIA_MAX = 8 * 1024 * 1024, r5 = x => Math.round(x * 1e5) / 1e5;
+  let mediaOk = true;   // false: колонок аватара ещё нет (не выполнен stage12.sql)
+  const mediaPath = {};  // что сейчас лежит на сервере: kind -> путь
+  const mediaIn = m => (m && m.p) ? { url: '/media/' + m.p, path: m.p, nw: m.nw, nh: m.nh, cxn: m.cxn, cyn: m.cyn, wn: m.wn, hn: m.hn } : null;
+  function mediaOut(kind) {
+    const c = S[kind];
+    if (!c) return null;
+    if (c.path) return { p: c.path, nw: c.nw, nh: c.nh, cxn: r5(c.cxn), cyn: r5(c.cyn), wn: r5(c.wn), hn: r5(c.hn) };
+    return (AUTH.profile && AUTH.profile[kind]) || null;   // ещё не загружено: пока оставляем то, что на сервере
+  }
+  const extOf = t => ({ 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp' }[t] || '');
+  async function syncMedia(me) {
+    for (const kind of ['avatar', 'banner']) {
+      const c = S[kind];
+      if (!c || c.noSave) continue;
+      if (c.url.startsWith('/media/')) { c.path = c.url.slice(7); continue; }
+      if (!c.url.startsWith('blob:') || c.path) continue;
+      try {
+        const blob = await (await fetch(c.url)).blob();
+        const ext = extOf(blob.type);
+        if (!ext) { c.noSave = true; toast('Этот тип файла нельзя сохранить в профиле. Подойдут PNG, JPG, GIF и WebP.'); continue; }
+        if (blob.size > MEDIA_MAX) { c.noSave = true; toast((kind === 'avatar' ? 'Аватар' : 'Баннер') + ' весит больше 8 МБ, поэтому сохранится только до перезагрузки. Выберите файл поменьше.'); continue; }
+        const path = `${me}/${kind}-${Date.now().toString(36)}.${ext}`;
+        const { error } = await sb.storage.from('media').upload(path, blob, { contentType: blob.type, cacheControl: '31536000', upsert: false });
+        if (error) { if (/bucket not found/i.test(error.message || '')) mediaOk = false; throw error; }
+        c.url = '/media/' + path; c.path = path;
+      } catch (e) { console.error('media', e); lastMediaErr = e; }
+    }
+  }
+  let lastMediaErr = null;
+
   /* ---------- сборники ---------- */
   const TCOLS = 'id,source,external_id,category,title,original_title,alt_titles,year,creators,genres,description,cover_url,banner_url,extra';
   const tidOf = key => { const c = CAT_IDX[key]; return c && c.ext && c.ext.title_id; };
@@ -221,6 +255,9 @@
       if (profile.links && profile.links.length) P.links = profile.links;
       if (profile.fav && Object.keys(profile.fav).length) P.fav = profile.fav;
       if (profile.song) P.song = profile.song;
+      mediaOk = 'avatar' in profile;
+      S.avatar = mediaIn(profile.avatar); S.banner = mediaIn(profile.banner);
+      mediaPath.avatar = profile.avatar && profile.avatar.p || ''; mediaPath.banner = profile.banner && profile.banner.p || '';
     }
     localColl = [];
     try {
@@ -330,18 +367,30 @@
       if (need.some(k => !(CAT_IDX[k].ext && CAT_IDX[k].ext.title_id) && (fails.get(k) || 0) < 3)) schedule(30000);   // не было связи: повторим позже
     }
     try { await syncColls(me, res); } catch (e) { console.error(e); res.ok = false; }
-    /* ник и «о себе» */
+    /* ник, «о себе», музыка, аватар и баннер */
     const pr = AUTH.profile;
-    const prSig = p => JSON.stringify([p.nick, p.about || '', p.links || [], p.fav || {}, p.song || '']);
-    if (pr && uid === me && cur === 'acct' && P.nick && prSig(P) !== prSig(pr)) {
+    if (pr && uid === me && cur === 'acct' && mediaOk) await syncMedia(me);
+    const prSig = (p, av, bn) => JSON.stringify([p.nick, p.about || '', p.links || [], p.fav || {}, p.song || '', av, bn]);
+    const mine = () => prSig(P, mediaOut('avatar'), mediaOut('banner')), theirs = () => prSig(pr, mediaOk ? (pr.avatar || null) : null, mediaOk ? (pr.banner || null) : null);
+    if (pr && uid === me && cur === 'acct' && P.nick && (mediaOk ? mine() : prSig(P, null, null)) !== theirs()) {
       if (!NICK.test(P.nick)) { P.nick = pr.nick; }
       else {
-        const { data, error } = await sb.from('profiles').update({ nick: P.nick, about: P.about || '', links: (P.links || []).slice(0, 12), fav: P.fav || {}, song: String(P.song || '').slice(0, 300) }).eq('id', me).select('id,nick,about,links,fav,song,created_at').maybeSingle();
-        if (error || !data) {
+        const body = { nick: P.nick, about: P.about || '', links: (P.links || []).slice(0, 12), fav: P.fav || {}, song: String(P.song || '').slice(0, 300) };
+        if (mediaOk) { body.avatar = mediaOut('avatar'); body.banner = mediaOut('banner'); }
+        const { data, error } = await sb.from('profiles').update(body).eq('id', me).select(mediaOk ? 'id,nick,about,links,fav,song,avatar,banner,created_at' : 'id,nick,about,links,fav,song,created_at').maybeSingle();
+        if (error && mediaOk && /avatar|banner|column/i.test(error.message || '')) { mediaOk = false; res.again = true; }
+        else if (error || !data) {
           toast(error && error.code === '23505' ? 'Этот ник уже занят, оставил прежний.' : 'Не удалось сохранить профиль на сервере.');
           P.nick = pr.nick; P.about = pr.about || ''; P.links = pr.links || P.links; P.fav = pr.fav || P.fav; P.song = pr.song || '';
           res.ok = false;
-        } else AUTH.setProfile(data);
+        } else {
+          AUTH.setProfile(data);
+          ['avatar', 'banner'].forEach(k => {   // старый файл на сервере больше не нужен
+            const now = data[k] && data[k].p || '';
+            if (mediaOk && mediaPath[k] && mediaPath[k] !== now) sb.storage.from('media').remove([mediaPath[k]]).catch(() => {});
+            mediaPath[k] = now;
+          });
+        }
       }
       try { saveP(); } catch (e) {}
       render();
@@ -399,6 +448,7 @@
       Object.assign(P, { nick: prof.nick, about: prof.about || '', links: prof.links || [], fav: prof.fav || {}, song: prof.song || '' });
       (recs || []).forEach(r => addRec(r, false));
       S.posts = posts || [];
+      S.avatar = mediaIn(prof.avatar); S.banner = mediaIn(prof.banner);
       (colls || []).forEach(c => COLL.push({ ...c, owner: 'me', items: [...c.items] }));   // в его профиле они «его»
       store.other = snapshot();
       // чтобы сборник открывался (страница сборника идёт на ваших данных), кладём копию в ваш набор под именем автора

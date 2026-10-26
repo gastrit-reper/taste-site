@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}
+<!doctype html><html data-theme="crimson"><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}
 /* поиск в любимом */
 .cmb{position:relative}.cmb .fld{padding-right:32px}
 .cmb-x{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--muted);font-size:20px;line-height:1;padding:2px 6px;border-radius:8px}
@@ -27,7 +27,7 @@
 .post p.clamp{display:-webkit-box;-webkit-line-clamp:8;-webkit-box-orient:vertical;overflow:hidden}
 .more-post{border:0;background:none;color:var(--accent);padding:6px 0 0;font:inherit;font-size:13px}
 </style></head><body>
-<title>Профиль оценок</title>
+<title>DevilDash</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&family=Unbounded:wght@500;600&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&family=Unbounded:wght@500;600&display=swap"></noscript>
 <style>
@@ -105,7 +105,7 @@ svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stro
 
 /* музыка */
 .player{border-radius:14px;background:var(--surface2);padding:14px;display:grid;grid-template-columns:64px minmax(0,1fr);gap:4px 14px;align-items:center}
-.player .cover{width:64px;height:64px;border-radius:10px;position:relative}
+.player .time{white-space:nowrap}.player .vol{width:76px;accent-color:var(--accent);margin-left:2px}.player .cover{width:64px;height:64px;border-radius:10px;position:relative}
 .eq{display:flex;gap:3px;align-items:flex-end;height:18px;position:absolute;left:50%;bottom:6px;transform:translateX(-50%)}
 .eq b{width:3px;background:#fff;border-radius:2px;height:4px}
 .playing .eq b{animation:eq .9s ease-in-out infinite}
@@ -637,7 +637,7 @@ textarea.fld{min-height:96px;resize:vertical}
 
 <div class="wrap">
   <div class="proto">
-    <span>Прототип. Все данные на странице — примеры.</span>
+    <span><b>DevilDash</b> · прототип. Все данные на странице — примеры.</span>
     <span class="seg" role="group" aria-label="Чей профиль смотрим">
       <button id="v-home" aria-pressed="true">Главная</button>
       <button id="v-other" aria-pressed="false">Чужой профиль</button>
@@ -668,7 +668,7 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10. Музыка пока без звука, это макет плеера.</p>
-  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-26-mus2</p>
+  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-26-med1</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
@@ -862,8 +862,8 @@ function renderHead(){
         <div class="bar"><div id="prog"></div></div>
         <div class="pc">
           <button class="ic main" id="pp" aria-label="${S.playing?'Пауза':'Играть'}">${pp(S.playing)}</button>
-          <button class="ic" id="mu" aria-label="${S.muted?'Включить звук':'Выключить звук'}">${ico(S.muted?'mute':'vol')}</button>
-          <span class="time" id="time">0:00 / ${fmt(DUR)}</span>${sg.real?'<span class="sub" style="margin-left:8px">фрагмент 30 с</span>':''}
+          <button class="ic" id="mu" aria-label="${S.muted?'Включить звук':'Выключить звук'}">${ico(S.muted?'mute':'vol')}</button><input type="range" class="vol" id="vol" min="0" max="100" step="1" value="${ST.vol}" aria-label="Громкость">
+          <span class="time" id="time" title="${sg.real?'Играет фрагмент песни, 30 секунд':''}">0:00 / ${fmt(DUR)}</span>
         </div>
       </div>
       <label class="auto"><input type="checkbox" id="autoplay" ${S.auto?'checked':''}> Запускать музыку при заходе в профиль</label>`
@@ -2042,7 +2042,7 @@ let DUR=251; let timer=null;
 let AUD=null, AUDID=null;
 function audioEl(){
   if(AUD)return AUD;
-  AUD=new Audio();AUD.preload='none';
+  AUD=new Audio();AUD.preload='none';AUD.volume=Math.min(1,Math.max(0,(ST.vol===undefined?35:ST.vol)/100));
   AUD.addEventListener('timeupdate',()=>{if(AUDID){S.prog=AUD.currentTime;if(AUD.duration>0)DUR=AUD.duration;paint()}});
   AUD.addEventListener('ended',()=>{S.prog=0;setPlaying(false)});
   AUD.addEventListener('error',()=>{if(!AUDID)return;setPlaying(false);toast('Не удалось загрузить фрагмент песни. Попробуйте позже.')});
@@ -2059,7 +2059,7 @@ function setPlaying(v){
     const a=audioEl();
     if(v){
       if(AUDID!==sg.id){a.src='/audio/dz/'+sg.id+'.mp3';AUDID=sg.id;S.prog=0}
-      a.muted=!!S.muted;
+      a.muted=!!S.muted;a.volume=Math.min(1,Math.max(0,ST.vol/100));
       const pr=a.play();if(pr&&pr.catch)pr.catch(()=>{S.playing=false;const b=document.getElementById('pp');if(b){b.innerHTML=pp(false);b.setAttribute('aria-label','Играть')};const pl=document.getElementById('player');if(pl)pl.classList.remove('playing')});
     }else a.pause();
   }else{
@@ -2075,6 +2075,7 @@ function bindHead(){
   if($('pp')){
     $('pp').onclick=()=>setPlaying(!S.playing);
     $('mu').onclick=()=>{S.muted=!S.muted;if(AUD)AUD.muted=!!S.muted;$('mu').innerHTML=ico(S.muted?'mute':'vol');$('mu').setAttribute('aria-label',S.muted?'Включить звук':'Выключить звук')};
+    $('vol').oninput=e=>{ST.vol=+e.target.value;saveSet();if(AUD)AUD.volume=ST.vol/100};
     $('autoplay').onchange=e=>{S.auto=ST.auto=e.target.checked;saveSet()};
   }
   const fe=$('fav-edit'); if(fe) fe.onclick=()=>{S.editFav=!S.editFav;renderHead()};
@@ -2105,8 +2106,11 @@ document.getElementById('v-me').onclick=()=>setProfile(true);
 document.getElementById('v-other').onclick=()=>setProfile(false);
 /* настройки: небольшое окно у шестерёнки */
 const SETK='prof_settings';
-const ST={theme:'auto',auto:true,spoilers:false,notif:true,vis:'all',pvis:'all',msg:'all',online:true,steam:true};
-function loadSet(){try{Object.assign(ST,JSON.parse(localStorage.getItem(SETK)||'{}'))}catch(e){}}
+const ST={theme:'crimson',vol:35,auto:true,spoilers:false,notif:true,vis:'all',pvis:'all',msg:'all',online:true,steam:true};
+function loadSet(){
+  try{Object.assign(ST,JSON.parse(localStorage.getItem(SETK)||'{}'))}catch(e){}
+  try{if(!localStorage.getItem('theme_default_v2')){ST.theme='crimson';localStorage.setItem('theme_default_v2','1');saveSet()}}catch(e){}   // чёрно-красная тема стала основной
+}
 function saveSet(){try{localStorage.setItem(SETK,JSON.stringify(ST))}catch(e){}}
 function applyTheme(){const r=document.documentElement;if(ST.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',ST.theme)}
 const SP={open:false,tab:'look'};
@@ -2120,10 +2124,11 @@ function renderPop(){
   const tabs=[['look','Внешний вид'],['gen','Общие'],['priv','Конфиденциальность']];
   let body='';
   if(SP.tab==='look')body=`<div class="prow"><span><b>Профиль</b><small>Ник, описание, ссылки, любимое, музыка</small></span><button type="button" class="btn" data-editprof>Изменить</button></div><div class="themes">${THEMES.map(([id,l,c])=>`<button type="button" class="tbtn" data-theme-set="${id}" aria-pressed="${ST.theme===id}"><span class="tsw">${c.map(x=>`<i style="background:${x}"></i>`).join('')}</span><b>${l}${ST.theme===id?ico('check'):''}</b></button>`).join('')}</div>`;
-  else if(SP.tab==='gen')body=(window.AUTH&&AUTH.user?`<div class="prow"><span><b>Аккаунт</b><small>${esc(AUTH.profile?AUTH.profile.nick:'')} · ${esc(AUTH.user.email||'')}</small></span><button type="button" class="btn" data-logout>Выйти</button></div>`:'')+sw('auto','Музыка при заходе в профиль','Играет после первого клика на сайте')+sw('spoilers','Показывать спойлеры','Отзывы со спойлерами откроются сразу')+sw('notif','Уведомления об отметках','Когда вас отметили через @ или {{ }}')+sel('lang','Язык',[['ru','Русский']]);
+  else if(SP.tab==='gen')body=`<label class="opt2"><span>Громкость музыки<small>Для музыки в профиле</small></span><input type="range" min="0" max="100" step="1" value="${ST.vol}" data-vol style="width:130px;accent-color:var(--accent)"></label>`+(window.AUTH&&AUTH.user?`<div class="prow"><span><b>Аккаунт</b><small>${esc(AUTH.profile?AUTH.profile.nick:'')} · ${esc(AUTH.user.email||'')}</small></span><button type="button" class="btn" data-logout>Выйти</button></div>`:'')+sw('auto','Музыка при заходе в профиль','Играет после первого клика на сайте')+sw('spoilers','Показывать спойлеры','Отзывы со спойлерами откроются сразу')+sw('notif','Уведомления об отметках','Когда вас отметили через @ или {{ }}')+sel('lang','Язык',[['ru','Русский']]);
   else body=sel('pvis','Кто видит новые посты',[['all','Все'],['friends','Друзья']])+sel('msg','Кто может писать мне',[['all','Все'],['friends','Друзья'],['none','Никто']])+sw('online','Показывать, что я в сети')+sw('steam','Показывать часы и достижения','Из Steam и других сервисов');
   pop.innerHTML=`<div class="seg" role="tablist">${tabs.map(([id,l])=>`<button type="button" role="tab" data-ptab="${id}" aria-pressed="${SP.tab===id}">${l}</button>`).join('')}</div><div class="pbody">${body}</div><div class="pfoot">Сохраняется в этом браузере.</div>`;
   pop.querySelectorAll('[data-logout]').forEach(b=>b.onclick=async()=>{b.disabled=true;SP.open=false;renderPop();try{await AUTH.client.auth.signOut()}catch(_){toast('Не удалось выйти, попробуйте ещё раз.')}});
+  pop.querySelectorAll('[data-vol]').forEach(c=>c.oninput=()=>{ST.vol=+c.value;saveSet();if(AUD)AUD.volume=ST.vol/100;const pv=document.getElementById('vol');if(pv)pv.value=ST.vol});
   pop.querySelectorAll('[data-ptab]').forEach(b=>b.onclick=()=>{SP.tab=b.dataset.ptab;renderPop()});
   pop.querySelectorAll('[data-theme-set]').forEach(b=>b.onclick=()=>{ST.theme=b.dataset.themeSet;saveSet();applyTheme();renderPop()});
   pop.querySelectorAll('[data-set]').forEach(c=>c.onchange=()=>{

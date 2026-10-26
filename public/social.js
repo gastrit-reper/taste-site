@@ -8,7 +8,8 @@
   if (!AUTH || !AUTH.client) return;
   const sb = AUTH.client;
   const SO = window.SOCIAL = {};
-  const PCOLS = 'id,nick,about,links,fav,song,created_at';
+  const PCOLS = 'id,nick,about,links,fav,song,avatar,banner,created_at';
+  const PCOLS0 = 'id,nick,about,links,fav,song,created_at';
   const RCOLS = 'id,user_id,score,status,review,spoiler,liked,details,rated_at,titles(id,source,external_id,category,title,original_title,alt_titles,year,creators,genres,description,cover_url,banner_url,extra)';
   const MON = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
   const norm = s => String(s || '').toLowerCase().replace(/ё/g, 'е');
@@ -196,7 +197,8 @@
     const n = String(name || '').trim(); if (!n) return;
     if (AUTH.profile && n.toLowerCase() === AUTH.profile.nick.toLowerCase()) { setProfile(true); window.scrollTo(0, 0); return; }
     try {
-      const { data: pr, error } = await sb.from('profiles').select(PCOLS).ilike('nick', escLike(n)).maybeSingle();
+      let { data: pr, error } = await sb.from('profiles').select(PCOLS).ilike('nick', escLike(n)).maybeSingle();
+      if (error) ({ data: pr, error } = await sb.from('profiles').select(PCOLS0).ilike('nick', escLike(n)).maybeSingle());
       if (error) throw error;
       if (!pr) { toast('Пользователь не найден'); return; }
       const recs = [];

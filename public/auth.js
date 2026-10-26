@@ -43,7 +43,8 @@
   async function loadProfile() {
     AUTH.profile = null;
     if (!AUTH.user) return;
-    const { data } = await sb.from('profiles').select('id,nick,about,links,fav,song,created_at').eq('id', AUTH.user.id).maybeSingle();
+    let { data, error } = await sb.from('profiles').select('id,nick,about,links,fav,song,avatar,banner,created_at').eq('id', AUTH.user.id).maybeSingle();
+    if (error) ({ data } = await sb.from('profiles').select('id,nick,about,links,fav,song,created_at').eq('id', AUTH.user.id).maybeSingle());   // колонок аватара ещё нет (не выполнен stage12.sql)
     AUTH.profile = data || null;
   }
   async function setUser(u) {
@@ -81,7 +82,7 @@
         </form>`;
       foot = '<button type="button" class="btn" id="au-c">Закрыть</button>';
     }
-    ov.innerHTML = `<div class="dlg" role="dialog" aria-modal="true" aria-labelledby="au-h" style="width:min(420px,100%)"><div class="dh"><h2 id="au-h">${AUTH.user ? 'Аккаунт' : 'Вход на сайт'}</h2><button type="button" class="ic" id="au-x" aria-label="Закрыть"><svg class="i" aria-hidden="true"><use href="#close"/></svg></button></div><div class="dr pb">${body}</div><div class="df">${foot}</div></div>`;
+    ov.innerHTML = `<div class="dlg" role="dialog" aria-modal="true" aria-labelledby="au-h" style="width:min(420px,100%)"><div class="dh"><h2 id="au-h">${AUTH.user ? 'Аккаунт' : 'Вход в DevilDash'}</h2><button type="button" class="ic" id="au-x" aria-label="Закрыть"><svg class="i" aria-hidden="true"><use href="#close"/></svg></button></div><div class="dr pb">${body}</div><div class="df">${foot}</div></div>`;
     const $ = id => document.getElementById(id);
     $('au-x').onclick = close; if ($('au-c')) $('au-c').onclick = close;
     ov.querySelectorAll('[data-aum]').forEach(b => b.onclick = () => { mode = b.dataset.aum; draw(); });
