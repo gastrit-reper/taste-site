@@ -208,6 +208,7 @@
   async function enter(user, profile) {
     if (uid === user.id) return;
     loading = true; uid = user.id; AUTH.syncOn = true;
+    document.documentElement.classList.add('sy-in');   // шапка «Прототип…» нужна только гостям
     const vo = document.getElementById('v-other'); if (vo) vo.hidden = true;   // «Чужой профиль»-пример нужен только гостям
     store.demo = snapshot();
     blank(); cur = 'acct'; setKeys();
@@ -244,7 +245,7 @@
     if (!uid) return;
     clearTimeout(timer);
     if (store.demo) restore(store.demo);
-    uid = null; cur = 'demo'; AUTH.syncOn = false; store.demo = store.acct = store.other = null; synced.clear(); fails.clear(); syncedColl.clear(); syncedSaves.clear(); setKeys();
+    document.documentElement.classList.remove('sy-in'); uid = null; cur = 'demo'; AUTH.syncOn = false; store.demo = store.acct = store.other = null; synced.clear(); fails.clear(); syncedColl.clear(); syncedSaves.clear(); setKeys();
     const vo = document.getElementById('v-other'); if (vo) vo.hidden = false;
     S.view = 'activity'; S.sub = 'all'; S.al = null; S.ar = null; S.page = null; S.coll = null; S.me = false;
     const vh = document.getElementById('v-home'); if (vh) vh.click(); else render();
