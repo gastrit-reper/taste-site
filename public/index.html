@@ -706,7 +706,7 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10. Музыка пока без звука, это макет плеера.</p>
-  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-27-ux3</p>
+  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-27-ux4</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
@@ -1059,6 +1059,7 @@ function imgUrls(u){   // все картинки идут через наш с�
   if(!u)return null;let m;
   if(u.startsWith('https://image.tmdb.org/t/p/')){const f=u.split('/').pop();return {a:'/img/w342/'+f,b:'/img/w500/'+f}}
   if(m=u.match(/covers\.openlibrary\.org\/b\/id\/(\d+)-/))return {a:`/img/ol/M/${m[1]}.jpg`,b:`/img/ol/L/${m[1]}.jpg`};
+  if(m=u.match(/steamstatic\.com\/steam\/apps\/(\d+)\/library_hero/))return {a:`/img/steam/hero/${m[1]}.jpg`,b:`/img/steam/hero/${m[1]}.jpg`};
   if(m=u.match(/steamstatic\.com\/steam\/apps\/(\d+)\/library_600x900/))return {a:`/img/steam/${m[1]}.jpg`,b:`/img/steam/${m[1]}.jpg`};
   if(m=u.match(/media\.rawg\.io\/media\/(?:crop\/\d+\/\d+\/)?((?:games|screenshots)\/[0-9a-f]{2,3}\/[0-9a-f]{32}\.jpg)/))return {a:`/img/rawg/420/${m[1]}`,b:`/img/rawg/640/${m[1]}`};
   if(m=u.match(/cdn-images\.dzcdn\.net\/images\/cover\/([0-9a-f]{32})\//))return {a:`/img/dz/${m[1]}/250.jpg`,b:`/img/dz/${m[1]}/500.jpg`};
