@@ -8,6 +8,8 @@
 //   /img/ss/<appid>/<ss_хеш.600x338|1920x1080>.jpg - скриншоты игры из Steam
 //   /api/music/search?q=...        - поиск песен (Deezer), для музыки в профиле
 //   /media/<id>/<avatar|banner>-<код>.<png|jpg|gif|webp> - аватары и баннеры из Supabase Storage
+//   /sb/...                       - прокси к Supabase (вход и база работают и без VPN)
+//   /lib/supabase.js              - библиотека Supabase через наш сайт
 //   /audio/dz/<id>.mp3            - 30-секундный фрагмент песни (Deezer), отдаётся через наш сайт
 //   /img/rawg/<420|640|1280>/<путь>.jpg - RAWG (картинки игр: уменьшенная копия, при неудаче оригинал)
 const TMDB_IMG = /^\/img\/(w92|w154|w185|w342|w500|w780|w1280|original)\/([A-Za-z0-9_-]+\.(?:jpg|png))$/;
@@ -64,10 +66,35 @@ async function musicAudio(request, id) {
   }
 }
 
+// Supabase через наш сайт: у части провайдеров supabase.co недоступен без VPN, а наш адрес открывается
+async function supaProxy(request, url) {
+  const target = SUPABASE_URL + url.pathname.slice(3) + url.search;
+  const h = new Headers(request.headers);
+  ['host', 'cf-connecting-ip', 'cf-ipcountry', 'cf-ray', 'cf-visitor', 'x-forwarded-for', 'x-real-ip'].forEach((k) => h.delete(k));
+  const init = { method: request.method, headers: h, redirect: 'manual' };
+  if (request.method !== 'GET' && request.method !== 'HEAD') init.body = request.body;
+  try {
+    const up = await fetch(target, init);
+    const o = new Headers(up.headers);
+    o.delete('content-encoding'); o.delete('content-length');
+    return new Response(up.body, { status: up.status, headers: o });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: 'unavailable' }), { status: 502, headers: { 'Content-Type': 'application/json' } });
+  }
+}
+// библиотека Supabase через наш сайт (если cdn.jsdelivr.net недоступен)
+async function supaLib() {
+  const up = await fetch('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js', { cf: { cacheEverything: true, cacheTtl: 2592000 } });
+  if (!up.ok) return new Response('unavailable', { status: 502 });
+  return new Response(up.body, { headers: { 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=2592000' } });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const path = url.pathname;
+    if (path.startsWith('/sb/')) return supaProxy(request, url);
+    if (path === '/lib/supabase.js' && request.method === 'GET') return supaLib();
     if (path === '/api/music/search' && request.method === 'GET') return musicSearch(url);
     const am = path.match(DZ_AUDIO);
     if (am && (request.method === 'GET' || request.method === 'HEAD')) return musicAudio(request, am[1]);
