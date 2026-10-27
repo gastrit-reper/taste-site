@@ -40,7 +40,7 @@
   }
   const state = id => { const r = rel.get(id) || {}; return r.i && r.t ? 'friend' : r.i ? 'sent' : r.t ? 'incoming' : 'none'; };
   const stClass = v => /^(просмотр|прочит|прошё)/i.test(v) ? 'done' : /^(смотр|читаю|играю)/i.test(v) ? 'doing' : /отлож/i.test(v) ? 'hold' : /бросил/i.test(v) ? 'drop' : 'plan';
-  const mapPost = p => ({ t: p.body, d: AUTH.daysSince(p.created_at), id: p.id, vis: p.visibility });
+  const mapPost = p => ({ t: p.body, d: AUTH.daysSince(p.created_at), ts: Date.parse(p.created_at), id: p.id, vis: p.visibility });
   const avatarOf = n => window.avaHtml ? avaHtml(n, 'hm-av', 'width:30px;height:30px;font-size:13px') : `<span class="hm-av" style="background:hsl(${hue(n)} 45% 42%);width:30px;height:30px;font-size:13px">${esc(n[0].toUpperCase())}</span>`;
 
   const st = document.createElement('style');
@@ -160,14 +160,14 @@
       ((res[1] && res[1].data) || []).forEach(p => {
         const r = m.get(p.user_id); if (!r || !r.nick) return;
         owner.set(p.id, p.user_id);
-        ev.push({ id: 'p|' + p.id, tid: p.id, who: r.nick, d: AUTH.daysSince(p.created_at), t: 'post', text: p.body, real: true, vis: p.visibility });
+        ev.push({ id: 'p|' + p.id, tid: p.id, who: r.nick, d: AUTH.daysSince(p.created_at), ts: Date.parse(p.created_at), t: 'post', text: p.body, real: true, vis: p.visibility });
       });
       ((res[2] && res[2].data) || []).forEach(x => {
         const r = m.get(x.user_id); if (!r || !r.nick || !x.titles) return;
         const key = regLive(x.titles, true); if (!key) return;
         const c = CAT_IDX[key];
         owner.set(x.id, x.user_id);
-        ev.push({ id: 'r|' + x.user_id + '|' + x.titles.id, tid: x.id, who: r.nick, d: AUTH.daysSince(x.rated_at), key, k: c.k, c, real: true,
+        ev.push({ id: 'r|' + x.user_id + '|' + x.titles.id, tid: x.id, who: r.nick, d: AUTH.daysSince(x.rated_at), ts: Date.parse(x.rated_at), key, k: c.k, c, real: true,
           t: x.score ? 'rate' : stClass(x.status) === 'done' ? 'done' : 'start', score: x.score || 0, status: x.status || '', text: x.spoiler ? '' : (x.review || '') });
       });
       events = ev;
@@ -190,6 +190,11 @@
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && SO.on() && Date.now() - lastLoad > 60000) load(true); });
 
   /* ---------- посты ---------- */
+  SO.editPost = async (id, body) => {
+    const { error } = await sb.from('posts').update({ body }).eq('id', id);
+    if (error) { console.error(error); toast('Не удалось сохранить пост. Запустите stage13.sql в Supabase.'); return false; }
+    return true;
+  };
   SO.publish = async (text, vis) => {
     const { data, error } = await sb.from('posts').insert({ body: String(text).slice(0, 5000), visibility: vis === 'friends' ? 'friends' : 'all' }).select('id,body,visibility,created_at').single();
     if (error || !data) { console.error(error); toast('Не удалось опубликовать. Попробуйте ещё раз.'); return; }
@@ -200,7 +205,7 @@
     render();
   };
   async function delPost(id) {
-    if (!window.confirm('Удалить пост?')) return;
+    if (!(await window.ask('Удалить пост?'))) return;
     const { error } = await sb.from('posts').delete().eq('id', id);
     if (error) { toast('Не удалось удалить пост.'); return; }
     S.posts = S.posts.filter(p => p.id !== id);
@@ -279,7 +284,7 @@
     const me = myId(), boss = owner.get(id);
     box.innerHTML = list.map(c => {
       const n = nickById.get(c.user_id) || '?';
-      return `<div class="so-c">${avatarOf(n)}<div class="so-ct"><div><b class="hm-who" data-user="${esc(n)}">${esc(n)}</b> <span class="sub">${ago(AUTH.daysSince(c.created_at))}</span>${c.user_id === me || boss === me ? ` <button type="button" class="lnk" data-sodel="${esc(c.id)}" data-for="${esc(id)}">Удалить</button>` : ''}</div><p>${renderText(c.body)}</p></div></div>`;
+      return `<div class="so-c${c.user_id === me || boss === me ? ' hk' : ''}">${avatarOf(n)}<div class="so-ct"><div><b class="hm-who" data-user="${esc(n)}">${esc(n)}</b> <span class="sub">${ago(AUTH.daysSince(c.created_at))}</span></div><p>${renderText(c.body)}</p></div>${c.user_id === me || boss === me ? window.kebab([{ a: `data-sodel="${esc(c.id)}" data-for="${esc(id)}"`, l: 'Удалить', d: 1 }]) : ''}</div>`;
     }).join('') + `<form class="so-cf" data-for="${esc(id)}"><textarea maxlength="1000" rows="2" placeholder="Написать комментарий" aria-label="Комментарий"></textarea><button type="submit" class="btn primary">Отправить</button></form>`;
     const e = eng.get(id) || ZERO();
     if (e.comments !== list.length) { eng.set(id, { ...e, comments: list.length }); paintEng(id); }
@@ -305,6 +310,7 @@
     await drawComments(id, f.closest('.so-cm'));
   });
   async function delComment(cid, id, btn) {
+    if (!(await window.ask('Удалить комментарий?'))) return;
     const { error } = await sb.from('comments').delete().eq('id', cid);
     if (error) { toast('Не удалось удалить комментарий.'); return; }
     const en = eng.get(id) || ZERO(); eng.set(id, { ...en, comments: Math.max(0, en.comments - 1) }); paintEng(id);

@@ -6,7 +6,7 @@
   const AUTH = window.AUTH = { user: null, profile: null, ready: false, client: null };
   const lib = window.supabase;
   if (!lib || !A.SUPABASE_URL || !A.PUBLISHABLE_KEY || /ВСТАВЬТЕ/.test(A.PUBLISHABLE_KEY)) { console.warn('auth: нет библиотеки или config.js'); return; }
-  const sb = AUTH.client = lib.createClient(A.SUPABASE_URL, A.PUBLISHABLE_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
+  const sb = AUTH.client = lib.createClient(A.SUPABASE_URL, A.PUBLISHABLE_KEY, { auth: { storageKey: 'sb-' + new URL(A.DIRECT_URL || A.SUPABASE_URL).hostname.split('.')[0] + '-auth-token', persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
   const NICK = /^[\p{L}\p{N}_]{2,24}$/u;
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const emit = () => document.dispatchEvent(new CustomEvent('auth-changed', { detail: AUTH }));

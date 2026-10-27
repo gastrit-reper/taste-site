@@ -91,6 +91,7 @@
     const c = CAT_IDX[key], k = c.k;
     if (!DATA[k] || DATA[k].some(r => r[0] === c.t)) return;
     const row = [c.t, `${c.by} · ${c.y}`, rec.score || 0, rec.status || '', rec.review || '', daysSince(rec.rated_at)];
+    if (window.TSR) TSR.set(row, Date.parse(rec.rated_at) || Date.now());
     DATA[k].push(row);
     const x = { ...(rec.details || {}) };
     if (rec.liked) x.liked = true;
@@ -293,7 +294,8 @@
   document.addEventListener('auth-changed', handle);
 
   /* ---------- отправка изменений ---------- */
-  const isoDays = d => { const x = new Date(); x.setHours(12, 0, 0, 0); x.setDate(x.getDate() - (d || 0)); return x.toISOString(); };
+  const tsIso = r => { const t = window.TSR && TSR.get(r); return t && daysSince(new Date(t).toISOString()) === (r[5] || 0) ? new Date(t).toISOString() : isoDays(r[5]); };
+  const isoDays = d => { const x = new Date(); x.setHours(12, 0, 0, 0); x.setDate(x.getDate() - (d || 0)); return (x > new Date() ? new Date() : x).toISOString(); };
   function schedule(ms) { clearTimeout(timer); timer = setTimeout(pass, ms); }
   const pass = () => (chain = chain.then(run).catch(e => { console.error(e); return false; }));
   AUTH.flush = pass;
@@ -345,7 +347,7 @@
       const x = EXTRA[key] || {};
       items.push({ key, sig, tid, rec: {
         user_id: me, title_id: tid, score: r[2] || 0, status: String(r[3] || '').slice(0, 30), review: String(r[4] || '').slice(0, 2000),
-        spoiler: !!x.spoiler, liked: !!x.liked, details: detailsOf(x), rated_at: isoDays(r[5])
+        spoiler: !!x.spoiler, liked: !!x.liked, details: detailsOf(x), rated_at: tsIso(r)
       } });
     }
     if (items.length) {
