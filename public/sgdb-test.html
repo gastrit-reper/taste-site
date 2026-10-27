@@ -1,0 +1,23 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Проверка SteamGridDB</title>
+<style>body{font:15px system-ui;background:#150b0d;color:#f3e8e8;margin:0;padding:24px;max-width:760px}input{font:inherit;padding:8px 10px;width:60%;border-radius:8px;border:1px solid #5a2a30;background:#22121a;color:inherit}button{font:inherit;padding:8px 14px;border-radius:8px;border:0;background:#e5384f;color:#fff;cursor:pointer}pre{white-space:pre-wrap;word-break:break-all;background:#22121a;padding:12px;border-radius:10px}img{max-width:200px;border-radius:8px;margin:6px 6px 0 0}</style></head>
+<body><h1>Проверка SteamGridDB</h1>
+<p><input id="q" value="Super Meat Boy Forever"> <button id="go">Проверить</button></p>
+<div id="out"></div><pre id="raw"></pre>
+<script src="/config.js"></script>
+<script>
+async function run(){
+  var A=window.APP||{},out=document.getElementById('out'),raw=document.getElementById('raw');
+  out.textContent='Спрашиваю…';raw.textContent='';
+  try{
+    var r=await fetch(A.SUPABASE_URL+'/functions/v1/search?sgdbtest='+encodeURIComponent(document.getElementById('q').value),{headers:{apikey:A.PUBLISHABLE_KEY,Authorization:'Bearer '+A.PUBLISHABLE_KEY}});
+    var t=await r.text();raw.textContent='HTTP '+r.status+'\n'+t;
+    var j={};try{j=JSON.parse(t)}catch(e){}
+    if(j.key===false)out.textContent='Секрет SGDB_KEY не виден функции (проверьте имя и сохранение).';
+    else if(j.key&&typeof j.search==='string')out.textContent='SteamGridDB не принял ключ: '+j.search;
+    else if(j.art&&(j.art.grid||j.art.hero)){out.innerHTML='Работает! Найдено: '+(j.search||[]).join(', ')+'<br>'+(j.art.grid?'<img src="/img/sgdb/'+j.art.grid.split('steamgriddb.com/')[1]+'">':'')+(j.art.hero?'<img src="/img/sgdb/'+j.art.hero.split('steamgriddb.com/')[1]+'">':'')}
+    else if(j.key)out.textContent='Ключ принят, но картинок для этой игры не нашлось.';
+    else out.textContent='Непонятный ответ. Скорее всего, новый index.ts ещё не загружен в Supabase (Deploy).';
+  }catch(e){out.textContent='Ошибка: '+e}
+}
+document.getElementById('go').onclick=run;run();
+</script></body></html>
