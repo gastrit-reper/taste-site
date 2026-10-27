@@ -50,15 +50,16 @@
 .vsw button{border:0;background:var(--surface);color:var(--muted);width:34px;height:32px;display:grid;place-items:center;cursor:pointer;padding:0}
 .vsw button svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2}
 .vsw button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent)}
-.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:14px}
-.tile{position:relative;min-width:0}
-.tile .tcv{display:block;color:inherit;text-decoration:none}
-.tile .cover{width:100%;height:auto;aspect-ratio:2/3;border-radius:12px;font-size:34px}
-.tile .cover img{object-fit:cover}
-.tile .tn{margin-top:6px;font-size:13px;font-weight:500;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
-.tile .tm{font-size:12px;color:var(--muted)}
-.tile .score{position:absolute;left:6px;top:6px;width:34px;height:34px;border-radius:9px;font-size:14px;background:var(--surface);border-width:2px}
-.tile .kebab{top:4px;right:4px}.tile .kb{background:rgb(0 0 0 / .55);color:#fff;width:28px;height:28px}
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:8px}
+.tgi{position:relative;min-width:0}
+.tgi .tcv{display:block;color:inherit;text-decoration:none}
+.tgi .cover{width:100%;height:auto;aspect-ratio:2/3;border-radius:7px;font-size:24px}
+.tgi .cover img{object-fit:cover}
+.tgi .tn,.tgi .tm{display:none}
+.tgi:hover .cover{outline:2px solid var(--accent)}
+.tgi .score{position:absolute;left:3px;bottom:3px;width:22px;height:22px;border-radius:6px;font-size:12px;border-width:1.5px;background:rgb(0 0 0 / .72)}
+.tgi .kebab{top:2px;right:2px;opacity:0}.tgi:hover .kebab,.tgi .kebab.open{opacity:1}.tgi .kb{background:rgb(0 0 0 / .6);color:#fff;width:22px;height:22px;border-radius:6px}.tgi .kb svg{width:14px;height:14px}
+.tgi .kb-menu{top:26px}
 .tile .tl:hover{text-decoration:none}
 </style></head><body>
 <title>DevilDash</title>
@@ -167,14 +168,15 @@ svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stro
 .pc-d:hover{background:var(--surface)}.pc-d.today span{color:var(--accent);font-weight:700}
 .pc-d.sel{background:var(--accent);color:var(--accent-fg)}.pc-d.sel.today span{color:var(--accent-fg)}
 .pc-d i{display:flex;gap:2px;height:4px}.pc-d u{width:4px;height:4px;border-radius:50%;display:block;background:var(--accent)}
-.pc-d u.k-play{background:var(--good)}.pc-d u.k-post{background:var(--st-done)}.pc-d.sel u{background:var(--accent-fg)}
+.pc-d u.k-play{background:var(--good)}.pc-d u.k-post{background:var(--st-fav)}.pc-d u.c-doing{background:var(--good)}.pc-d u.c-done{background:var(--st-done)}.pc-d u.c-hold{background:var(--mid)}.pc-d u.c-drop{background:var(--bad)}.pc-d u.c-plan{background:var(--st-plan)}.pc-d.sel u{background:var(--accent-fg)}
 .pc-sel{margin-top:6px;border-top:1px solid var(--line);padding-top:6px;display:flex;flex-direction:column;gap:4px}.pc-list{display:flex;flex-direction:column;gap:4px;max-height:108px;overflow:auto}
 .pc-sd{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}.pc-sd .lnk{text-transform:none;letter-spacing:0;font-size:12px}
 .post.flash{outline:2px solid var(--accent);outline-offset:2px;transition:outline-color .3s}
 .pc-e{display:flex;align-items:center;gap:8px;border:0;background:var(--surface);border-radius:10px;padding:4px 8px;text-align:left;color:var(--fg);width:100%}
 button.pc-e:hover{outline:1px solid var(--accent)}
 .pc-k{font-size:11px;border-radius:999px;padding:1px 8px;background:var(--accent-soft);color:var(--accent);flex:none}
-.pc-k.k-play{background:transparent;border:1px solid var(--good);color:var(--good)}.pc-k.k-post{background:transparent;border:1px solid var(--st-done);color:var(--st-done)}
+.pc-k.k-play{background:transparent;border:1px solid var(--good);color:var(--good)}.pc-k.k-post{background:transparent;border:1px solid var(--st-fav);color:var(--st-fav)}.pc-k.c-doing{--cc:var(--good)}.pc-k.c-done{--cc:var(--st-done)}.pc-k.c-hold{--cc:var(--mid)}.pc-k.c-drop{--cc:var(--bad)}.pc-k.c-plan{--cc:var(--st-plan)}.pc-k.k-rate[class*=' c-']{background:transparent;border:1px solid var(--cc);color:var(--cc)}
+.pc-leg{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:8px;font-size:11px;color:var(--muted)}.pc-leg i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px}
 .pc-t{min-width:0}.pc-t b{display:block;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pc-t small{color:var(--muted);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* вкладки */
@@ -203,8 +205,10 @@ button.pc-e:hover{outline:1px solid var(--accent)}
 
 .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;color:var(--muted);font-size:13px}
 .toolbar select{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:5px 8px}
-.row{display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:14px;background:var(--surface);border-radius:14px;padding:10px;align-items:center}
-.row .cover{width:48px;height:68px}
+.row{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:14px;background:var(--surface);border-radius:14px;padding:10px;align-items:start}
+.row .score{align-self:center}
+.row .cover{width:64px;height:92px}
+.row .review.fold{-webkit-line-clamp:3}
 .row h4{margin:0;font-size:15px;font-weight:600;overflow-wrap:anywhere}
 .meta{font-size:13px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:2px}
 .chip{border-radius:999px;background:var(--surface2);padding:1px 9px;font-size:12px}
@@ -702,7 +706,7 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10. Музыка пока без звука, это макет плеера.</p>
-  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-27-ux1</p>
+  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-27-ux2</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
@@ -835,13 +839,15 @@ function favInfo(k){
 const dayIso=n=>{const d=new Date();d.setDate(d.getDate()-n);return isoOf(d.getFullYear(),d.getMonth(),d.getDate())};
 const totalYear=()=>{const y=String(new Date().getFullYear());return ORDER.reduce((n,k)=>n+DATA[k].filter(r=>r[2]&&dayIso(r[5]).startsWith(y)).length,0)};
 const PC={y:new Date().getFullYear(),m:new Date().getMonth(),sel:''};
+const calSt=v=>/^(просмотр|прочит|прошё)/i.test(v)?'done':/^(смотр|читаю|играю)/i.test(v)?'doing':/отлож/i.test(v)?'hold':/бросил/i.test(v)?'drop':'plan';
 function calEvents(){
   const ev={};const add=(iso,e)=>{(ev[iso]=ev[iso]||[]).push(e)};
   ORDER.forEach(k=>DATA[k].forEach(r=>{
     const key=kk(k,r[0]);
-    add(dayIso(r[5]),{kind:'rate',k,key,title:r[0],text:(r[3]||'')+(r[2]?' · оценка '+r[2]:'')});
-    const j=(EXTRA[key]||{}).journal;
-    if(j)Object.entries(j).forEach(([iso,t])=>add(iso,{kind:'play',k,key,title:r[0],text:mkLabel(k,t)}));
+    const j=(EXTRA[key]||{}).journal,days=j?Object.keys(j).sort():[],sc=calSt(r[3]||'');
+    add(dayIso(r[5]),{kind:'rate',sc,k,key,title:r[0],text:(r[3]||'')+(r[2]?' · оценка '+r[2]:''),nodot:days.length>0});
+    /* дни в журнале - зелёные точки; последний день у пройденной/брошенной/отложенной - цвет статуса (пройдено - синий) */
+    if(j)Object.entries(j).forEach(([iso,t])=>add(iso,{kind:'play',k,key,title:r[0],text:mkLabel(k,t),dsc:iso===days[days.length-1]&&(sc==='done'||sc==='drop'||sc==='hold')?sc:''}));
   }));
   S.posts.forEach((p,pi)=>{const tx=String(p.t).replace(/\{\{(.+?)\}\}/g,'$1');add(dayIso(p.d),{kind:'post',pi,title:'Пост',text:tx.slice(0,90)+(tx.length>90?'…':'')})});
   return ev;
@@ -852,14 +858,14 @@ function drawCal(){
   const ev=calEvents(),{y,m}=PC,first=(new Date(y,m,1).getDay()+6)%7,days=new Date(y,m+1,0).getDate(),t0=todayIso();
   let cells=DOW.map(d=>`<span class="pc-dw">${d}</span>`).join('')+'<span></span>'.repeat(first);
   for(let d=1;d<=days;d++){
-    const iso=isoOf(y,m,d),es=ev[iso]||[],kinds=[...new Set(es.map(e=>e.kind))];
+    const iso=isoOf(y,m,d),es=ev[iso]||[],kinds=[...new Set(es.filter(e=>!e.nodot).map(e=>e.kind==='rate'?'rate c-'+e.sc:e.dsc?'play c-'+e.dsc:e.kind))];
     cells+=`<button type="button" class="pc-d${iso===PC.sel?' sel':''}${iso===t0?' today':''}${es.length?' has':''}" data-pcd="${iso}" aria-label="${fmtLong(iso)}${es.length?', событий: '+es.length:''}"><span>${d}</span>${kinds.length?`<i>${kinds.map(k=>`<u class="k-${k}"></u>`).join('')}</i>`:''}</button>`;
   }
   const es=ev[PC.sel]||[],ICON={rate:'Оценка',play:'Дневник',post:'Пост'};
   const open=e=>e.kind==='post'?`data-pcpost="${e.pi}"`:S.me?`data-edit="${esc(e.key)}"`:`data-open="${esc(e.key)}"`;
-  const list=es.length?es.map(e=>`<button type="button" ${open(e)} class="pc-e"><span class="pc-k k-${e.kind}">${ICON[e.kind]}</span><span class="pc-t"><b>${esc(e.title)}</b>${e.k?`<small>${esc(CATS[e.k].one)} · ${esc(e.text)}</small>`:`<small>${esc(e.text)}</small>`}</span></button>`).join(''):'<div class="sub" style="padding:4px 2px;font-size:13px">В этот день ничего не отмечено.</div>';
+  const list=es.length?es.map(e=>`<button type="button" ${open(e)} class="pc-e"><span class="pc-k k-${e.kind}${e.sc?' c-'+e.sc:''}">${e.kind==='rate'&&e.text?esc(e.text.split(' · ')[0]||ICON.rate):ICON[e.kind]}</span><span class="pc-t"><b>${esc(e.title)}</b>${e.k?`<small>${esc(CATS[e.k].one)} · ${esc(e.text)}</small>`:`<small>${esc(e.text)}</small>`}</span></button>`).join(''):'<div class="sub" style="padding:4px 2px;font-size:13px">В этот день ничего не отмечено.</div>';
   const cy=new Date().getFullYear(),y0=Math.min(cy-12,y),yrs=[];for(let i=cy+1;i>=y0;i--)yrs.push(i);
-  el.innerHTML=`<div class="pc-h"><button type="button" class="ic" data-pcm="-1" aria-label="Предыдущий месяц">‹</button><span class="pc-sel2"><select data-pcms aria-label="Месяц">${MONTHS.map((n,i)=>`<option value="${i}" ${i===m?'selected':''}>${n}</option>`).join('')}</select><select data-pcys aria-label="Год">${yrs.map(n=>`<option ${n===y?'selected':''}>${n}</option>`).join('')}</select></span><button type="button" class="ic" data-pcm="1" aria-label="Следующий месяц">›</button></div><div class="pc-g">${cells}</div><div class="pc-sel"><div class="pc-sd"><span>${fmtLong(PC.sel)}</span>${PC.sel!==t0?'<button type="button" class="lnk" data-pct>Сегодня</button>':''}</div><div class="pc-list">${list}</div></div>`;
+  el.innerHTML=`<div class="pc-h"><button type="button" class="ic" data-pcm="-1" aria-label="Предыдущий месяц">‹</button><span class="pc-sel2"><select data-pcms aria-label="Месяц">${MONTHS.map((n,i)=>`<option value="${i}" ${i===m?'selected':''}>${n}</option>`).join('')}</select><select data-pcys aria-label="Год">${yrs.map(n=>`<option ${n===y?'selected':''}>${n}</option>`).join('')}</select></span><button type="button" class="ic" data-pcm="1" aria-label="Следующий месяц">›</button></div><div class="pc-g">${cells}</div><div class="pc-leg"><span><i style="background:var(--good)"></i>играю</span><span><i style="background:var(--st-done)"></i>прошёл</span><span><i style="background:var(--mid)"></i>отложил</span><span><i style="background:var(--bad)"></i>бросил</span><span><i style="background:var(--st-plan)"></i>в планах</span><span><i style="background:var(--st-fav)"></i>пост</span></div><div class="pc-sel"><div class="pc-sd"><span>${fmtLong(PC.sel)}</span>${PC.sel!==t0?'<button type="button" class="lnk" data-pct>Сегодня</button>':''}</div><div class="pc-list">${list}</div></div>`;
 }
 document.addEventListener('click',e=>{
   let b;
@@ -1346,7 +1352,7 @@ function ratingRow(r,showCat){
 const POST_MAX=5000;   // длина поста
 function tileCard(r){
   const key=kk(r.k,r.t),x=EXTRA[key]||{};
-  return `<div class="tile"><a href="#" class="tl tcv" data-title="${esc(key)}" title="${esc(r.t)}">${cover(r.t,'big',r.k)}<div class="tn">${esc(r.t)}</div><div class="tm">${esc(r.st||'')}${x.liked?' ♥':''}</div></a>${r.s?`<div class="score ${scoreCls(r.s)}" title="Оценка ${r.s} из 10">${r.s}</div>`:''}${S.me?kebab([{a:`data-edit="${esc(key)}"`,l:'Изменить'},{a:`data-delrow="${esc(key)}"`,l:'Удалить',d:1}]):''}</div>`;
+  return `<div class="tgi"><a href="#" class="tl tcv" data-title="${esc(key)}" title="${esc(r.t)}">${cover(r.t,'big',r.k)}<div class="tn">${esc(r.t)}</div><div class="tm">${esc(r.st||'')}${x.liked?' ♥':''}</div></a>${r.s?`<div class="score ${scoreCls(r.s)}" title="Оценка ${r.s} из 10">${r.s}</div>`:''}${S.me?kebab([{a:`data-edit="${esc(key)}"`,l:'Изменить'},{a:`data-delrow="${esc(key)}"`,l:'Удалить',d:1}]):''}</div>`;
 }
 const KB_ICON='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>';
 window.kebab=function(items){return `<div class="kebab"><button type="button" class="kb" data-kb aria-label="Действия" aria-haspopup="menu">${KB_ICON}</button><div class="kb-menu" role="menu">${items.map(i=>`<button type="button" role="menuitem" ${i.a}${i.d?' class="dng"':''}>${i.l}</button>`).join('')}</div></div>`};
@@ -1467,7 +1473,7 @@ function renderMain(){
     const tl=!!ST.tiles&&S.view!=='music';
     const sw=`<span class="vsw" role="group" aria-label="Вид списка"><button type="button" data-layout="list" aria-pressed="${!tl}" aria-label="Список" title="Список"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><button type="button" data-layout="tiles" aria-pressed="${tl}" aria-label="Плитки" title="Плитки"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg></button></span>`;
     h = `<div class="toolbar"><span>${rows.length} из ${DATA[S.view].length}</span><span class="tb-r">${sw}${addBtn(S.view)}<label>Сортировка <select id="sort"><option value="recent" ${S.sort==='recent'?'selected':''}>Недавние</option><option value="score" ${S.sort==='score'?'selected':''}>По оценке</option></select></label></span></div>`
-      + (rows.length?(tl?`<div class="tiles">${rows.map(tileCard).join('')}</div>`:rows.map(r=>ratingRow(r,false)).join('')):'<div class="empty">В этом списке пока пусто.</div>');
+      + (rows.length?(tl?`<div class="tgrid">${rows.map(tileCard).join('')}</div>`:rows.map(r=>ratingRow(r,false)).join('')):'<div class="empty">В этом списке пока пусто.</div>');
   }
   el.innerHTML = h;
   const s=document.getElementById('sort'); if(s) s.onchange=()=>{S.sort=s.value;renderMain()};
@@ -1908,6 +1914,7 @@ document.addEventListener('click',e=>{
   const kind=el.dataset.img,cur=S[kind];
   if(cur)openCrop(kind,cur.url,cur.nw,cur.nh,true);else chooseFile(kind);
 });
+document.addEventListener('click',e=>{if(e.target.closest('#pov [data-import]'))closeProf()},true);
 document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;if(CR)closeCrop();else if(PD)closeProf();else if(CD)closeCD();else if(E)closeEditor()});
 
 document.addEventListener('click',e=>{
@@ -2068,6 +2075,7 @@ function drawProf(focus){
   ov.innerHTML=`<form class="dlg pdl" role="dialog" aria-modal="true" aria-labelledby="p-h">
     <div class="dh"><h2 id="p-h">Редактировать профиль</h2><button type="button" class="ic" id="p-x" aria-label="Закрыть">${ico('close')}</button></div>
     <div class="dr pb">
+      <div class="pimg"><div><span class="lb">Картинки и данные</span><div class="btns" style="margin-top:6px"><button type="button" class="btn" data-img="avatar">${ico('camera')}Аватар</button><button type="button" class="btn" data-img="banner">${ico('camera')}Баннер</button><button type="button" class="btn" data-import>${ico('plus')}Импорт оценок</button></div></div></div>
       <div><label for="p-nick">Ник</label><input id="p-nick" class="fld" maxlength="24" autocomplete="off" value="${esc(PD.nick)}"><div class="hint">Буквы, цифры и _, от 2 до 24 символов. В настоящем сайте ник проверяется на занятость.</div></div>
       <div><label for="p-about">О себе</label><textarea id="p-about" class="fld" maxlength="300">${esc(PD.about)}</textarea></div>
       <div><span class="lb">Ссылки · ${PD.links.length} из ${MAXL}</span><div class="dr" style="gap:6px">${PD.links.map((h,i)=>`<div class="lrow"><span class="lic">${ico(ICON_LINK(h))}</span><input class="fld" data-l="${i}" value="${esc(h)}" placeholder="https://" aria-label="Ссылка ${i+1}"><button type="button" class="ic" data-lrm="${i}" aria-label="Убрать ссылку">${ico('close')}</button></div>`).join('')}${PD.links.length<MAXL?'<button type="button" class="btn" id="p-addl" style="align-self:flex-start">'+ico('plus')+'Добавить ссылку</button>':''}</div></div>
@@ -2194,7 +2202,7 @@ function renderPop(){
   if(!SP.open)return;
   const tabs=[['look','Внешний вид'],['gen','Общие'],['priv','Конфиденциальность']];
   let body='';
-  if(SP.tab==='look')body=`<div class="prow"><span><b>Профиль</b><small>Ник, описание, ссылки, любимое, музыка</small></span><button type="button" class="btn" data-editprof>Изменить</button></div><div class="prow"><span><b>Аватар</b><small>Картинка или GIF, кадрируется здесь же</small></span><button type="button" class="btn" data-img="avatar">Изменить</button></div><div class="prow"><span><b>Баннер</b><small>Широкая картинка над профилем</small></span><button type="button" class="btn" data-img="banner">Изменить</button></div><div class="prow"><span><b>Импорт оценок</b><small>Letterboxd, IMDb, Trakt, MyAnimeList, Shikimori, Goodreads, игры</small></span><button type="button" class="btn" data-import>Открыть</button></div><div class="themes">${THEMES.map(([id,l,c])=>`<button type="button" class="tbtn" data-theme-set="${id}" aria-pressed="${ST.theme===id}"><span class="tsw">${c.map(x=>`<i style="background:${x}"></i>`).join('')}</span><b>${l}${ST.theme===id?ico('check'):''}</b></button>`).join('')}</div>`;
+  if(SP.tab==='look')body=`<div class="prow"><span><b>Профиль</b><small>Аватар, баннер, ник, описание, ссылки, любимое, музыка, импорт оценок</small></span><button type="button" class="btn" data-editprof>Изменить</button></div><div class="themes">${THEMES.map(([id,l,c])=>`<button type="button" class="tbtn" data-theme-set="${id}" aria-pressed="${ST.theme===id}"><span class="tsw">${c.map(x=>`<i style="background:${x}"></i>`).join('')}</span><b>${l}${ST.theme===id?ico('check'):''}</b></button>`).join('')}</div>`;
   else if(SP.tab==='gen')body=`<label class="opt2"><span>Громкость музыки<small>Для музыки в профиле</small></span><input type="range" min="0" max="100" step="1" value="${ST.vol}" data-vol style="width:130px;accent-color:var(--accent)"></label>`+(window.AUTH&&AUTH.user?`<div class="prow"><span><b>Аккаунт</b><small>${esc(AUTH.profile?AUTH.profile.nick:'')} · ${esc(AUTH.user.email||'')}</small></span><button type="button" class="btn" data-logout>Выйти</button></div>`:'')+sw('auto','Музыка при заходе в профиль','Играет после первого клика на сайте')+sw('spoilers','Показывать спойлеры','Отзывы со спойлерами откроются сразу')+sw('notif','Уведомления об отметках','Когда вас отметили через @ или {{ }}')+sel('lang','Язык',[['ru','Русский']]);
   else body=sel('pvis','Кто видит новые посты',[['all','Все'],['friends','Друзья']])+sel('msg','Кто может писать мне',[['all','Все'],['friends','Друзья'],['none','Никто']])+sw('online','Показывать, что я в сети')+sw('steam','Показывать часы и достижения','Из Steam и других сервисов');
   pop.innerHTML=`<div class="seg" role="tablist">${tabs.map(([id,l])=>`<button type="button" role="tab" data-ptab="${id}" aria-pressed="${SP.tab===id}">${l}</button>`).join('')}</div><div class="pbody">${body}</div><div class="pfoot">Сохраняется в этом браузере.</div>`;
