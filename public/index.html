@@ -706,7 +706,7 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10. Музыка пока без звука, это макет плеера.</p>
-  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-27-ux4</p>
+  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-27-ux5</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
@@ -1059,6 +1059,7 @@ function imgUrls(u){   // все картинки идут через наш с�
   if(!u)return null;let m;
   if(u.startsWith('https://image.tmdb.org/t/p/')){const f=u.split('/').pop();return {a:'/img/w342/'+f,b:'/img/w500/'+f}}
   if(m=u.match(/covers\.openlibrary\.org\/b\/id\/(\d+)-/))return {a:`/img/ol/M/${m[1]}.jpg`,b:`/img/ol/L/${m[1]}.jpg`};
+  if(m=u.match(/steamgriddb\.com\/(grid|hero)\/([\w.-]+\.(?:png|jpe?g|webp))$/))return {a:`/img/sgdb/${m[1]}/${m[2]}`,b:`/img/sgdb/${m[1]}/${m[2]}`};
   if(m=u.match(/steamstatic\.com\/steam\/apps\/(\d+)\/library_hero/))return {a:`/img/steam/hero/${m[1]}.jpg`,b:`/img/steam/hero/${m[1]}.jpg`};
   if(m=u.match(/steamstatic\.com\/steam\/apps\/(\d+)\/library_600x900/))return {a:`/img/steam/${m[1]}.jpg`,b:`/img/steam/${m[1]}.jpg`};
   if(m=u.match(/media\.rawg\.io\/media\/(?:crop\/\d+\/\d+\/)?((?:games|screenshots)\/[0-9a-f]{2,3}\/[0-9a-f]{32}\.jpg)/))return {a:`/img/rawg/420/${m[1]}`,b:`/img/rawg/640/${m[1]}`};
@@ -1500,6 +1501,7 @@ function renderTitle(){
   const bn=(()=>{const im=IMGK[key];let src='',alt='',cl='tp-banner';
     const rg=c.banner&&c.banner.match(/media\.rawg\.io\/media\/(?:crop\/\d+\/\d+\/)?((?:games|screenshots)\/[0-9a-f]{2,3}\/[0-9a-f]{32}\.jpg)/);
     if(c.banner&&c.banner.startsWith('https://image.tmdb.org/t/p/'))src='/img/w1280/'+c.banner.split('/').pop();
+    else if(c.banner&&/steamgriddb\.com\/hero\//.test(c.banner)){const q=imgUrls(c.banner);src=q.b;if(c.steam)alt='/img/steam/hero/'+c.steam+'.jpg'}
     else if(c.steam){src='/img/steam/hero/'+c.steam+'.jpg';if(rg)alt='/img/rawg/1280/'+rg[1]}   // широкий баннер из Steam, запасной - RAWG
     else if(rg)src='/img/rawg/1280/'+rg[1];
     else if(im){src=im.b;cl+=' blur'}   // нет баннера у источника: размытая обложка с градиентом
