@@ -1,0 +1,36 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Проверка связи</title>
+<style>body{font:15px system-ui;background:#150b0d;color:#f3e8e8;margin:0;padding:24px;max-width:820px}h1{margin-top:0}table{border-collapse:collapse;width:100%}td{padding:8px 10px;border-bottom:1px solid #3a1f25;vertical-align:top}td:first-child{width:62%}.ok{color:#4cc78a;font-weight:600}.bad{color:#ff6b6b;font-weight:600}.w{color:#e0b04a}small{color:#b99}img{height:90px;border-radius:6px;margin-top:6px}button{font:inherit;padding:8px 14px;border-radius:8px;border:0;background:#e5384f;color:#fff;cursor:pointer}</style></head>
+<body><h1>Проверка связи с сайтом</h1>
+<p>Откройте эту страницу <b>без VPN</b> и пришлите скриншот всей страницы. <button id="go">Проверить ещё раз</button></p>
+<table id="t"></table><script src="/config.js"></script>
+<script>
+var A=window.APP||{},T=document.getElementById('t');
+function row(name,cls,txt,extra){var tr=document.createElement('tr');tr.innerHTML='<td>'+name+'</td><td><span class="'+cls+'">'+txt+'</span>'+(extra||'')+'</td>';T.appendChild(tr)}
+function tm(p,ms){return Promise.race([p,new Promise(function(_,rej){setTimeout(function(){rej(new Error('нет ответа за '+ms/1000+' с'))},ms)})])}
+function img(src){return new Promise(function(res){var i=new Image(),t0=Date.now(),to=setTimeout(function(){res({ok:false,why:'таймаут'})},8000);i.onload=function(){clearTimeout(to);res({ok:true,ms:Date.now()-t0,el:i})};i.onerror=function(){clearTimeout(to);res({ok:false,why:'ошибка'})};i.src=src})}
+async function run(){
+  T.innerHTML='';
+  var H={apikey:A.PUBLISHABLE_KEY,Authorization:'Bearer '+A.PUBLISHABLE_KEY},direct=(A.DIRECT_URL||A.SUPABASE_URL||'');
+  if(!direct){row('config.js','bad','не найден');return}
+  var t0=Date.now();
+  try{var r=await tm(fetch('/sb/auth/v1/health',{headers:H}),8000);row('1. Вход и база через наш сайт (/sb)',r.ok?'ok':'bad',r.ok?'работает ('+(Date.now()-t0)+' мс)':'HTTP '+r.status+' — worker.js без прокси /sb не загружен?')}catch(e){row('1. Вход и база через наш сайт (/sb)','bad','ошибка: '+e.message)}
+  t0=Date.now();
+  try{var r2=await tm(fetch(direct+'/auth/v1/health',{headers:H}),6000);row('2. Supabase напрямую (supabase.co)',r2.ok?'ok':'bad',r2.ok?'доступен ('+(Date.now()-t0)+' мс)':'HTTP '+r2.status,'<br><small>Если здесь ошибка, а в пункте 1 всё хорошо — это нормально, сайт ходит через пункт 1.</small>')}catch(e){row('2. Supabase напрямую (supabase.co)','w','недоступен без VPN: '+e.message,'<br><small>Это нормально, если пункт 1 работает.</small>')}
+  var cover='';
+  [['аниме','Berserk','anime'],['игры','Doom','game'],['фильмы','Matrix','movie']].forEach(function(x){});
+  for (var q of [['аниме','Berserk','anime'],['игры','Doom','game'],['фильмы','Matrix','movie']]){
+    t0=Date.now();
+    try{var rs=await tm(fetch('/sb/functions/v1/search?q='+encodeURIComponent(q[1])+'&cat='+q[2],{headers:H}),15000),j=await rs.json(),n=(j.results||[]).length;row('3. Поиск ('+q[0]+') через наш сайт',n?'ok':'bad',n?'нашёл '+n+' ('+(Date.now()-t0)+' мс)':'пусто, HTTP '+rs.status+' '+(j.error||''));if(q[2]==='anime'&&n){cover=(j.results.find(function(r){return r.cover_url})||{}).cover_url||''}}catch(e){row('3. Поиск ('+q[0]+') через наш сайт','bad','ошибка: '+e.message)}
+  }
+  if(cover){
+    var m=cover.match(/image\.tmdb\.org\/t\/p\/\w+\/([\w-]+\.(?:jpg|png))/);
+    if(m){
+      var a=await img('/img/w342/'+m[1]);row('4. Обложка аниме через наш сайт (/img)',a.ok?'ok':'bad',a.ok?'загрузилась ('+a.ms+' мс)':'не загрузилась: '+a.why,a.ok?'<br><img src="/img/w342/'+m[1]+'">':'');
+      var b=await img('https://image.tmdb.org/t/p/w342/'+m[1]);row('5. Та же обложка напрямую (image.tmdb.org)',b.ok?'ok':'w',b.ok?'доступна':'недоступна без VPN: '+b.why,'<br><small>Недоступно — нормально, сайт берёт картинки через пункт 4.</small>')
+    } else row('4. Обложка аниме','w','адрес обложки неожиданный: '+cover)
+  } else row('4. Обложка аниме','w','не было с чем проверять (поиск аниме ничего не вернул)');
+  try{var rm=await tm(fetch('/api/music/search?q=metallica'),8000),jm=await rm.json();row('6. Поиск музыки',(jm.results||[]).length?'ok':'bad',(jm.results||[]).length?'работает':'пусто')}catch(e){row('6. Поиск музыки','bad','ошибка: '+e.message)}
+  row('Адрес этой страницы','w',location.host,'<br><small>Время: '+new Date().toLocaleString()+'</small>');
+}
+document.getElementById('go').onclick=run;run();
+</script></body></html>
