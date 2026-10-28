@@ -29,6 +29,16 @@ async function run(){
       var b=await img('https://image.tmdb.org/t/p/w342/'+m[1]);row('5. Та же обложка напрямую (image.tmdb.org)',b.ok?'ok':'w',b.ok?'доступна':'недоступна без VPN: '+b.why,'<br><small>Недоступно — нормально, сайт берёт картинки через пункт 4.</small>')
     } else row('4. Обложка аниме','w','адрес обложки неожиданный: '+cover)
   } else row('4. Обложка аниме','w','не было с чем проверять (поиск аниме ничего не вернул)');
+  // загрузка большого файла: у части провайдеров соединения с Cloudflare «замирают» после первых ~16 КБ
+  for (var f of ['/index.html','/sync.js','/social.js']){
+    var got=0,t1=Date.now(),stall=false,total=0;
+    try{
+      var ctl=new AbortController(),to=setTimeout(function(){stall=true;ctl.abort()},20000),rr=await fetch(f+'?t='+Date.now(),{signal:ctl.signal,cache:'no-store'});
+      total=+rr.headers.get('content-length')||0;var rd=rr.body.getReader();
+      for(;;){var ch=await rd.read();if(ch.done)break;got+=ch.value.length}
+      clearTimeout(to);row('7. Загрузка файла '+f,'ok','скачан целиком: '+Math.round(got/1024)+' КБ за '+(Date.now()-t1)+' мс')
+    }catch(e){row('7. Загрузка файла '+f,'bad','оборвалась после '+Math.round(got/1024)+' КБ ('+(stall?'зависла на 20 с':e.message)+')','<br><small>Если обрыв около 15–20 КБ, это ограничение провайдера на соединения с Cloudflare.</small>')}
+  }
   try{var rm=await tm(fetch('/api/music/search?q=metallica'),8000),jm=await rm.json();row('6. Поиск музыки',(jm.results||[]).length?'ok':'bad',(jm.results||[]).length?'работает':'пусто')}catch(e){row('6. Поиск музыки','bad','ошибка: '+e.message)}
   row('Адрес этой страницы','w',location.host,'<br><small>Время: '+new Date().toLocaleString()+'</small>');
 }
