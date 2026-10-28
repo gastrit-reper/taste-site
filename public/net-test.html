@@ -20,7 +20,7 @@ async function run(){
   [['аниме','Berserk','anime'],['игры','Doom','game'],['фильмы','Matrix','movie']].forEach(function(x){});
   for (var q of [['аниме','Berserk','anime'],['игры','Doom','game'],['фильмы','Matrix','movie']]){
     t0=Date.now();
-    try{var rs=await tm(fetch('/sb/functions/v1/search?q='+encodeURIComponent(q[1])+'&cat='+q[2],{headers:H}),15000),j=await rs.json(),n=(j.results||[]).length;row('3. Поиск ('+q[0]+') через наш сайт',n?'ok':'bad',n?'нашёл '+n+' ('+(Date.now()-t0)+' мс)':'пусто, HTTP '+rs.status+' '+(j.error||''));if(q[2]==='anime'&&n){cover=(j.results.find(function(r){return r.cover_url})||{}).cover_url||''}}catch(e){row('3. Поиск ('+q[0]+') через наш сайт','bad','ошибка: '+e.message)}
+    try{var rs=await tm(fetch('/sb/functions/v1/search?q='+encodeURIComponent(q[1])+'&cat='+q[2],{headers:H}),15000),j=await rs.json(),n=(j.results||[]).length;row('3. Поиск ('+q[0]+') через наш сайт',n?'ok':'bad',n?'нашёл '+n+' ('+(Date.now()-t0)+' мс), версия функции: '+(j.fn||'СТАРАЯ — загрузите новый index.ts'):'пусто, HTTP '+rs.status+' '+(j.error||''));if(q[2]==='anime'&&n){cover=(j.results.find(function(r){return r.cover_url})||{}).cover_url||''}}catch(e){row('3. Поиск ('+q[0]+') через наш сайт','bad','ошибка: '+e.message)}
   }
   if(cover){
     var m=cover.match(/image\.tmdb\.org\/t\/p\/\w+\/([\w-]+\.(?:jpg|png))/);
