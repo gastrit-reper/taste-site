@@ -27,6 +27,7 @@
 .fold{display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden;-webkit-line-clamp:6}
 .post>p.fold{-webkit-line-clamp:8}
 .fold-b{display:block;border:0;background:none;color:var(--accent);padding:4px 0 0;font:inherit;font-size:13px;cursor:pointer}
+.pchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.pchip{border:1px solid var(--line);background:var(--surface2);color:var(--fg);border-radius:999px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer}.pchip:hover{border-color:var(--accent)}.pchip.on{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
 .kebab{position:absolute;top:8px;right:8px;z-index:3}
 .kb{width:30px;height:30px;border:0;border-radius:8px;background:transparent;color:var(--muted);display:grid;place-items:center;cursor:pointer;padding:0}
 .kb svg{width:18px;height:18px;fill:currentColor}
@@ -706,7 +707,7 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10. Музыка пока без звука, это макет плеера.</p>
-  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-27-ux6</p>
+  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-28-ux7</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
@@ -791,7 +792,7 @@ const ico = (id,cls='i') => `<svg class="${cls}" aria-hidden="true"><use href="#
 const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const hue = s => { let h=0; for(const c of s) h=(h*31+c.charCodeAt(0))%360; return h; };
 function imgFbBn(i){const a=i.dataset.alt;if(a&&i.getAttribute('src')!==a){i.removeAttribute('data-alt');i.src=a}else i.parentNode.remove()}
-function imgFb(i){const a=i.dataset.alt;if(a&&i.getAttribute('src')!==a){i.removeAttribute('data-alt');i.src=a}else i.remove()}   // нет вертикальной обложки: пробуем запасную, иначе буква
+function imgFb(i){const a=i.dataset.alt;try{const ck=i.parentNode&&i.parentNode.dataset&&i.parentNode.dataset.ck;if(ck&&ck.startsWith('games|')&&window.forceArtSoon)forceArtSoon(ck)}catch(e){}if(a&&i.getAttribute('src')!==a){i.removeAttribute('data-alt');i.src=a}else i.remove()}   // нет вертикальной обложки: пробуем запасную, иначе буква
 const IMGK={};   // 'категория|название' -> {a: превью, b: крупная обложка}
 const cover = (t,cls='',k) => {
   const im=k?IMGK[k+'|'+t]:null, big=/\bbig\b/.test(cls);
@@ -803,7 +804,7 @@ const MAXLINKS = 4;
 const STK={'Играю':'act','Смотрю':'act','Читаю':'act','Слушаю':'act','Прошёл':'done','Просмотрено':'done','Прочитано':'done','Любимое':'fav','Отложено':'pause','В планах':'plan','Бросил':'drop'};
 const stc=st=>'s-'+(STK[st]||'plan');
 const OPTS = {
-  games:{pl:'Платформа',plat:['PC','PlayStation 5','PlayStation 4','Xbox','Nintendo Switch','Телефон','Другая'],runs:'Прохождений',val:{label:'Часов в игре',unit:'ч'},steam:true},
+  games:{pl:'Платформа',plat:['PC','Steam Deck','PlayStation 5','PlayStation 4','PlayStation 3','Xbox Series X/S','Xbox One','Xbox 360','Nintendo Switch','Nintendo Switch 2','Wii U','Nintendo 3DS','Meta Quest','PlayStation VR','Телефон','Другая'],runs:'Прохождений',val:{label:'Часов в игре',unit:'ч'},steam:true},
   series:{pl:'Где смотрел',plat:['Netflix','Кинопоиск','Okko','IVI','Wink','Другое'],runs:'Пересмотров',val:{label:'Серий просмотрено',unit:'сер.'}},
   movies:{pl:'Где смотрел',plat:['Кинотеатр','Кинопоиск','Netflix','Okko','Дома, файл','Другое'],runs:'Пересмотров'},
   anime:{pl:'Где смотрел',plat:['Crunchyroll','Кинопоиск','Anilibria','Другое'],runs:'Пересмотров',val:{label:'Серий просмотрено',unit:'сер.'}},
@@ -1480,6 +1481,7 @@ function renderMain(){
   el.innerHTML = h;
   const s=document.getElementById('sort'); if(s) s.onchange=()=>{S.sort=s.value;renderMain()};
   bindCompose();
+  queueArt();
 }
 
 function goTo(key){
@@ -1571,6 +1573,49 @@ function loadMedia(key,c){
         if(im&&(!IMGK[key]||IMGK[key].a!==im.a)){const al=ar.alt?imgUrls(ar.alt):null;if(al){im.altA=al.a;im.altB=al.b}IMGK[key]=im;if(ar.banner_url)c.banner=ar.banner_url;if(S.page===key)renderTitle();else render()}
       }}).catch(()=>{});
 }
+/* обложки игр улучшаются на сервере (Steam -> SteamGridDB -> RAWG): подтягиваем для всего списка, а не только при открытии страницы игры */
+const ARTK='art_done_v2';let ARTDONE={},ARTFORCED={},artBusy=false,artTimer=0,artCount=0;
+try{ARTDONE=JSON.parse(localStorage.getItem(ARTK)||'{}')||{}}catch(e){ARTDONE={}}
+function applyArt(idKey,art){
+  let ch=false;
+  for(const id in art){
+    const key=idKey[id],a=art[id];if(!key||!a||!a.cover_url)continue;
+    const im=imgUrls(a.cover_url);if(!im)continue;
+    const old=IMGK[key];if(old&&old.a===im.a&&old.altA===(a.alt?(imgUrls(a.alt)||{}).a:undefined))continue;
+    const al=a.alt?imgUrls(a.alt):null;if(al){im.altA=al.a;im.altB=al.b}
+    IMGK[key]=im;const c=CAT_IDX[key];if(c&&a.banner_url)c.banner=a.banner_url;ch=true;
+  }
+  return ch;
+}
+async function upgradeCovers(force,onlyKey){
+  if(artBusy||!liveOn('games'))return;
+  const idKey={},ids=[];
+  (onlyKey?[onlyKey]:DATA.games.map(r=>kk('games',r[0]))).forEach(key=>{
+    const c=CAT_IDX[key];if(!c||!c.ext||c.ext.source!=='rawg')return;
+    const id=String(c.ext.id);if(!force&&ARTDONE[id])return;
+    idKey[id]=key;ids.push(id);
+  });
+  if(!ids.length||artCount>=120)return;
+  artBusy=true;let changed=false;
+  try{
+    for(let i=0;i<ids.length&&artCount<120;i+=8){
+      const part=ids.slice(i,i+8);artCount+=part.length;
+      const r=await fetch(`${APPC.SUPABASE_URL}/functions/v1/search?art=${part.join(',')}${force?'&force=1':''}`,{headers:liveHeaders()});
+      if(!r.ok)break;
+      const j=await r.json();
+      part.forEach(id=>{ARTDONE[id]=1});
+      if(j&&j.art&&applyArt(idKey,j.art))changed=true;
+    }
+  }catch(e){}
+  artBusy=false;
+  try{localStorage.setItem(ARTK,JSON.stringify(ARTDONE))}catch(e){}
+  if(changed){if(S.page&&S.page.indexOf('games|')===0)renderTitle();else render()}
+}
+function queueArt(){clearTimeout(artTimer);artTimer=setTimeout(()=>upgradeCovers(false),1500)}
+window.forceArtSoon=function(ck){
+  if(ARTFORCED[ck])return;ARTFORCED[ck]=1;
+  const t=()=>artBusy?setTimeout(t,800):upgradeCovers(true,ck);setTimeout(t,300);
+};
 let LB=null;
 function lbShell(){
   let o=document.getElementById('mlb');
@@ -1640,9 +1685,11 @@ function secReview(){
     <label class="chk"><input type="checkbox" id="e-sp" ${E.spoiler?'checked':''}>Содержит спойлеры</label>`;
 }
 function secDetails(){
-  const o=OPTS[E.k],c=E.cat,g=E.k==='games',plats=g&&c.p.length?c.p:o.plat;
+  const o=OPTS[E.k],c=E.cat,g=E.k==='games',plats=g?[...o.plat,...(c.p||[]).filter(p=>!o.plat.some(x=>x.toLowerCase()===String(p).toLowerCase()))].concat(E.plat&&!o.plat.includes(E.plat)&&!(c.p||[]).includes(E.plat)?[E.plat]:[]):o.plat;
   const opt=(arr,v)=>`<option value="">Не выбрано</option>${arr.map(p=>`<option ${p===v?'selected':''}>${p}</option>`).join('')}`;
-  let h=`<div class="two"><div><label for="e-plat">${o.pl}</label><select id="e-plat" class="fld">${opt(plats,E.plat)}</select></div>${g?`<div><label for="e-own">Владение</label><select id="e-own" class="fld">${opt(OWN,E.own)}</select></div>`:'<div></div>'}</div>`;
+  let h=g
+    ?`<div><span class="lb">${o.pl}</span><div class="pchips" role="group" aria-label="Платформа">${plats.map(p=>`<button type="button" class="pchip${p===E.plat?' on':''}" data-plat="${esc(p)}" aria-pressed="${p===E.plat}">${esc(p)}</button>`).join('')}</div></div><div class="two"><div><label for="e-own">Владение</label><select id="e-own" class="fld">${opt(OWN,E.own)}</select></div><div></div></div>`
+    :`<div class="two"><div><label for="e-plat">${o.pl}</label><select id="e-plat" class="fld">${opt(plats,E.plat)}</select></div><div></div></div>`;
   if(g)h+=`<div><label for="e-ed">Издание</label><select id="e-ed" class="fld">${opt(EDITIONS,E.ed)}</select></div>`;
   const time=g?`<div><span class="lb">Время в игре</span><div class="tm"><input id="e-val" class="fld" type="number" min="0" max="99999" value="${E.val}" aria-label="Часы"><span>ч</span><input id="e-min" class="fld" type="number" min="0" max="59" value="${E.mins}" aria-label="Минуты"><span>м</span></div></div>`
     :o.val?`<div><label for="e-val">${o.val.label}</label><input id="e-val" class="fld" type="number" min="0" max="99999" value="${E.val}"></div>`:'<div></div>';
@@ -1778,6 +1825,7 @@ function bindEditor(){
   }
   on('e-clr','onclick',()=>{E.score=0;drawEditor()});
   on('e-plat','onchange',e=>E.plat=e.target.value);
+  ov.querySelectorAll('[data-plat]').forEach(b=>b.onclick=()=>{E.plat=E.plat===b.dataset.plat?'':b.dataset.plat;drawEditor()});
   on('e-own','onchange',e=>E.own=e.target.value);
   on('e-ed','onchange',e=>E.ed=e.target.value);
   on('e-rv','oninput',e=>E.review=e.target.value);
