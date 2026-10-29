@@ -98,7 +98,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{
 svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .wrap{max-width:1160px;margin-inline:auto}
 
-/* прототип-панель */
+/* прототип-панель (переключатель демо-профилей): на настоящем сайте не нужен */
+.proto{display:none!important}
 .proto{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;padding-block:12px;min-height:62px;color:var(--muted);font-size:13px}
 .seg{display:inline-flex;background:var(--surface2);border-radius:10px;padding:3px}
 .seg button{border:0;background:none;padding:5px 12px;border-radius:8px;color:var(--muted)}
@@ -706,7 +707,7 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   </div>
   <div id="tp" class="tp" hidden></div>
-  <p class="note">Шкала оценок: от 1 до 10. Музыка пока без звука, это макет плеера.</p>
+  <p class="note">Шкала оценок: от 1 до 10.</p>
   <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-29-dm</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
@@ -1035,7 +1036,7 @@ const CATALOG={
 };
 const CAT_IDX={};
 ORDER.forEach(k=>CATALOG[k].forEach(a=>{CAT_IDX[kk(k,a[0])]={k,t:a[0],by:a[1],y:a[2],g:a[3],p:a[4],d:a[5],tr:a[6]||[]}}));
-const SYNC=['Steam','Epic Games','GOG','PlayStation','Xbox'];
+const SYNC=['Steam'];
 const PEOPLE=FRIENDS.map(f=>f[0]);
 const POOL=[['Затянуло с первых минут, оторваться не смог.',9],['Хорошо, но местами затянуто.',7],['Одна из тех вещей, к которым хочется возвращаться.',10],['На любителя, мне зашло не всё.',6],['Сильный финал, ради него стоит потерпеть.',8]];
 const rnd=(h,i)=>{const x=Math.sin(h*12.9898+i*78.233)*43758.5453;return x-Math.floor(x)};
@@ -1503,7 +1504,25 @@ function goTo(key){
 }
 function openTitle(key){S.page=key;render();window.scrollTo(0,0)}
 
-/* страница тайтла: данные из каталога, цифры сообщества примерные */
+/* оценки сообщества на странице тайтла: настоящие, из таблицы ratings (читать её могут все вошедшие) */
+const TSTAT={};
+function loadTitleStats(key){
+  const c=CAT_IDX[key],tid=c&&c.ext&&c.ext.title_id,A=window.AUTH;
+  if(!tid||!A||!A.client||!A.syncOn)return;
+  const o=TSTAT[key];if(o&&(o.loading||Date.now()-o.t<30000))return;
+  TSTAT[key]={...(o&&o.ok?o:{}),t:Date.now(),loading:true};
+  A.client.from('ratings').select('user_id,score,status,review,spoiler,rated_at').eq('title_id',tid).limit(1000).then(async({data,error})=>{
+    if(error){TSTAT[key]={t:Date.now(),ok:false};return}
+    const rows=data||[],hist=Array(10).fill(0),st={};let sum=0,sn=0;
+    rows.forEach(r=>{if(r.score>0){hist[Math.min(10,r.score)-1]++;sum+=r.score;sn++}if(r.status)st[r.status]=(st[r.status]||0)+1});
+    const me=A.user&&A.user.id,rv=rows.filter(r=>r.review&&!r.spoiler&&r.user_id!==me).sort((a,b)=>a.rated_at<b.rated_at?1:-1).slice(0,6);
+    const nicks={};
+    if(rv.length){try{const {data:pr}=await A.client.from('profiles').select('id,nick').in('id',rv.map(r=>r.user_id));(pr||[]).forEach(p=>nicks[p.id]=p.nick)}catch(_){}}
+    TSTAT[key]={t:Date.now(),ok:true,n:rows.length,sn,avg:sn?sum/sn:0,hist,st,revs:rv.filter(r=>nicks[r.user_id]).map(r=>({nick:nicks[r.user_id],score:r.score,review:r.review}))};
+    if(S.page===key)renderTitle();
+  });
+}
+/* страница тайтла: данные из каталога и оценки сообщества */
 function renderTitle(){
   const key=S.page,c=CAT_IDX[key],k=c.k,row=DATA[k].find(r=>r[0]===c.t),x=EXTRA[key]||{},h=hue(key);
   const score=row?row[2]:0,st=row?row[3]:'';
@@ -1517,14 +1536,12 @@ function renderTitle(){
     else if(rg)src='/img/rawg/1280/'+rg[1];
     else if(im){src=im.b;cl+=' blur'}   // нет баннера у источника: размытая обложка с градиентом
     return src?`<div class="${cl}"><img alt="" src="${esc(src)}"${alt?` data-alt="${esc(alt)}"`:''} onerror="imgFbBn(this)"></div>`:''})();
-  const avg=6+rnd(h,1)*3.4;
-  const hist=Array.from({length:10},(_,i)=>Math.exp(-Math.pow(i+1-avg,2)/3)*(.6+rnd(h,i+2)));
-  const mx=Math.max(...hist), base=Math.floor(8000+rnd(h,20)*60000);
+  loadTitleStats(key);
+  const TS=TSTAT[key]&&TSTAT[key].ok?TSTAT[key]:null;
+  const avg=TS&&TS.sn?TS.avg:0,hist=TS?TS.hist:Array(10).fill(0),mx=Math.max(1,...hist);
   const stars=[0,1,2,3,4].map(i=>{const p=Math.max(0,Math.min(1,score/2-i))*100;return `<span class="star" data-i="${i}"><svg aria-hidden="true"><use href="#star"/></svg><span class="fl" style="width:${p}%"><svg aria-hidden="true"><use href="#star"/></svg></span></span>`}).join('');
-  const counts=k==='music'?MUSCNT(base):CATS[k].st.map((s,i)=>`<div class="cnt"><span>${s}</span><b>${kfmt(Math.floor(base*0.55/(i+1)))}</b></div>`).join('');
-  const hrs=Math.round(10+rnd(h,30)*30);
-  const time=k==='games'?`<div class="tile"><h3>Время прохождения</h3><div class="cnt"><span>В среднем</span><b>${hrs} ч</b></div><div class="cnt"><span>До финала</span><b>${Math.round(hrs*.85)} ч</b></div><div class="cnt"><span>На 100%</span><b>${Math.round(hrs*1.9)} ч</b></div></div>`:'';
-  const revs=[0,1,2].map(i=>{const p=POOL[Math.floor(rnd(h,40+i)*POOL.length)],n=PEOPLE[Math.floor(rnd(h,50+i)*PEOPLE.length)];return `<article class="row" style="grid-template-columns:40px minmax(0,1fr) auto"><div class="friend" style="padding:0"><div class="av" style="background:hsl(${hue(n)} 50% 45%);width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:600">${n[0]}</div></div><div><b>${n}</b><p class="review">${p[0]}</p></div><div class="score ${scoreCls(p[1])}">${p[1]}</div></article>`}).join('');
+  const counts=TS?CATS[k].st.map(s=>`<div class="cnt"><span>${s}</span><b>${TS.st[s]||0}</b></div>`).join(''):'';
+  const revs=TS?TS.revs.map(r=>`<article class="row" style="grid-template-columns:40px minmax(0,1fr) auto"><div class="friend" style="padding:0">${avaHtml(r.nick,'av','width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:600')}</div><div><b class="hm-who" data-user="${esc(r.nick)}">${esc(r.nick)}</b><p class="review">${renderText(r.review)}</p></div><div class="score ${scoreCls(r.score)}">${r.score||'—'}</div></article>`).join(''):'';
   const mine=row&&row[4]?`<article class="row" style="grid-template-columns:40px minmax(0,1fr) auto"><div class="ava" style="width:40px;height:40px;border:0;font-size:16px">${esc(P.nick[0].toUpperCase())}</div><div><b>${esc(P.nick)}</b> <span class="sub">· ваш отзыв</span><p class="review">${renderText(row[4])}</p></div><div class="score ${scoreCls(score)}">${score||'—'}</div></article>`:'';
   document.getElementById('tp').innerHTML=`
     <div><button class="btn" data-back>${S.home?'← На главную':'← К профилю'}</button></div>
@@ -1546,17 +1563,13 @@ function renderTitle(){
         ${k==='music'?`<div class="kv"><span>Песни</span><ol style="margin:0;padding-left:18px;text-transform:none;letter-spacing:0;font-size:14px;color:var(--fg)">${c.tr.map(n=>`<li>${esc(n)}</li>`).join('')}</ol></div>`:''}
         <div class="kv"><span>Жанры</span><div class="tags">${c.g.map(g=>`<span>${esc(g)}</span>`).join('')}</div></div>
         ${c.p.length?`<div class="kv"><span>Платформы</span><div class="tags">${c.p.map(g=>`<span>${esc(g)}</span>`).join('')}</div></div>`:''}
-        <div class="tiles">
-          <div class="tile"><h3>Средняя оценка</h3><div class="avg">${avg.toFixed(1)}</div><div class="hist">${hist.map(v=>`<i style="height:${Math.max(6,v/mx*100)}%"></i>`).join('')}</div><div class="hl"><span>1</span><span>10</span></div></div>
-          <div class="tile"><h3>Сколько людей</h3>${counts}</div>
-          <div class="tile"><h3>Сообщество</h3><div class="cnt"><span>Списки</span><b>${kfmt(Math.floor(base*.11))}</b></div><div class="cnt"><span>Отзывы</span><b>${kfmt(Math.floor(base*.08))}</b></div><div class="cnt"><span>Нравится</span><b>${kfmt(Math.floor(base*.09))}</b></div></div>
-          ${time}
+        <div class="tiles">${TS&&TS.n?`<div class="tile"><h3>Средняя оценка</h3>${TS.sn?`<div class="avg">${avg.toFixed(1)}</div><div class="hist">${hist.map(v=>`<i style="height:${Math.max(6,v/mx*100)}%"></i>`).join('')}</div><div class="hl"><span>1</span><span>10</span></div><div class="sub">оценок: ${TS.sn}</div>`:'<div class="sub">Пока без оценок, только списки.</div>'}</div><div class="tile"><h3>Сколько людей</h3>${counts}</div>`:`<div class="tile" style="grid-column:1/-1"><h3>Оценки на сайте</h3><div class="sub">${!(window.AUTH&&AUTH.syncOn)?'Войдите в аккаунт, чтобы видеть оценки других людей.':!c.ext?'Загружаю…':TS?'Пока никто не оценил. Будьте первым.':'Загружаю…'}</div></div>`}
         </div>
-        <p class="src-note">${c.ext?`Данные: <a href="${esc(c.ext.url)}" target="_blank" rel="noopener">${esc(LIVE_SRC[c.ext.source]||c.ext.source)}</a>. Цифры сообщества в прототипе примерные.`:`Описание, жанры и платформы приходят из ${SRC[k]}. Цифры сообщества в прототипе примерные.`}</p>
+        <p class="src-note">${c.ext?`Данные: <a href="${esc(c.ext.url)}" target="_blank" rel="noopener">${esc(LIVE_SRC[c.ext.source]||c.ext.source)}</a>.`:`Описание, жанры и платформы приходят из ${SRC[k]}.`}</p>
       </div>
     </section>
     <section class="tp-sec" id="tp-media" hidden></section>
-    <section class="tp-sec"><h2>Отзывы</h2>${mine}${revs}</section>`;
+    ${mine||revs?`<section class="tp-sec"><h2>Отзывы</h2>${mine}${revs}</section>`:''}`;
   loadMedia(key,c);
 }
 
@@ -1704,27 +1717,14 @@ function secDetails(){
   const time=g?`<div><span class="lb">Время в игре</span><div class="tm"><input id="e-val" class="fld" type="number" min="0" max="99999" value="${E.val}" aria-label="Часы"><span>ч</span><input id="e-min" class="fld" type="number" min="0" max="59" value="${E.mins}" aria-label="Минуты"><span>м</span></div></div>`
     :o.val?`<div><label for="e-val">${o.val.label}</label><input id="e-val" class="fld" type="number" min="0" max="99999" value="${E.val}"></div>`:'<div></div>';
   h+=`<div class="two"><div><span class="lb">${o.runs}</span><div class="stepper"><button type="button" id="e-rm" aria-label="Меньше">−</button><b>${E.runs}</b><button type="button" id="e-rp" aria-label="Больше">+</button></div></div>${time}</div>`;
-  if(o.steam)h+=`<div class="sync"><span class="lb">Часы и достижения</span><div class="srcs">${SYNC.map(s=>`<button type="button" class="srcb ${E.src===s?'on':''}" data-src="${s}">${s}</button>`).join('')}</div><div class="sub">${E.src&&E.ach?`${esc(E.src)}: ${E.val} ч, достижения ${E.ach[0]} из ${E.ach[1]}. Данные подставлены для примера.`:'Выберите, где вы играете, и часы с достижениями подтянутся сами. Можно ввести часы вручную.'}</div></div>`;
+  if(o.steam)h+=`<div class="sync"><span class="lb">Часы и достижения</span><div class="srcs">${SYNC.map(s=>`<button type="button" class="srcb ${E.src===s?'on':''}" data-src="${s}">${s}</button>`).join('')}</div><div class="sub">${E.src?`${esc(E.src)}: ${E.val} ч${E.ach?`, достижения ${E.ach[0]} из ${E.ach[1]}`:''}.`:'Нажмите «Steam», и часы с достижениями подтянутся из вашей библиотеки. Часы можно ввести и вручную.'}</div></div>`;
   return h;
 }
 
 /* просмотр чужой записи */
-function achList(){
-  const total=E.ach[1],got=E.ach[0],h=hue(E.cat.t);
-  const order=Array.from({length:total},(_,i)=>i).sort((a,b)=>rnd(h,a+100)-rnd(h,b+100));
-  const earned=new Set(order.slice(0,got)),days=Object.keys(E.j).sort();
-  return Array.from({length:total},(_,i)=>({n:ACH_NAMES[i%ACH_NAMES.length]+(i>=ACH_NAMES.length?' II':''),got:earned.has(i),pct:Math.max(.5,Math.round(rnd(h,i+200)*800)/10),d:earned.has(i)&&days.length?days[Math.floor(rnd(h,i+300)*days.length)]:''}));
-}
 function achHtml(){
   const [got,total]=E.ach,pct=Math.round(got/total*100);
-  let h=`<div class="ach"><span class="lb">Достижения · ${esc(E.src||'')}</span><div class="bar2"><i style="width:${pct}%"></i></div><div class="achh"><span class="sub">${got} из ${total} (${pct}%)</span><button type="button" class="lnk" id="e-ach">${E.achOpen?'Скрыть список':'Показать все'}</button></div>`;
-  if(E.achOpen){
-    const list=achList().filter(a=>E.achF==='all'||(E.achF==='got'?a.got:!a.got)).sort((a,b)=>b.pct-a.pct);
-    h+=`<div class="achf">${[['all','Все'],['got','Получены'],['no','Не получены']].map(([id,t])=>`<button type="button" class="subtab" data-achf="${id}" aria-pressed="${E.achF===id}">${t}</button>`).join('')}</div>
-      <div class="achl">${list.map(a=>`<div class="achi${a.got?' got':''}"><span class="tro">${ico('trophy')}</span><div><b>${esc(a.n)}</b><div class="sub">${a.pct}% игроков${a.d?' · получено '+fmtD(a.d):''}</div></div></div>`).join('')}</div>
-      <div class="sub">Названия в прототипе примерные. В настоящем сайте список приходит из Steam.</div>`;
-  }
-  return h+'</div>';
+  return `<div class="ach"><span class="lb">Достижения · ${esc(E.src||'')}</span><div class="bar2"><i style="width:${pct}%"></i></div><div class="achh"><span class="sub">${got} из ${total} (${pct}%)</span></div></div>`;
 }
 function roMain(){
   const o=OPTS[E.k];
@@ -1903,8 +1903,6 @@ function bindEditor(){
     drawEditor();
   });
   // достижения и журнал при просмотре
-  on('e-ach','onclick',()=>{E.achOpen=!E.achOpen;drawEditor()});
-  ov.querySelectorAll('[data-achf]').forEach(b=>b.onclick=()=>{E.achF=b.dataset.achf;drawEditor()});
   on('j-cal','onclick',()=>{E.roCal=!E.roCal;drawEditor()});
   // журнал
   ov.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{E.sel=b.dataset.d;drawEditor()});
@@ -2195,7 +2193,7 @@ function drawProf(focus){
     <div class="dr pb">
       <div class="pimg"><div><span class="lb">Картинки и данные</span><div class="btns" style="margin-top:6px"><button type="button" class="btn" data-img="avatar">${ico('camera')}Аватар</button><button type="button" class="btn" data-img="banner">${ico('camera')}Баннер</button><button type="button" class="btn" data-import>${ico('plus')}Импорт оценок</button></div></div></div>
       <div class="psteam"><span class="lb">Steam</span><div style="display:flex;gap:8px;margin-top:6px"><input id="p-steam" class="fld" style="flex:1" placeholder="steamcommunity.com/id/ник" value="${esc(localStorage.getItem('steam_profile')||'')}" autocomplete="off" aria-label="Профиль Steam"><button type="button" class="btn" id="p-steam-go">Обновить из Steam</button></div><div class="hint" id="p-steam-st">Часы и достижения подтянутся к играм, которые уже есть в вашем списке. Профиль и «Сведения об играх» в Steam должны быть открытыми.</div></div>
-      <div><label for="p-nick">Ник</label><input id="p-nick" class="fld" maxlength="24" autocomplete="off" value="${esc(PD.nick)}"><div class="hint">Буквы, цифры и _, от 2 до 24 символов. В настоящем сайте ник проверяется на занятость.</div></div>
+      <div><label for="p-nick">Ник</label><input id="p-nick" class="fld" maxlength="24" autocomplete="off" value="${esc(PD.nick)}"><div class="hint">Буквы, цифры и _, от 2 до 24 символов.</div></div>
       <div><label for="p-about">О себе</label><textarea id="p-about" class="fld" maxlength="300">${esc(PD.about)}</textarea></div>
       <div><span class="lb">Ссылки · ${PD.links.length} из ${MAXL}</span><div class="dr" style="gap:6px">${PD.links.map((h,i)=>`<div class="lrow"><span class="lic">${ico(ICON_LINK(h))}</span><input class="fld" data-l="${i}" value="${esc(h)}" placeholder="https://" aria-label="Ссылка ${i+1}"><button type="button" class="ic" data-lrm="${i}" aria-label="Убрать ссылку">${ico('close')}</button></div>`).join('')}${PD.links.length<MAXL?'<button type="button" class="btn" id="p-addl" style="align-self:flex-start">'+ico('plus')+'Добавить ссылку</button>':''}</div></div>
       <div><span class="lb">Любимое</span><div class="dr" style="gap:6px">${ORDER.map(k=>`<label class="frow"><span>${CATS[k].name}</span><div class="cmb" data-cmb="${k}"><input class="fld" type="text" autocomplete="off" placeholder="Начните вводить название" aria-label="${CATS[k].name}" value="${esc(favLabel(k,PD.fav[k]))}"><button type="button" class="cmb-x" aria-label="Очистить" ${PD.fav[k]?'':'hidden'}>×</button><div class="res cmb-list" hidden></div></div></label>`).join('')}</div><div class="hint">Что показывать, а что скрыть, можно выбрать кнопкой «Настроить» над любимым.</div></div>
@@ -3046,9 +3044,9 @@ function worldMain(){
     <p class="note" style="margin:0">Обсуждения пока примерные: настоящие появятся вместе с аккаунтами.</p></div>`;
 }
 function side(){
+  const tr=trend().slice(0,5);
   const prog=[];ORDER.forEach(k=>DATA[k].forEach(r=>{if(/^(Играю|Смотрю|Читаю)$/.test(r[3])){const c=CAT_IDX[kk(k,r[0])];if(c)prog.push({k,c,key:kk(k,r[0]),st:r[3]})}}));
   const li=(x,rk)=>`<button type="button" class="hm-li" data-hopen="${esc(x.key)}">${rk?`<span class="hm-rk">${rk}</span>`:''}${cover(x.c.t,'',x.k)}<span class="i"><b>${esc(x.c.t)}</b><span class="sub">${esc(x.st||CATS[x.k].one)}${x.c.y?' · '+x.c.y:''}</span></span></button>`;
-  const tr=trend().slice(0,5);
   return `${prog.length?`<section class="card"><h3>Сейчас в процессе</h3>${prog.slice(0,5).map(x=>li(x)).join('')}</section>`:''}
   <section class="card"><h3>В тренде на неделе</h3>${tr.map((x,i)=>li(x,i+1)).join('')}</section>
   ${window.SOCIAL&&SOCIAL.on()?SOCIAL.sideHtml():`<section class="card"><h3>Друзья</h3>${FRIENDS.map(([n,on])=>`<div class="hm-li" style="cursor:default">${avatar(n)}<span class="i"><b>${esc(n)}</b><span class="sub">${on?'в сети':'не в сети'}</span></span></div>`).join('')}</section>`}
