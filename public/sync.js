@@ -72,9 +72,9 @@
   };
   const sigOf = (k, row) => {
     const x = EXTRA[kk(k, row[0])] || {};
-    return JSON.stringify([row[2] || 0, row[3] || '', row[4] || '', x.plat || '', x.own || '', x.ed || '', x.runs || 0, x.val || 0, x.mins || 0, x.src || '', x.ach || null, x.journal || {}, !!x.spoiler, !!x.liked]);
+    return JSON.stringify([row[2] || 0, row[3] || '', row[4] || '', x.plat || '', x.own || '', x.ed || '', x.runs || 0, x.val || 0, x.mins || 0, x.src || '', x.sid || 0, x.ach || null, x.journal || {}, !!x.spoiler, !!x.liked]);
   };
-  const DET = ['plat', 'own', 'ed', 'runs', 'val', 'mins', 'src', 'ach', 'journal'];
+  const DET = ['plat', 'own', 'ed', 'runs', 'val', 'mins', 'src', 'sid', 'ach', 'journal'];
   function detailsOf(x) {
     const d = {};
     DET.forEach(f => {

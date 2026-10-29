@@ -707,7 +707,7 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10. Музыка пока без звука, это макет плеера.</p>
-  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-28-ux11</p>
+  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-29-steam</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
@@ -1846,7 +1846,15 @@ function bindEditor(){
   ov.querySelectorAll('[data-src]').forEach(b=>b.onclick=()=>{
     const s=b.dataset.src;
     if(E.src===s){E.src='';E.ach=null}
-    else{const h=hue(E.cat.t+s),tot=20+h%30;E.src=s;E.val=20+h%180;E.mins=0;E.ach=[Math.round(tot*.6),tot]}
+    else if(s==='Steam'&&localStorage.getItem('steam_profile')){
+      const b=document.querySelector('[data-src="Steam"]');if(b){b.disabled=true;b.textContent='Steam…'}
+      (async()=>{try{
+        const g=await steamOne(localStorage.getItem('steam_profile'),E.cat.t);
+        if(g){E.src='Steam';E.val=Math.floor(g.minutes/60);E.mins=g.minutes%60;E.ach=g.ach||null;E.sid=g.appid;E.plat=E.plat||'PC'}
+        else toast('Этой игры нет в вашей библиотеке Steam.');
+      }catch(e){toast(e.message||'Steam не ответил.')}drawEditor()})();return;
+    }
+    else{toast('Сначала привяжите Steam: Профиль → Steam → «Обновить из Steam».');return}
     drawEditor();
   });
   // достижения и журнал при просмотре
@@ -1872,7 +1880,7 @@ function bindEditor(){
     const c=E.cat,arr=DATA[E.k],i=arr.findIndex(r=>r[0]===c.t),row=[c.t,`${c.by} · ${c.y}`,E.score,E.st,E.review.trim(),0];touch(row);
     if(i>=0)arr[i]=row;else arr.unshift(row);
     const key=kk(E.k,c.t);
-    EXTRA[key]={plat:E.plat,own:E.own,ed:E.ed,runs:E.runs,val:E.val===''?0:+E.val,mins:E.mins===''?0:+E.mins,src:E.src,ach:E.ach,journal:E.j,spoiler:E.spoiler,liked:E.liked};
+    EXTRA[key]={plat:E.plat,own:E.own,ed:E.ed,runs:E.runs,val:E.val===''?0:+E.val,mins:E.mins===''?0:+E.mins,src:E.src,sid:E.sid||(EXTRA[key]||{}).sid||0,ach:E.ach,journal:E.j,spoiler:E.spoiler,liked:E.liked};
     closeEditor();
     if(S.page)render();else goTo(key);
   };
@@ -2141,6 +2149,7 @@ function drawProf(focus){
     <div class="dh"><h2 id="p-h">Редактировать профиль</h2><button type="button" class="ic" id="p-x" aria-label="Закрыть">${ico('close')}</button></div>
     <div class="dr pb">
       <div class="pimg"><div><span class="lb">Картинки и данные</span><div class="btns" style="margin-top:6px"><button type="button" class="btn" data-img="avatar">${ico('camera')}Аватар</button><button type="button" class="btn" data-img="banner">${ico('camera')}Баннер</button><button type="button" class="btn" data-import>${ico('plus')}Импорт оценок</button></div></div></div>
+      <div class="psteam"><span class="lb">Steam</span><div style="display:flex;gap:8px;margin-top:6px"><input id="p-steam" class="fld" style="flex:1" placeholder="steamcommunity.com/id/ник" value="${esc(localStorage.getItem('steam_profile')||'')}" autocomplete="off" aria-label="Профиль Steam"><button type="button" class="btn" id="p-steam-go">Обновить из Steam</button></div><div class="hint" id="p-steam-st">Часы и достижения подтянутся к играм, которые уже есть в вашем списке. Профиль и «Сведения об играх» в Steam должны быть открытыми.</div></div>
       <div><label for="p-nick">Ник</label><input id="p-nick" class="fld" maxlength="24" autocomplete="off" value="${esc(PD.nick)}"><div class="hint">Буквы, цифры и _, от 2 до 24 символов. В настоящем сайте ник проверяется на занятость.</div></div>
       <div><label for="p-about">О себе</label><textarea id="p-about" class="fld" maxlength="300">${esc(PD.about)}</textarea></div>
       <div><span class="lb">Ссылки · ${PD.links.length} из ${MAXL}</span><div class="dr" style="gap:6px">${PD.links.map((h,i)=>`<div class="lrow"><span class="lic">${ico(ICON_LINK(h))}</span><input class="fld" data-l="${i}" value="${esc(h)}" placeholder="https://" aria-label="Ссылка ${i+1}"><button type="button" class="ic" data-lrm="${i}" aria-label="Убрать ссылку">${ico('close')}</button></div>`).join('')}${PD.links.length<MAXL?'<button type="button" class="btn" id="p-addl" style="align-self:flex-start">'+ico('plus')+'Добавить ссылку</button>':''}</div></div>
@@ -2159,6 +2168,14 @@ function drawProf(focus){
   ov.querySelectorAll('[data-l]').forEach(i=>i.oninput=()=>{PD.links[+i.dataset.l]=i.value});
   ov.querySelectorAll('[data-lrm]').forEach(b=>b.onclick=()=>{PD.links.splice(+b.dataset.lrm,1);drawProf()});
   ov.querySelectorAll('[data-cmb]').forEach(mountCmb);
+  const sgo=$('p-steam-go');if(sgo)sgo.onclick=async()=>{
+    const st=$('p-steam-st'),pr=$('p-steam').value.trim();
+    if(!pr){st.textContent='Вставьте ссылку на свой профиль Steam.';return}
+    sgo.disabled=true;sgo.textContent='Загружаю…';st.textContent='Связываюсь со Steam…';
+    try{const r=await steamSync(pr,m=>{st.textContent=m});st.textContent=`Готово: в Steam ${r.total} игр, обновлено ${r.matched} из ваших ${r.mine}, достижения у ${r.ach}. Чтобы добавить остальные игры из Steam, нажмите «Импорт оценок».`}
+    catch(e){st.textContent=e.message||String(e)}
+    sgo.disabled=false;sgo.textContent='Обновить из Steam';
+  };
   const al=$('p-addl');if(al)al.onclick=()=>{PD.links.push('');drawProf('l'+(PD.links.length-1))};
   ov.firstElementChild.onsubmit=e=>{
     e.preventDefault();
@@ -2621,8 +2638,62 @@ async function steamLoad(profile,onlyPlayed,oldSt){
     throw new Error(m[j.error]||'Steam не ответил. Попробуйте позже.');
   }
   let g=j.games||[];if(onlyPlayed)g=g.filter(x=>x.minutes>0);
-  const out=g.map(x=>({title:String(x.name).replace(/[™®]/g,'').trim(),year:0,kind:'game',score:0,status:x.minutes<=0?'В планах':x.recent>0?'Играю':oldSt,review:'',days:x.last?Math.max(0,Math.round((Date.now()/1000-x.last)/86400)):0}));
+  const out=g.map(x=>({title:String(x.name).replace(/[™®]/g,'').trim(),year:0,kind:'game',score:0,status:x.minutes<=0?'В планах':x.recent>0?'Играю':oldSt,review:'',days:x.last?Math.max(0,Math.round((Date.now()/1000-x.last)/86400)):0,steam:{appid:x.appid,minutes:x.minutes||0}}));
+  imp.steamid=j.steamid||'';try{localStorage.setItem('steam_profile',profile);localStorage.setItem('steam_id',j.steamid||'')}catch(_){}
   return {items:out,info:`Steam: ${out.length} игр`};
+}
+
+/* --- Steam: часы и достижения в записи игры, кнопка «Обновить из Steam» --- */
+function setSteamX(key,appid,minutes,first){
+  const x=EXTRA[key]||(EXTRA[key]={});
+  x.sid=appid;x.src='Steam';if(!x.plat||first)x.plat=x.plat||'PC';
+  if(minutes>0){x.val=Math.floor(minutes/60);x.mins=minutes%60}
+}
+async function steamAch(steamid,appids){
+  const todo=[...new Set(appids)];let done=0;
+  for(let i=0;i<todo.length;i+=40){
+    const part=todo.slice(i,i+40);
+    try{
+      const r=await fetch(`${APPC.SUPABASE_URL}/functions/v1/search?steamach=1`,{method:'POST',headers:{...liveHeaders(),'Content-Type':'application/json'},body:JSON.stringify({steamid,appids:part})});
+      const j=await r.json();if(!r.ok)break;
+      Object.entries(j.ach||{}).forEach(([id,a])=>{
+        const key=Object.keys(EXTRA).find(k=>EXTRA[k]&&EXTRA[k].sid==id);
+        if(key&&a&&a[1]>0){EXTRA[key].ach=a;done++}
+      });
+    }catch(_){break}
+  }
+  return done;
+}
+async function steamOne(profile,title){
+  const r=await fetch(`${APPC.SUPABASE_URL}/functions/v1/search?steamlib=1`,{method:'POST',headers:{...liveHeaders(),'Content-Type':'application/json'},body:JSON.stringify({profile})});
+  let j={};try{j=await r.json()}catch(_){}
+  if(!r.ok)throw new Error(j.error==='private'?'Список игр в Steam скрыт: сделайте «Сведения об играх» открытыми.':'Steam не ответил. Попробуйте позже.');
+  const n=steamNorm(title),g=(j.games||[]).find(x=>steamNorm(x.name)===n);if(!g)return null;
+  try{const r2=await fetch(`${APPC.SUPABASE_URL}/functions/v1/search?steamach=1`,{method:'POST',headers:{...liveHeaders(),'Content-Type':'application/json'},body:JSON.stringify({steamid:j.steamid,appids:[g.appid]})});const j2=await r2.json();g.ach=(j2.ach||{})[g.appid]||null}catch(_){}
+  return g;
+}
+const steamNorm=t=>String(t||'').toLowerCase().replace(/[™®©]/g,'').replace(/&/g,'and').replace(/[^a-z0-9а-яё]+/g,'');
+async function steamSync(profile,onStep){
+  const r=await fetch(`${APPC.SUPABASE_URL}/functions/v1/search?steamlib=1`,{method:'POST',headers:{...liveHeaders(),'Content-Type':'application/json'},body:JSON.stringify({profile})});
+  let j={};try{j=await r.json()}catch(_){}
+  if(!r.ok){
+    const m={no_key:'На сервере ещё не добавлен ключ Steam (секрет STEAM_KEY).',bad_profile:'Не похоже на ссылку на профиль Steam. Вставьте адрес вида steamcommunity.com/id/ник.',not_found:'Такой профиль в Steam не найден.',private:'Список игр скрыт. В Steam: Профиль → Редактировать → Настройки приватности → «Сведения об играх» → Открытый.',rate_limited:'Слишком много запросов, подождите минуту.'};
+    throw new Error(m[j.error]||'Steam не ответил. Попробуйте позже.');
+  }
+  try{localStorage.setItem('steam_profile',profile);localStorage.setItem('steam_id',j.steamid||'')}catch(_){}
+  const lib=j.games||[],byName=new Map();lib.forEach(g=>{const n=steamNorm(g.name);if(n&&!byName.has(n))byName.set(n,g)});
+  const byId=new Map(lib.map(g=>[g.appid,g]));
+  let matched=0;const ids=[];
+  DATA.games.forEach(row=>{
+    const key=kk('games',row[0]),x=EXTRA[key]||{};
+    const g=(x.sid&&byId.get(x.sid))||byName.get(steamNorm(row[0]));
+    if(!g)return;
+    setSteamX(key,g.appid,g.minutes,false);matched++;ids.push(g.appid);
+  });
+  if(onStep)onStep(`Нашли ${matched} игр из ${DATA.games.length}. Загружаю достижения…`);
+  const ach=ids.length?await steamAch(j.steamid,ids):0;
+  render();
+  return {total:lib.length,matched,ach,mine:DATA.games.length};
 }
 
 /* --- подбор тайтлов через сервер --- */
@@ -2673,6 +2744,7 @@ function applyOne(e){   // e: {r, score, status, review, days}
   const c=CAT_IDX[key],k=c.k;
   if(DATA[k].some(x=>x[0]===c.t))return false;
   DATA[k].push([c.t,`${c.by} · ${c.y}`,e.score,normSt(e.status,k),e.review||'',e.days||0]);
+  if(e.steam&&k==='games')setSteamX(key,e.steam.appid,e.steam.minutes,true);
   return true;
 }
 function loadSaved(){try{const a=JSON.parse(localStorage.getItem(IMP_LS)||'[]');a.forEach(applyOne)}catch(_){}}
@@ -2681,9 +2753,10 @@ function commit(){
   const byId=new Map(),rank={done:4,doing:3,hold:2,drop:1,plan:0};
   imp.items.forEach((it,i)=>{const r=imp.found[i];if(!r||imp.skip.has(i))return;
     const id=r.source+':'+r.external_id,o=byId.get(id);
-    if(!o){const e={r:slim(r),sc:it.score?[it.score]:[],score:it.score,status:it.status,review:it.review,days:it.days};byId.set(id,e);entries.push(e);return}
+    if(!o){const e={r:slim(r),sc:it.score?[it.score]:[],score:it.score,status:it.status,review:it.review,days:it.days,steam:it.steam||null};byId.set(id,e);entries.push(e);return}
     // несколько записей указывают на один тайтл (например, сезоны одного аниме): усредняем оценку
     if(it.score)o.sc.push(it.score);
+    if(it.steam&&(!o.steam||it.steam.minutes>o.steam.minutes))o.steam=it.steam;
     if(rank[stClass(it.status)]>rank[stClass(o.status)])o.status=it.status;
     if((it.review||'').length>(o.review||'').length)o.review=it.review;
     if(it.days&&(!o.days||it.days<o.days))o.days=it.days;
@@ -2698,6 +2771,8 @@ function commit(){
     try{localStorage.setItem(IMP_LS,JSON.stringify(saved))}catch(_){imp.err='Браузер не дал сохранить такой объём: оценки добавлены только до перезагрузки.'}
   }
   imp.added=added;imp.state='done';draw();render();
+  const sids=entries.filter(e=>e.steam&&e.steam.minutes>0).map(e=>e.steam.appid);
+  if(sids.length&&imp.steamid)steamAch(imp.steamid,sids).then(()=>render());
 }
 function clearAll(){
   let saved=[];try{saved=JSON.parse(localStorage.getItem(IMP_LS)||'[]')}catch(_){}
