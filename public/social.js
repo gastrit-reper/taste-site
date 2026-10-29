@@ -50,6 +50,7 @@
   /* ---------- что видит index.html ---------- */
   SO.on = () => !!AUTH.syncOn;
   SO.viewing = () => viewing;
+  SO.friendsList = () => [...rel].filter(([, r]) => r.i && r.t && r.nick).map(([id, r]) => ({ id, nick: r.nick }));
   SO.known = n => byNick.has(String(n).toLowerCase());
   SO.nicks = () => [...byNick.values()].map(x => x.nick);
   SO.events = () => events;
@@ -65,7 +66,7 @@
     return `с нами с ${MON[d.getMonth()]} ${d.getFullYear()}`;
   };
   SO.headBtns = () => {
-    const s = viewing ? state(viewing.id) : 'none', msg = `<button class="btn" id="b-msg">${ico('mail')}Написать</button>`;
+    const s = viewing ? state(viewing.id) : 'none', msg = `<button class="btn" id="b-msg" data-dm="${esc(viewing ? viewing.nick : '')}">${ico('mail')}Написать</button>`;
     if (s === 'friend') return `<button class="btn on" id="b-friend" title="Нажмите, чтобы убрать из друзей">${ico('check')}В друзьях</button>${msg}`;
     if (s === 'sent') return `<button class="btn" id="b-friend" title="Нажмите, чтобы отменить заявку">${ico('check')}Заявка отправлена</button>${msg}`;
     if (s === 'incoming') return `<button class="btn primary" id="b-friend">${ico('check')}Принять заявку</button><button class="btn" id="b-decl">Отклонить</button>${msg}`;

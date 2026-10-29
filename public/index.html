@@ -707,7 +707,7 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10. Музыка пока без звука, это макет плеера.</p>
-  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-29-steam2</p>
+  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-29-dm</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
@@ -1059,6 +1059,7 @@ let liveCtrl=null, liveTimer=null;
 function imgUrls(u){   // все картинки идут через наш сайт (/img/...), чтобы не зависеть от блокировок
   if(!u)return null;let m;
   if(u.startsWith('https://image.tmdb.org/t/p/')){const f=u.split('/').pop();return {a:'/img/w342/'+f,b:'/img/w500/'+f}}
+  if(/^\/media\/[\w-]+\/[\w.-]+\.(?:webp|png|jpe?g)$/.test(u))return {a:u,b:u};
   if(m=u.match(/covers\.openlibrary\.org\/b\/id\/(\d+)-/))return {a:`/img/ol/M/${m[1]}.jpg`,b:`/img/ol/L/${m[1]}.jpg`};
   if(m=u.match(/steamgriddb\.com\/(grid|hero)\/([\w.-]+\.(?:png|jpe?g|webp))$/))return {a:`/img/sgdb/${m[1]}/${m[2]}`,b:`/img/sgdb/${m[1]}/${m[2]}`};
   if(m=u.match(/steamstatic\.com\/steam\/apps\/(\d+)\/library_hero/))return {a:`/img/steam/hero/${m[1]}.jpg`,b:`/img/steam/hero/${m[1]}.jpg`};
@@ -1801,6 +1802,10 @@ function drawRes(noLive){
   const ls=liveState(E.q,E.k);
   const msg=ls==='loading'?'Ищу в базе '+SRC[E.k]+'…':ls==='error'?'Не удалось связаться с базой. Попробуйте ещё раз.':`В базе ${SRC[E.k]} такого нет. Проверьте написание.`;
   box.innerHTML=(list.length?list.map(c=>`<button type="button" class="opt" role="option" data-pick="${esc(kk(c.k,c.t))}">${cover(c.t,'',c.k)}<span><b>${esc(c.t)}</b><span class="sub">${esc(c.by)}${c.y?' · '+c.y:''}</span></span></button>`).join(''):'')+(!list.length||ls==='loading'||ls==='error'?`<div class="sub">${msg}</div>`:'');
+  if(E.k==='games'&&E.q.trim().length>=2&&ls!=='loading'){
+    box.insertAdjacentHTML('beforeend',window.AUTH&&AUTH.syncOn?`<button type="button" class="btn" id="e-manual" style="margin-top:8px">${ico('plus')}Нет в списке? Добавить «${esc(E.q.trim().slice(0,40))}» как свою игру</button>`:'<div class="sub" style="margin-top:8px">Чтобы добавить свою игру, войдите в аккаунт.</div>');
+    const mb=document.getElementById('e-manual');if(mb)mb.onclick=()=>manualGame(E.q.trim()).then(key=>{if(key&&E){E.cat=CAT_IDX[key];E.plat='';E.tab='review';drawEditor()}});
+  }
   box.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{
     const c=CAT_IDX[b.dataset.pick];
     if(c.k==='music'){closeEditor();goTo(kk(c.k,c.t));return}
@@ -1808,6 +1813,46 @@ function drawRes(noLive){
     E.cat=c;E.plat='';E.tab='review';drawEditor();
   });
   if(!noLive)liveSearch(E.q,E.k,()=>{if(E&&!E.cat)drawRes(true)});
+}
+
+/* своя игра: нет ни в Steam, ни в RAWG (например, инди, мод или совсем свежая) */
+function manualGame(title){
+  return new Promise(resolve=>{
+    const old=document.getElementById('mov');if(old)old.remove();
+    const ov=document.createElement('div');ov.id='mov';ov.className='ov';ov.style.zIndex=60;
+    ov.innerHTML=`<form class="dlg" role="dialog" aria-modal="true" aria-labelledby="m-h"><div class="dh"><h2 id="m-h">Добавить свою игру</h2><button type="button" class="ic" id="m-x" aria-label="Закрыть">${ico('close')}</button></div>
+      <div class="dr pb"><div><label for="m-t">Название</label><input id="m-t" class="fld" maxlength="120" value="${esc(title)}"></div>
+      <div><label for="m-y">Год выхода (необязательно)</label><input id="m-y" class="fld" type="number" min="1951" max="2099" placeholder="2024"></div>
+      <div><label for="m-c">Обложка (необязательно)</label><input id="m-c" type="file" accept="image/png,image/jpeg,image/webp"><div class="hint">Сайт сам уменьшит картинку, чтобы не занимать место.</div></div>
+      <div class="err" id="m-e" role="alert"></div></div>
+      <div class="df"><button type="button" class="btn" id="m-n">Отмена</button><button type="submit" class="btn primary" id="m-ok">Добавить</button></div></form>`;
+    document.body.appendChild(ov);
+    const $=id=>document.getElementById(id),done=v=>{ov.remove();resolve(v)};
+    $('m-x').onclick=$('m-n').onclick=()=>done(null);
+    ov.onmousedown=e=>{if(e.target===ov)done(null)};
+    ov.firstElementChild.onsubmit=async e=>{
+      e.preventDefault();const t=$('m-t').value.trim(),btn=$('m-ok'),er=$('m-e');
+      if(t.length<2){er.textContent='Введите название.';return}
+      btn.disabled=true;btn.textContent='Добавляю…';er.textContent='';
+      try{
+        const ss=(await AUTH.client.auth.getSession()).data.session;if(!ss)throw new Error('Войдите в аккаунт заново.');
+        let cover='';const f=$('m-c').files[0];
+        if(f){
+          const sm=window.shrinkImg?await window.shrinkImg(f,600):null;
+          const blob=sm?sm.blob:f;if(blob.size>2*1024*1024)throw new Error('Обложка слишком большая, выберите картинку поменьше.');
+          const path=`${ss.user.id}/cover-${Date.now().toString(36)}.${blob.type==='image/webp'?'webp':blob.type==='image/png'?'png':'jpg'}`;
+          const up=await AUTH.client.storage.from('media').upload(path,blob,{contentType:blob.type,cacheControl:'31536000'});
+          if(up.error)throw up.error;cover='/media/'+path;
+        }
+        const r=await fetch(`${APPC.SUPABASE_URL}/functions/v1/search?manual=1`,{method:'POST',headers:{...liveHeaders(),'Content-Type':'application/json'},body:JSON.stringify({token:ss.access_token,title:t,year:$('m-y').value,cover})});
+        const j=await r.json().catch(()=>({}));
+        if(!r.ok||!j.row)throw new Error(r.status===401?'Войдите в аккаунт заново.':'Не получилось добавить игру. Попробуйте ещё раз.');
+        const key=regLive(j.row);if(!key)throw new Error('Не получилось добавить игру.');
+        done(key);
+      }catch(err){er.textContent=err.message||String(err);btn.disabled=false;btn.textContent='Добавить'}
+    };
+    $('m-t').focus();
+  });
 }
 function closeEditor(){const ov=document.getElementById('ov');if(ov)ov.remove();E=null}
 function bindEditor(){
@@ -1947,7 +1992,7 @@ function drawCrop(){
     <div class="cbody">
       <div class="stage" id="c-stage"><img id="c-img" alt="" draggable="false" src="${CR.url}"><div class="frame k-${kind}" id="c-frame"></div></div>
       <label class="zoom"><span class="lb">Масштаб</span><input type="range" id="c-z" min="1" max="4" step="0.01" value="${CR.z}"></label>
-      <div class="sub">Перетащите рамку, чтобы выбрать область. Подходит файл любого размера. GIF остаётся анимированным.</div>
+      <div class="sub">Перетащите рамку, чтобы выбрать область. Подходит файл любого размера. GIF остаётся анимированным (до 4 МБ), обычные картинки сайт сам уменьшит и сэкономит место.</div>
       <div><span class="lb">Так это будет выглядеть</span><div class="cprev k-${kind}" id="c-prev" style="${kind==='avatar'?'':`aspect-ratio:${CR.A}`}"></div></div>
     </div>
     <div class="df"><button type="button" class="lnk" id="c-file" style="margin-right:auto">Другой файл</button>${CR.old?'<button type="button" class="lnk" id="c-del">Убрать</button>':''}<button type="button" class="btn" id="c-cancel">Отмена</button><button type="button" class="btn primary" id="c-save">Сохранить</button></div>
@@ -3009,13 +3054,13 @@ function side(){
   ${window.SOCIAL&&SOCIAL.on()?SOCIAL.sideHtml():`<section class="card"><h3>Друзья</h3>${FRIENDS.map(([n,on])=>`<div class="hm-li" style="cursor:default">${avatar(n)}<span class="i"><b>${esc(n)}</b><span class="sub">${on?'в сети':'не в сети'}</span></span></div>`).join('')}</section>`}
   <section class="card"><h3>Обсуждают в мире</h3>${[...threads()].sort((a,b)=>b.hot-a.hot).slice(0,4).map(t=>`<button type="button" class="hm-li" data-hworld><span class="i"><b>${esc(t.title)}</b><span class="sub">${t.rep} ответов · ${esc(CATS[t.k].one)}</span></span></button>`).join('')}</section>`;
 }
-const IC={home:'<path d="M3 11l9-8 9 8v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z"/>',search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/>',coll:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5"/>',cog:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',plus:'<path d="M12 5v14M5 12h14"/>',globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>'};
+const IC={mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',home:'<path d="M3 11l9-8 9 8v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z"/>',search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/>',coll:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5"/>',cog:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',plus:'<path d="M12 5v14M5 12h14"/>',globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>'};
 const svg=n=>`<svg viewBox="0 0 24 24" aria-hidden="true">${IC[n]}</svg>`;
 function nav(){
   const sub=[['friends','Друзья'],['foryou','Для вас'],['trend','В тренде']];
   return `<nav class="hm-nav" aria-label="Разделы"><button type="button" data-hnav="home" ${HS.view==='home'?'aria-current="page"':''} aria-expanded="${!!HS.open}" aria-controls="hm-sub">${svg('home')}<span style="flex:1">Главная</span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
     <div class="hm-sub${HS.open?' open':''}" id="hm-sub"><div>${sub.map(([id,l])=>`<button type="button" data-htab="${id}" ${HS.view==='home'&&HS.tab===id?'aria-current="true"':''}>${l}</button>`).join('')}</div></div>
-    <button type="button" data-hnav="world" ${HS.view==='world'?'aria-current="page"':''}>${svg('globe')}Мир</button><button type="button" data-hnav="me">${svg('user')}Мой профиль</button><button type="button" data-hnav="set">${svg('cog')}Настройки</button></nav>`;
+    <button type="button" data-hnav="world" ${HS.view==='world'?'aria-current="page"':''}>${svg('globe')}Мир</button><button type="button" data-hnav="me">${svg('user')}Мой профиль</button>${window.DM&&window.SOCIAL&&SOCIAL.on()?`<button type="button" data-dm="">${svg('mail')}Сообщения${DM.badgeHtml()}</button>`:''}<button type="button" data-hnav="set">${svg('cog')}Настройки</button></nav>`;
 }
 function tabbar(){
   return `<nav class="hm-tabbar" aria-label="Разделы"><button type="button" data-hnav="home" ${HS.view==='home'?'aria-current="page"':''}>${svg('home')}Главная</button><button type="button" data-hnav="world" ${HS.view==='world'?'aria-current="page"':''}>${svg('globe')}Мир</button><button type="button" data-hnav="me">${svg('user')}Профиль</button><button type="button" data-hnav="set">${svg('cog')}Ещё</button></nav>`;
@@ -3097,7 +3142,7 @@ render();
   function go(){
     /* если наш сайт умеет проксировать Supabase (/sb/), ходим через него: так вход работает и без VPN; иначе - напрямую */
     var A=window.APP||{},done=false;
-    function start(proxy){if(done)return;done=true;if(proxy&&A.SUPABASE_URL){A.DIRECT_URL=A.SUPABASE_URL;A.SUPABASE_URL=location.origin+'/sb'}seq(['/auth.js','/social.js','/sync.js'],0)}
+    function start(proxy){if(done)return;done=true;if(proxy&&A.SUPABASE_URL){A.DIRECT_URL=A.SUPABASE_URL;A.SUPABASE_URL=location.origin+'/sb'}seq(['/auth.js','/social.js','/sync.js','/dm.js'],0)}
     if(!/^https:/.test(location.protocol)||!A.SUPABASE_URL||!A.PUBLISHABLE_KEY){start(false);return}
     var ctl=window.AbortController?new AbortController():null,tm=setTimeout(function(){if(ctl)ctl.abort();start(false)},4000);
     fetch('/sb/auth/v1/health',{headers:{apikey:A.PUBLISHABLE_KEY},signal:ctl&&ctl.signal}).then(function(r){clearTimeout(tm);start(r.ok)}).catch(function(){clearTimeout(tm);start(false)});

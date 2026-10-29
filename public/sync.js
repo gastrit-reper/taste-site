@@ -110,7 +110,7 @@
     }
   }
   /* ---------- аватар и баннер: файл в хранилище, в профиле путь и кадрирование ---------- */
-  const MEDIA_MAX = 8 * 1024 * 1024, r5 = x => Math.round(x * 1e5) / 1e5;
+  const MEDIA_MAX = 4 * 1024 * 1024, r5 = x => Math.round(x * 1e5) / 1e5;
   let mediaOk = true;   // false: колонок аватара ещё нет (не выполнен stage12.sql)
   const mediaPath = {};  // что сейчас лежит на сервере: kind -> путь
   const mediaIn = m => (m && m.p) ? { url: '/media/' + m.p, path: m.p, nw: m.nw, nh: m.nh, cxn: m.cxn, cyn: m.cyn, wn: m.wn, hn: m.hn } : null;
@@ -121,6 +121,19 @@
     return (AUTH.profile && AUTH.profile[kind]) || null;   // ещё не загружено: пока оставляем то, что на сервере
   }
   const extOf = t => ({ 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp' }[t] || '');
+  async function shrinkImg(blob, maxSide) {
+    try {
+      const bmp = await createImageBitmap(blob);
+      const k = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
+      const w = Math.max(1, Math.round(bmp.width * k)), h = Math.max(1, Math.round(bmp.height * k));
+      const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+      cv.getContext('2d').drawImage(bmp, 0, 0, w, h);
+      if (bmp.close) bmp.close();
+      const out = await new Promise(r => cv.toBlob(r, 'image/webp', 0.85));
+      return out && out.type === 'image/webp' ? { blob: out, w, h } : null;
+    } catch (e) { return null; }
+  }
+  window.shrinkImg = shrinkImg;
   async function syncMedia(me) {
     for (const kind of ['avatar', 'banner']) {
       const c = S[kind];
@@ -128,10 +141,14 @@
       if (c.url.startsWith('/media/')) { c.path = c.url.slice(7); continue; }
       if (!c.url.startsWith('blob:') || c.path) continue;
       try {
-        const blob = await (await fetch(c.url)).blob();
+        let blob = await (await fetch(c.url)).blob();
+        if (blob.type !== 'image/gif') {   // экономим место: уменьшаем и пережимаем в WebP (рамка кадрирования в долях, поэтому не сдвигается)
+          const sm = await shrinkImg(blob, kind === 'avatar' ? 768 : 1920);
+          if (sm && sm.blob.size < blob.size) { blob = sm.blob; c.nw = sm.w; c.nh = sm.h; }
+        }
         const ext = extOf(blob.type);
         if (!ext) { c.noSave = true; toast('Этот тип файла нельзя сохранить в профиле. Подойдут PNG, JPG, GIF и WebP.'); continue; }
-        if (blob.size > MEDIA_MAX) { c.noSave = true; toast((kind === 'avatar' ? 'Аватар' : 'Баннер') + ' весит больше 8 МБ, поэтому сохранится только до перезагрузки. Выберите файл поменьше.'); continue; }
+        if (blob.size > MEDIA_MAX) { c.noSave = true; toast((kind === 'avatar' ? 'Аватар' : 'Баннер') + ' весит больше 4 МБ, поэтому сохранится только до перезагрузки. Выберите файл поменьше (или обычную картинку: её сайт сожмёт сам).'); continue; }
         const path = `${me}/${kind}-${Date.now().toString(36)}.${ext}`;
         const { error } = await sb.storage.from('media').upload(path, blob, { contentType: blob.type, cacheControl: '31536000', upsert: false });
         if (error) { if (/bucket not found/i.test(error.message || '')) mediaOk = false; throw error; }
