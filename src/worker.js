@@ -91,10 +91,25 @@ async function supaLib() {
   return new Response(up.body, { headers: { 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=2592000' } });
 }
 
+// Раз в сутки "будим" Supabase обычным запросом к базе, чтобы бесплатный проект не уходил на паузу после недели без заходов.
+// Ключ берём из публичного config.js сайта (он и так открыт всем).
+async function keepAlive(env) {
+  const cfg = await (await env.ASSETS.fetch(new Request('https://assets.local/config.js'))).text();
+  const key = (cfg.match(/PUBLISHABLE_KEY\s*[:=]\s*["']([^"']+)["']/) || [])[1];
+  if (!key) return { ok: false, why: 'в config.js не найден PUBLISHABLE_KEY' };
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=id&limit=1`, { headers: { apikey: key, Authorization: 'Bearer ' + key } });
+  const r2 = await fetch(`${SUPABASE_URL}/auth/v1/health`, { headers: { apikey: key } });
+  return { ok: r.status < 500 && r2.ok, rest: r.status, auth: r2.status, time: new Date().toISOString() };
+}
+
 export default {
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(keepAlive(env).then((r) => console.log('keepalive', JSON.stringify(r))));
+  },
   async fetch(request, env) {
     const url = new URL(request.url);
     const path = url.pathname;
+    if (path === '/keepalive') return new Response(JSON.stringify(await keepAlive(env).catch((e) => ({ ok: false, why: String(e) }))), { headers: { 'Content-Type': 'application/json' } });
     if (path.startsWith('/sb/')) return supaProxy(request, url);
     if (path === '/lib/supabase.js' && request.method === 'GET') return supaLib();
     if (path === '/api/music/search' && request.method === 'GET') return musicSearch(url);
