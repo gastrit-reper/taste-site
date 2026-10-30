@@ -116,7 +116,7 @@
   const mediaIn = m => (m && m.p) ? { url: '/media/' + m.p, path: m.p, nw: m.nw, nh: m.nh, cxn: m.cxn, cyn: m.cyn, wn: m.wn, hn: m.hn } : null;
   function mediaOut(kind) {
     const c = S[kind];
-    if (!c) return null;
+    if (!c) return (AUTH.mediaRemoved && AUTH.mediaRemoved[kind]) ? null : ((AUTH.profile && AUTH.profile[kind]) || null);   // «пусто» уходит на сервер только если человек сам нажал «Убрать»
     if (c.path) return { p: c.path, nw: c.nw, nh: c.nh, cxn: r5(c.cxn), cyn: r5(c.cyn), wn: r5(c.wn), hn: r5(c.hn) };
     return (AUTH.profile && AUTH.profile[kind]) || null;   // ещё не загружено: пока оставляем то, что на сервере
   }
@@ -406,7 +406,7 @@
           P.nick = pr.nick; P.about = pr.about || ''; P.links = pr.links || P.links; P.fav = pr.fav || P.fav; P.song = pr.song || '';
           res.ok = false;
         } else {
-          AUTH.setProfile(data);
+          AUTH.setProfile(data); AUTH.mediaRemoved = {};
           ['avatar', 'banner'].forEach(k => {   // старый файл на сервере больше не нужен
             const now = data[k] && data[k].p || '';
             if (mediaOk && mediaPath[k] && mediaPath[k] !== now) sb.storage.from('media').remove([mediaPath[k]]).catch(() => {});

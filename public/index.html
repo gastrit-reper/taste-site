@@ -709,7 +709,7 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10.</p>
-  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-30-lock</p>
+  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-30-media</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
@@ -2001,9 +2001,9 @@ function drawCrop(){
   ov.onmousedown=e=>{if(e.target===ov)closeCrop()};
   $('c-x').onclick=$('c-cancel').onclick=closeCrop;
   $('c-file').onclick=()=>chooseFile(kind);
-  const del=$('c-del');if(del)del.onclick=()=>{S[kind]=null;closeCrop();afterCrop()};
+  const del=$('c-del');if(del)del.onclick=()=>{S[kind]=null;if(window.AUTH)(AUTH.mediaRemoved=AUTH.mediaRemoved||{})[kind]=true;closeCrop();afterCrop()};
   $('c-z').oninput=e=>{CR.z=+e.target.value;layoutCrop()};
-  $('c-save').onclick=()=>{S[kind]=cropRect();closeCrop();afterCrop()};
+  $('c-save').onclick=()=>{S[kind]=cropRect();if(window.AUTH&&AUTH.mediaRemoved)AUTH.mediaRemoved[kind]=false;closeCrop();afterCrop()};
   const fr=$('c-frame');let drag=null;
   fr.onpointerdown=e=>{drag={x:e.clientX,y:e.clientY,cx:CR.cx,cy:CR.cy};fr.setPointerCapture(e.pointerId);fr.style.cursor='grabbing'};
   fr.onpointermove=e=>{if(!drag)return;CR.cx=drag.cx+(e.clientX-drag.x)/CR._dw;CR.cy=drag.cy+(e.clientY-drag.y)/CR._dh;layoutCrop()};
