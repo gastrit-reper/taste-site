@@ -245,6 +245,7 @@ button.pc-e:hover{outline:1px solid var(--accent)}
 .row.flash{animation:flash 1.6s ease-out}
 @keyframes flash{0%,40%{box-shadow:0 0 0 3px var(--accent)}100%{box-shadow:0 0 0 3px transparent}}
 .tb-r{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.ov,.mlb{overscroll-behavior:contain}
 .ov{position:fixed;inset:0;z-index:20;background:rgb(8 8 18 / .62);display:grid;place-items:start center;padding:16px;overflow:auto}
 .dlg{width:min(700px,100%);background:var(--surface);border-radius:16px;box-shadow:0 20px 60px rgb(0 0 0 / .35);margin-block:auto}
 .dh{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 18px 8px}
@@ -708,7 +709,7 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10.</p>
-  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-30-notif</p>
+  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-30-lock</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
@@ -3147,6 +3148,21 @@ render();
   }
   function lib2(){add('/lib/supabase.js',function(){window.supabase?go():cdn()},cdn)}
   add('/supabase.js',function(){window.supabase?go():lib2()},lib2);   // своя копия, потом через наш сайт, потом внешний адрес
+})();
+</script>
+<script>
+/* Пока открыто любое окно поверх страницы (.ov, .mlb), основная страница не прокручивается */
+(function(){
+  var locked=false,pad='',raf=0;
+  function open(){var n=document.querySelectorAll('.ov,.mlb');for(var i=0;i<n.length;i++){if(!n[i].hidden&&n[i].getClientRects().length)return true}return false}
+  function sync(){
+    raf=0;var want=open(),h=document.documentElement;
+    if(want&&!locked){var w=window.innerWidth-h.clientWidth;pad=document.body.style.paddingRight;if(w>0)document.body.style.paddingRight=w+'px';h.style.overflow='hidden';locked=true}
+    else if(!want&&locked){h.style.overflow='';document.body.style.paddingRight=pad;locked=false}
+  }
+  function q(){if(!raf)raf=requestAnimationFrame(sync)}
+  new MutationObserver(q).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden','class','style']});
+  q();
 })();
 </script>
 </body></html>
