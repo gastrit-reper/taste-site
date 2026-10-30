@@ -19,8 +19,8 @@
   .nfb[hidden]{display:none}
   #nf-bell{display:inline-flex;align-items:center;padding-inline:10px}
   #nf-bell .nfb{margin-left:4px}
-  .nfdlg{width:min(520px,100%);max-height:min(640px,calc(100vh - 32px));display:flex;flex-direction:column;overflow:hidden;margin-block:auto}
-  .nfdlg h2{margin:0;padding:14px 16px;font-size:16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+  .nfpop{position:fixed;z-index:40;width:380px;max-width:calc(100vw - 16px);display:flex;flex-direction:column;overflow:hidden;background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 40px rgb(0 0 0 / .45)}
+  .nfpop h2{margin:0;padding:12px 16px;font-size:15px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
   .nflist{overflow:auto;flex:1}
   .nfrow{display:flex;gap:10px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);cursor:pointer}
   .nfrow:hover{background:var(--surface2)}
@@ -101,14 +101,26 @@
     try { localStorage.setItem(seenKey(), String(seen)); } catch (e) {}
     unread = items.filter(n => n.kind === 'request').length; paintBadges();   // заявки остаются в счётчике, пока их не приняли
   }
-  NF.open = async function () {
+  let anchor = null;
+  function place() {   // панель под колокольчиком, у его правого края
+    if (!ov) return;
+    const w = window.innerWidth, r = anchor ? anchor.getBoundingClientRect() : { bottom: 60, right: w - 12 };
+    const top = Math.round(r.bottom + 8);
+    ov.style.top = top + 'px'; ov.style.maxHeight = Math.max(200, window.innerHeight - top - 12) + 'px';
+    if (w < 440) { ov.style.left = '8px'; ov.style.right = '8px'; ov.style.width = 'auto'; }
+    else { ov.style.left = 'auto'; ov.style.width = ''; ov.style.right = Math.max(8, Math.round(w - r.right)) + 'px'; }
+  }
+  window.addEventListener('resize', place);
+  document.addEventListener('mousedown', e => { if (ov && !ov.contains(e.target) && !(e.target.closest && e.target.closest('[data-notif]'))) close(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && ov) close(); });
+  NF.open = async function (from) {
     if (!me()) { if (window.toast) toast('Войдите в аккаунт, чтобы видеть уведомления.'); return; }
     if (ov) close();
-    ov = document.createElement('div'); ov.className = 'ov'; ov.id = 'nfov'; ov.style.zIndex = 30;
-    ov.innerHTML = `<div class="dlg nfdlg" role="dialog" aria-modal="true" aria-label="Уведомления"><h2>Уведомления<button type="button" class="ic" id="nf-x" style="margin-left:auto" aria-label="Закрыть">×</button></h2><div class="nflist" id="nf-list"><div class="nfempty">Загружаю…</div></div></div>`;
+    ov = document.createElement('div'); ov.className = 'nfpop'; ov.id = 'nfov'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', 'Уведомления');
+    ov.innerHTML = `<h2>Уведомления<button type="button" class="ic" id="nf-x" style="margin-left:auto" aria-label="Закрыть">×</button></h2><div class="nflist" id="nf-list"><div class="nfempty">Загружаю…</div></div>`;
     document.body.appendChild(ov);
-    ov.onmousedown = e => { if (e.target === ov) close(); };
-    ov.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+    anchor = (document.getElementById('nf-bell') && document.getElementById('nf-bell').offsetParent) ? document.getElementById('nf-bell') : (from || null);
+    place();
     document.getElementById('nf-x').onclick = close;
     ov.addEventListener('click', async e => {
       const acc = e.target.closest('[data-nfacc]');
@@ -137,7 +149,8 @@
     const b = e.target.closest && e.target.closest('[data-notif]');
     if (!b) return;
     e.preventDefault(); e.stopPropagation();
-    NF.open();
+    if (ov) { close(); return; }
+    NF.open(b);
   }, true);
 
   function start() {
