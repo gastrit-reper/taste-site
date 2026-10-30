@@ -21,7 +21,8 @@
   #nf-bell .nfb{margin-left:4px}
   .nfpop{position:fixed;z-index:40;width:380px;max-width:calc(100vw - 16px);display:flex;flex-direction:column;overflow:hidden;background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 40px rgb(0 0 0 / .45)}
   .nfpop h2{margin:0;padding:12px 16px;font-size:15px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
-  .nflist{overflow:auto;flex:1}
+  .nflist{overflow:auto;flex:1;overscroll-behavior:contain}
+  .nfpop{overscroll-behavior:contain}
   .nfrow{display:flex;gap:10px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);cursor:pointer}
   .nfrow:hover{background:var(--surface2)}
   .nfrow.new{background:color-mix(in srgb,var(--accent) 10%,transparent)}
@@ -119,6 +120,10 @@
     ov = document.createElement('div'); ov.className = 'nfpop'; ov.id = 'nfov'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', 'Уведомления');
     ov.innerHTML = `<h2>Уведомления<button type="button" class="ic" id="nf-x" style="margin-left:auto" aria-label="Закрыть">×</button></h2><div class="nflist" id="nf-list"><div class="nfempty">Загружаю…</div></div>`;
     document.body.appendChild(ov);
+    ov.addEventListener('wheel', e => {   // колесо над панелью крутит только список, страница под ней стоит
+      const l = document.getElementById('nf-list');
+      if (!l || l.scrollHeight <= l.clientHeight + 1 || (e.deltaY < 0 && l.scrollTop <= 0) || (e.deltaY > 0 && l.scrollTop + l.clientHeight >= l.scrollHeight - 1)) e.preventDefault();
+    }, { passive: false });
     anchor = (document.getElementById('nf-bell') && document.getElementById('nf-bell').offsetParent) ? document.getElementById('nf-bell') : (from || null);
     place();
     document.getElementById('nf-x').onclick = close;
