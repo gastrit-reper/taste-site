@@ -344,6 +344,7 @@
     else if (window.confirm('Убрать ' + viewing.nick + ' из друзей? Он останется вашим подписчиком.')) { ok = await unfollow(id); msg = 'Убрали из друзей'; }
     if (ok) { toast(msg); await load(); }
   }
+  SO.accept = async id => { if (await follow(id)) { toast('Теперь вы друзья'); await load(true); return true; } return false; };   // для уведомлений
   document.addEventListener('click', async e => {
     if (!SO.on()) return;
     let b;
