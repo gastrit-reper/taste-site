@@ -24,17 +24,40 @@
   const nickById = new Map();
   const addNick = (nick, id) => { if (nick) { byNick.set(String(nick).toLowerCase(), { id: id || (byNick.get(String(nick).toLowerCase()) || {}).id, nick }); if (id) { nickById.set(id, nick); wantAvatar(id); } } };
   /* аватары других людей: подгружаем одним запросом по мере того, как узнаём новых людей */
-  const avAsked = new Set(); let avPend = [], avT = null, avDead = false;
+  const avAsked = new Set(); let avPend = [], avT = null, avDead = false, avFail = 0;
+  const MC_KEY = 'dd_media_cache_v1';   // аватары и баннеры других людей помним в браузере: показываются сразу и не пропадают при сбое сети
+  let MC = {}; try { MC = JSON.parse(localStorage.getItem(MC_KEY) || '{}') || {}; } catch (e) { MC = {}; }
+  let mcT = null;
+  const mcSave = () => { clearTimeout(mcT); mcT = setTimeout(() => { try { const k = Object.keys(MC); if (k.length > 300) k.slice(0, k.length - 300).forEach(x => delete MC[x]); localStorage.setItem(MC_KEY, JSON.stringify(MC)); } catch (e) {} }, 500); };
+  function mcPut(nick, a, b) {   // a, b: то, что пришло с сервера (null = у человека нет, undefined = не спрашивали)
+    const k = String(nick).toLowerCase(), o = MC[k] || {};
+    if (a !== undefined) { if (a && a.p) o.a = a; else delete o.a; }
+    if (b !== undefined) { if (b && b.p) o.b = b; else delete o.b; }
+    if (o.a || o.b) MC[k] = o; else delete MC[k];
+    mcSave();
+  }
   function wantAvatar(id) { if (avDead || !id || avAsked.has(id) || (AUTH.user && id === AUTH.user.id)) return; avAsked.add(id); avPend.push(id); clearTimeout(avT); avT = setTimeout(fetchAv, 200); }
-  function setAv(nick, a) { if (!nick || !a || !a.p || !AUTH.mediaIn) return false; const o = AUTH.mediaIn(a); (window.AVMAP || (window.AVMAP = {}))[String(nick).toLowerCase()] = o; return true; }
+  function setAv(nick, a) { if (!nick || !AUTH.mediaIn) return false; const map = (window.AVMAP || (window.AVMAP = {})), k = String(nick).toLowerCase(); mcPut(nick, a || null); if (!a || !a.p) { delete map[k]; return false; } map[k] = AUTH.mediaIn(a); return true; }
+  function fromCache() {   // сразу показываем то, что помним с прошлого раза
+    const map = (window.AVMAP || (window.AVMAP = {}));
+    Object.keys(MC).forEach(k => { if (MC[k].a && !map[k] && AUTH.mediaIn) map[k] = AUTH.mediaIn(MC[k].a); });
+  }
   async function fetchAv() {
     const ids = avPend.splice(0); let any = false;
     for (let i = 0; i < ids.length; i += 100) {
+      const part = ids.slice(i, i + 100);
       try {
-        const { data, error } = await sb.from('profiles').select('id,nick,avatar').in('id', ids.slice(i, i + 100));
-        if (error) { avDead = true; return; }
+        const { data, error } = await sb.from('profiles').select('id,nick,avatar').in('id', part);
+        if (error) throw error;
+        avFail = 0;
         (data || []).forEach(p => { if (setAv(p.nick, p.avatar)) any = true; });
-      } catch (e) { return; }
+      } catch (e) {
+        console.error('avatars', e);
+        if (/column|avatar/i.test((e && e.message) || '') && !/network|fetch/i.test((e && e.message) || '')) { avDead = true; return; }   // колонок аватара нет вообще
+        part.forEach(id => avAsked.delete(id));   // сбой связи: не сдаёмся, спросим ещё раз позже
+        if (++avFail <= 6) { avPend.push(...part); clearTimeout(avT); avT = setTimeout(fetchAv, Math.min(60000, 2000 * avFail * avFail)); }
+        return;
+      }
     }
     if (any && SO.on()) SO.safeRender && SO.safeRender();
   }
@@ -48,6 +71,7 @@
   document.head.appendChild(st);
 
   /* ---------- что видит index.html ---------- */
+  fromCache();
   SO.on = () => !!AUTH.syncOn;
   SO.viewing = () => viewing;
   SO.friendsList = () => [...rel].filter(([, r]) => r.i && r.t && r.nick).map(([id, r]) => ({ id, nick: r.nick }));
@@ -183,7 +207,7 @@
     }
     if (!quiet) render(); else safeRender();
   }
-  document.addEventListener('sync-entered', () => { if (AUTH.profile) addNick(AUTH.profile.nick, myId()); load(); });
+  document.addEventListener('sync-entered', () => { fromCache(); if (AUTH.profile) addNick(AUTH.profile.nick, myId()); load(); });
   document.addEventListener('auth-changed', () => {
     if (AUTH.user) return;
     loadSeq++; rel = new Map(); events = []; viewing = null; byNick.clear(); nickById.clear(); pcache.clear(); eng.clear(); owner.clear();
@@ -219,8 +243,10 @@
     if (AUTH.profile && n.toLowerCase() === AUTH.profile.nick.toLowerCase()) { setProfile(true); window.scrollTo(0, 0); return; }
     try {
       let { data: pr, error } = await sb.from('profiles').select(PCOLS).ilike('nick', escLike(n)).maybeSingle();
-      if (error) ({ data: pr, error } = await sb.from('profiles').select(PCOLS0).ilike('nick', escLike(n)).maybeSingle());
+      if (error && !/column|avatar|banner/i.test(error.message || '')) ({ data: pr, error } = await sb.from('profiles').select(PCOLS).ilike('nick', escLike(n)).maybeSingle());   // сбой связи: второй попыткой не теряем аватар и баннер
+      if (error) { console.warn('profile without media', error); ({ data: pr, error } = await sb.from('profiles').select(PCOLS0).ilike('nick', escLike(n)).maybeSingle()); }
       if (error) throw error;
+      if (pr && pr.avatar === undefined) { const c = MC[String(pr.nick).toLowerCase()]; if (c) { if (c.a) pr.avatar = c.a; if (c.b) pr.banner = c.b; } }   // ответ был урезан: берём запомненное
       if (!pr) { toast('Пользователь не найден'); return; }
       const recs = [];
       for (let from = 0; ; from += 1000) {
@@ -232,7 +258,7 @@
       const { data: ps, error: e3 } = await sb.from('posts').select('id,body,visibility,created_at').eq('user_id', pr.id).order('created_at', { ascending: false }).limit(100);
       if (e3) throw e3;
       const colls = AUTH.fetchColls ? await AUTH.fetchColls(pr.id) : [];
-      setAv(pr.nick, pr.avatar);
+      if (pr.avatar !== undefined) { setAv(pr.nick, pr.avatar); mcPut(pr.nick, pr.avatar || null, pr.banner || null); }
       AUTH.setOther(pr, recs, (ps || []).map(mapPost), colls);
       (ps || []).forEach(p => owner.set(p.id, pr.id));
       await loadEng((ps || []).map(p => p.id));
