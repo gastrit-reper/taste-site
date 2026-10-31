@@ -139,7 +139,7 @@
       const n = items[+row.dataset.i]; if (!n) return;
       close();
       if (n.kind === 'request' || n.kind === 'friend') { if (SO() && SO().openUser) SO().openUser(n.actor_nick); }
-      else { const m = document.querySelector('[data-hnav="me"]'); if (m) m.click(); window.scrollTo(0, 0); }
+      else { const m = document.getElementById('v-me'); if (m) m.click(); window.scrollTo(0, 0); }
     });
     if (dead) { document.getElementById('nf-list').innerHTML = '<div class="nfempty">Уведомления ещё не включены: нужно выполнить stage15.sql в Supabase.</div>'; return; }
     const ok = await fetchAll();
