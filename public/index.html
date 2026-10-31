@@ -53,6 +53,13 @@
 .vsw button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent)}
 .tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:8px}
 .tgi{position:relative;min-width:0}
+@media (hover:hover){
+.tgi{transition:transform .24s cubic-bezier(.2,.8,.2,1)}
+.tgi .cover{transition:box-shadow .24s ease,outline-color .2s}
+.tgi:hover{transform:translateY(-7px) scale(1.08);z-index:5}
+.tgi:hover .cover{box-shadow:0 14px 26px rgb(0 0 0 / .55),0 0 0 1px var(--accent)}
+.tgi:has(.kebab.open){z-index:6}
+}
 .tgi .tcv{display:block;color:inherit;text-decoration:none}
 .tgi .cover{width:100%;height:auto;aspect-ratio:2/3;border-radius:7px;font-size:24px}
 .tgi .cover img{object-fit:cover}
@@ -713,7 +720,7 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10.</p>
-  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-31-tabs2</p>
+  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-31-anim</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
@@ -957,8 +964,28 @@ function renderTabs(){
     h += c.st.map(s=>`<button class="subtab ${stc(s)}" data-sub="${s}" aria-pressed="${S.sub===s}"><i class="dot"></i>${s}<span class="n">${rows.filter(r=>r[3]===s).length}</span></button>`).join('');
   }
   const el = document.getElementById('tabs');
+  const wasCompact = el.classList.contains('compact'), had = el.children.length>0, oldW = {}, oldX = {};
+  if(had) el.querySelectorAll('[data-tab]').forEach(b=>{ oldW[b.dataset.tab]=b.getBoundingClientRect().width; oldX[b.dataset.tab]=[...b.querySelectorAll('.lbl,.n')].map(x=>x.outerHTML).join(''); });
   el.className = 'tabs'+(compact?' compact':'');
   el.innerHTML = h;
+  if(had && wasCompact!==compact && el.animate && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)){
+    const ease='cubic-bezier(.22,.8,.2,1)';
+    el.querySelectorAll('[data-tab]').forEach(b=>{
+      const from=oldW[b.dataset.tab], to=b.getBoundingClientRect().width;
+      if(!from||Math.abs(from-to)<2) return;
+      b.style.overflow='hidden'; b.style.whiteSpace='nowrap';
+      let ghost=null;
+      if(compact){   // сворачиваем: подпись и число на миг остаются и гаснут, пока вкладка сужается
+        ghost=document.createElement('span'); ghost.style.cssText='display:inline-flex;gap:6px;align-items:center'; ghost.innerHTML=oldX[b.dataset.tab]||''; b.appendChild(ghost);
+        ghost.animate([{opacity:1},{opacity:0}],{duration:220,easing:'ease-out',fill:'forwards'});
+      } else {      // разворачиваем: подпись плавно проявляется
+        b.querySelectorAll('.lbl,.n').forEach(x=>x.animate([{opacity:0,transform:'translateX(-6px)'},{opacity:1,transform:'none'}],{duration:300,delay:90,easing:ease,fill:'backwards'}));
+      }
+      const a=b.animate([{width:from+'px'},{width:to+'px'}],{duration:340,easing:ease});
+      a.onfinish=a.oncancel=()=>{ b.style.overflow=''; b.style.whiteSpace=''; if(ghost) ghost.remove(); };
+    });
+    el.querySelectorAll('.vsep,.subtab').forEach((x,i)=>x.animate([{opacity:0,transform:'translateX(-12px) scale(.94)'},{opacity:1,transform:'none'}],{duration:320,delay:80+i*40,easing:ease,fill:'backwards'}));
+  }
   el.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{S.view=b.dataset.tab;S.sub='all';S.al=null;S.ar=null;render()});
   el.querySelectorAll('[data-sub]').forEach(b=>b.onclick=()=>{S.sub=b.dataset.sub;renderTabs();renderMain()});
   el.querySelectorAll('[data-msub]').forEach(b=>b.onclick=()=>{S.msub=b.dataset.msub;S.al=null;S.ar=null;renderTabs();renderMain()});
@@ -1279,8 +1306,8 @@ function renderMusic(){
   }
   let list=DATA.music.map(r=>ALB[r[0]]).filter(Boolean);
   const dd=a=>albRow(a.t)[5],ss=a=>albRow(a.t)[2];
-  list=S.sort==='score'?list.sort((a,b)=>ss(b)-ss(a)):S.sort==='worst'?list.sort((a,b)=>(ss(a)||99)-(ss(b)||99)):list.sort((a,b)=>dd(a)-dd(b));
-  return `<div class="toolbar"><span>${list.length} альбомов</span><span class="tb-r">${addBtn('music')}<label>Сортировка <select id="sort"><option value="recent" ${S.sort==='recent'?'selected':''}>Недавние</option><option value="score" ${S.sort==='score'?'selected':''}>Сначала лучшие</option><option value="worst" ${S.sort==='worst'?'selected':''}>Сначала худшие</option></select></label></span></div>`+(list.length?list.map(albRowHtml).join(''):'<div class="empty">Пока нет оценок.</div>');
+  list=S.sort==='score'?list.sort((a,b)=>ss(b)-ss(a)):S.sort==='liked'?list.sort((a,b)=>(albFav(b.t)?1:0)-(albFav(a.t)?1:0)||dd(a)-dd(b)):S.sort==='worst'?list.sort((a,b)=>(ss(a)||99)-(ss(b)||99)):list.sort((a,b)=>dd(a)-dd(b));
+  return `<div class="toolbar"><span>${list.length} альбомов</span><span class="tb-r">${addBtn('music')}<label>Сортировка <select id="sort"><option value="recent" ${S.sort==='recent'?'selected':''}>Недавние</option><option value="score" ${S.sort==='score'?'selected':''}>Сначала лучшие</option><option value="worst" ${S.sort==='worst'?'selected':''}>Сначала худшие</option><option value="liked" ${S.sort==='liked'?'selected':''}>Любимое</option></select></label></span></div>`+(list.length?list.map(albRowHtml).join(''):'<div class="empty">Пока нет оценок.</div>');
 }
 const scoreSel=(cur,attr)=>`<select class="ssel" ${attr} aria-label="Оценка">${Array.from({length:11},(_,i)=>`<option value="${i}" ${i===cur?'selected':''}>${i||'—'}</option>`).join('')}</select>`;
 function renderAlbum(){
@@ -1487,10 +1514,11 @@ function renderMain(){
     h = renderMusic();
   } else {
     let rows = all(S.view).filter(r=>S.sub==='all'||r.st===S.sub);
-    rows = S.sort==='score'?rows.sort((a,b)=>b.s-a.s||b.ts-a.ts):S.sort==='worst'?rows.sort((a,b)=>(a.s||99)-(b.s||99)||b.ts-a.ts):rows.sort((a,b)=>b.ts-a.ts);
+    const lk=r=>(EXTRA[kk(r.k,r.t)]||{}).liked?1:0;
+    rows = S.sort==='score'?rows.sort((a,b)=>b.s-a.s||b.ts-a.ts):S.sort==='liked'?rows.sort((a,b)=>lk(b)-lk(a)||b.ts-a.ts):S.sort==='worst'?rows.sort((a,b)=>(a.s||99)-(b.s||99)||b.ts-a.ts):rows.sort((a,b)=>b.ts-a.ts);
     const tl=!!ST.tiles&&S.view!=='music';
     const sw=`<span class="vsw" role="group" aria-label="Вид списка"><button type="button" data-layout="list" aria-pressed="${!tl}" aria-label="Список" title="Список"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><button type="button" data-layout="tiles" aria-pressed="${tl}" aria-label="Плитки" title="Плитки"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg></button></span>`;
-    h = `<div class="toolbar"><span>${rows.length} из ${DATA[S.view].length}</span><span class="tb-r">${sw}${addBtn(S.view)}<label>Сортировка <select id="sort"><option value="recent" ${S.sort==='recent'?'selected':''}>Недавние</option><option value="score" ${S.sort==='score'?'selected':''}>Сначала лучшие</option><option value=\"worst\" ${S.sort==='worst'?'selected':''}>Сначала худшие</option></select></label></span></div>`
+    h = `<div class="toolbar"><span>${rows.length} из ${DATA[S.view].length}</span><span class="tb-r">${sw}${addBtn(S.view)}<label>Сортировка <select id="sort"><option value="recent" ${S.sort==='recent'?'selected':''}>Недавние</option><option value="score" ${S.sort==='score'?'selected':''}>Сначала лучшие</option><option value=\"worst\" ${S.sort==='worst'?'selected':''}>Сначала худшие</option><option value="liked" ${S.sort==='liked'?'selected':''}>Любимое</option></select></label></span></div>`
       + (rows.length?(tl?`<div class="tgrid">${rows.map(tileCard).join('')}</div>`:rows.map(r=>ratingRow(r,false)).join('')):'<div class="empty">В этом списке пока пусто.</div>');
   }
   el.innerHTML = h;
