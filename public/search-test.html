@@ -56,6 +56,20 @@ h4{margin:0 0 2px;font-size:15px;font-weight:500}.m{color:var(--muted);font-size
 .fine{margin-top:24px;color:var(--muted);font-size:12px}
 .row[data-tid]{cursor:pointer}.row[data-tid]:hover{border-color:var(--accent)}h4 a.tl{color:inherit;text-decoration:none}
 a{color:var(--accent)}
+/* анимации */
+@keyframes rowIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.row{transition:transform .2s cubic-bezier(.2,.8,.2,1),border-color .2s,box-shadow .2s;animation:rowIn .32s cubic-bezier(.2,.8,.2,1) backwards}
+.cv{transition:transform .25s cubic-bezier(.3,1.4,.5,1)}
+.gs-chip,.btn{transition:transform .16s cubic-bezier(.2,.8,.2,1),background .2s,color .2s,border-color .2s,box-shadow .2s}
+.gs-chip:active,.btn:active{transform:scale(.95)}
+.gs-box svg{transition:transform .35s cubic-bezier(.3,1.5,.5,1),stroke .2s}.gs-box:focus-within svg{stroke:var(--accent);transform:scale(1.18) rotate(-12deg)}
+.tb{transition:transform .15s}.tb:hover{transform:translateX(3px)}
+@media (hover:hover){
+.row[data-tid]:hover{transform:translateX(8px);box-shadow:0 8px 22px rgb(0 0 0 / .3)}
+.row[data-tid]:hover .cv{transform:scale(1.08) rotate(-1.5deg)}
+.gs-chip:hover,.btn:hover{transform:translateY(-2px)}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style></head><body><div class="wrap">
   <div class="gs">
     <div class="gs-row"><a class="btn gs-home" href="/">← <span>На сайт</span></a><div class="gs-box"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="q" type="search" autocomplete="off" placeholder="Поиск: игры, фильмы, сериалы, аниме, музыка, книги" aria-label="Поиск"></div></div>
@@ -142,14 +156,14 @@ function render(list, warn) {
   try { localStorage.setItem('search_rows', JSON.stringify(LAST.slice(0, 40).map(t => ({...t, description: (t.description || '').slice(0, 300)})))); } catch (_) {}
   if (!list.length) { $('out').innerHTML = '<div class="st">Ничего не найдено. Проверьте написание или выберите другую категорию.</div>'; return; }
   $('out').innerHTML = (warn ? '<div class="warn">Часть внешних баз сейчас недоступна, показаны найденные результаты.</div>' : '') +
-    list.map(t => {
+    list.map((t, i) => {
       const src = thumb(t.cover_url);
       const cv = src
         ? `<img class="cv" loading="lazy" alt="" src="${esc(src)}" onerror="fb(this,'${esc(t.title[0])}',${hue(t.title)})">`
         : `<div class="cv ph" style="background:hsl(${hue(t.title)} 45% 42%)">${esc(t.title[0])}</div>`;
       const orig = t.original_title && t.original_title !== t.title ? ` · ${esc(t.original_title)}` : '';
       const who = (t.creators || []).length ? ` · ${esc(t.creators.slice(0, 2).join(', '))}` : '';
-      return `<div class="row" data-tid="${esc(tid(t))}">${cv}<div><h4><a class="tl" href="/?t=${encodeURIComponent(tid(t))}">${esc(t.title)}</a></h4>
+      return `<div class="row" data-tid="${esc(tid(t))}" style="animation-delay:${Math.min(i, 8) * 40}ms">${cv}<div><h4><a class="tl" href="/?t=${encodeURIComponent(tid(t))}">${esc(t.title)}</a></h4>
         <div class="m">${KIND[t.category] || t.category}${t.year ? ' · ' + t.year : ''}${who}${orig}</div>
         <div class="m">${esc((t.genres || []).slice(0, 3).join(', '))}</div>
         <div class="d">${esc(t.description)}</div>
