@@ -31,6 +31,11 @@
   .nft q{display:block;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
   .nfbtn{display:flex;gap:6px}.nfbtn .btn{padding:4px 10px;font-size:13px}
   .nfempty{padding:28px 20px;text-align:center;color:var(--muted)}
+  @keyframes nfDrop{from{opacity:0;transform:translateY(-8px) scale(.97)}to{opacity:1;transform:none}}
+  @keyframes nfWig{0%,100%{transform:rotate(0)}25%{transform:rotate(16deg)}50%{transform:rotate(-14deg)}75%{transform:rotate(8deg)}}
+  .nfpop{animation:nfDrop .2s cubic-bezier(.2,.8,.2,1);transform-origin:top right}
+  .nfrow{transition:background .15s,transform .15s}.nfrow:hover{transform:translateX(3px)}
+  #nf-bell:hover svg{animation:nfWig .6s ease-in-out;transform-origin:50% 10%}
   `;
   document.head.appendChild(st);
 

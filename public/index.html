@@ -504,6 +504,36 @@ textarea.fld{min-height:96px;resize:vertical}
   .row{grid-template-columns:40px minmax(0,1fr) auto;gap:10px}
   .row .cover{width:40px;height:58px}
 }
+/* ===== анимации ===== */
+@keyframes ddFade{from{opacity:0}to{opacity:1}}
+@keyframes ddPop{from{opacity:0;transform:translateY(12px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes ddDrop{from{opacity:0;transform:translateY(-6px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes ddToast{from{opacity:0;transform:translate(-50%,14px)}to{opacity:1;transform:translate(-50%,0)}}
+@keyframes ddHeart{0%{transform:scale(1)}40%{transform:scale(1.4)}100%{transform:scale(1)}}
+.ov.ov-in{animation:ddFade .18s ease-out}.ov.ov-in>.dlg{animation:ddPop .26s cubic-bezier(.2,.8,.2,1)}.mlb.ov-in{animation:ddFade .2s ease-out}
+.kebab.open .kb-menu{animation:ddDrop .16s ease-out;transform-origin:top right}
+.gs-pop:not([hidden]){animation:ddDrop .18s ease-out}
+.toast{animation:ddToast .25s cubic-bezier(.2,.8,.2,1)}
+.so-act svg{transition:transform .15s}.so-act:active svg{transform:scale(.8)}.so-act.ddpop svg{animation:ddHeart .38s ease-out}
+.gs-box{transition:border-color .2s,box-shadow .2s}.gs-box:focus-within{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+.btn,.gs-chip,.subtab,.tab,.seg button,.pc-d,.hm-nav button,.hm-li,.friend,.so-row,.hc,.row{transition:transform .18s cubic-bezier(.2,.8,.2,1),background .2s,color .2s,border-color .2s,box-shadow .2s}
+@media (hover:hover){
+.btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgb(0 0 0 / .25)}
+.btn.primary:hover{box-shadow:0 6px 18px color-mix(in srgb,var(--accent) 45%,transparent)}
+.btn:active,.gs-chip:active,.subtab:active,.tab:active,.seg button:active{transform:scale(.95)}
+.gs-chip:hover,.subtab:hover{transform:translateY(-2px)}
+.tab:hover{transform:translateY(-1px)}.tab svg{transition:transform .25s cubic-bezier(.3,1.6,.5,1)}.tab:hover svg{transform:scale(1.18)}
+.pc-d:hover{transform:scale(1.14)}
+.hm-nav button:hover{transform:translateX(4px)}
+.hm-nav button>svg:first-child{transition:transform .25s cubic-bezier(.3,1.6,.5,1)}.hm-nav button:hover>svg:first-child{transform:scale(1.18) rotate(-6deg)}
+.hm-li:hover{transform:translateX(3px)}
+.hm-li .cover{transition:transform .22s}.hm-li:hover .cover{transform:scale(1.08) rotate(-2deg)}
+.friend,.so-row{border-radius:10px}
+.friend:hover,.so-row:hover{transform:translateX(4px);background:var(--surface2);box-shadow:-6px 0 0 var(--surface2),6px 0 0 var(--surface2)}
+.friend .av,.so-row .hm-av{transition:transform .25s cubic-bezier(.3,1.6,.5,1)}.friend:hover .av,.so-row:hover .hm-av{transform:scale(1.14)}
+.hc:hover,.row:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgb(0 0 0 / .25)}
+.row .cover{transition:transform .25s}.row:hover .cover{transform:scale(1.05)}
+}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 /* музыка, сборники, редактирование профиля */
 .crumb{margin-bottom:10px}
@@ -720,7 +750,7 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10.</p>
-  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-31-anim</p>
+  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-31-anim2</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
@@ -1306,8 +1336,8 @@ function renderMusic(){
   }
   let list=DATA.music.map(r=>ALB[r[0]]).filter(Boolean);
   const dd=a=>albRow(a.t)[5],ss=a=>albRow(a.t)[2];
-  list=S.sort==='score'?list.sort((a,b)=>ss(b)-ss(a)):S.sort==='liked'?list.sort((a,b)=>(albFav(b.t)?1:0)-(albFav(a.t)?1:0)||dd(a)-dd(b)):S.sort==='worst'?list.sort((a,b)=>(ss(a)||99)-(ss(b)||99)):list.sort((a,b)=>dd(a)-dd(b));
-  return `<div class="toolbar"><span>${list.length} альбомов</span><span class="tb-r">${addBtn('music')}<label>Сортировка <select id="sort"><option value="recent" ${S.sort==='recent'?'selected':''}>Недавние</option><option value="score" ${S.sort==='score'?'selected':''}>Сначала лучшие</option><option value="worst" ${S.sort==='worst'?'selected':''}>Сначала худшие</option><option value="liked" ${S.sort==='liked'?'selected':''}>Любимое</option></select></label></span></div>`+(list.length?list.map(albRowHtml).join(''):'<div class="empty">Пока нет оценок.</div>');
+  list=S.sort==='score'?list.sort((a,b)=>ss(b)-ss(a)):S.sort==='liked'?list.filter(a=>albFav(a.t)).sort((a,b)=>dd(a)-dd(b)):S.sort==='worst'?list.sort((a,b)=>(ss(a)||99)-(ss(b)||99)):list.sort((a,b)=>dd(a)-dd(b));
+  return `<div class="toolbar"><span>${list.length} альбомов</span><span class="tb-r">${addBtn('music')}<label>Сортировка <select id="sort"><option value="recent" ${S.sort==='recent'?'selected':''}>Недавние</option><option value="score" ${S.sort==='score'?'selected':''}>Сначала лучшие</option><option value="worst" ${S.sort==='worst'?'selected':''}>Сначала худшие</option><option value="liked" ${S.sort==='liked'?'selected':''}>Любимое</option></select></label></span></div>`+(list.length?list.map(albRowHtml).join(''):`<div class="empty">${S.sort==='liked'?'Здесь появятся альбомы, у которых нажато «Нравится».':'Пока нет оценок.'}</div>`);
 }
 const scoreSel=(cur,attr)=>`<select class="ssel" ${attr} aria-label="Оценка">${Array.from({length:11},(_,i)=>`<option value="${i}" ${i===cur?'selected':''}>${i||'—'}</option>`).join('')}</select>`;
 function renderAlbum(){
@@ -1515,11 +1545,11 @@ function renderMain(){
   } else {
     let rows = all(S.view).filter(r=>S.sub==='all'||r.st===S.sub);
     const lk=r=>(EXTRA[kk(r.k,r.t)]||{}).liked?1:0;
-    rows = S.sort==='score'?rows.sort((a,b)=>b.s-a.s||b.ts-a.ts):S.sort==='liked'?rows.sort((a,b)=>lk(b)-lk(a)||b.ts-a.ts):S.sort==='worst'?rows.sort((a,b)=>(a.s||99)-(b.s||99)||b.ts-a.ts):rows.sort((a,b)=>b.ts-a.ts);
+    rows = S.sort==='score'?rows.sort((a,b)=>b.s-a.s||b.ts-a.ts):S.sort==='liked'?rows.filter(lk).sort((a,b)=>b.ts-a.ts):S.sort==='worst'?rows.sort((a,b)=>(a.s||99)-(b.s||99)||b.ts-a.ts):rows.sort((a,b)=>b.ts-a.ts);
     const tl=!!ST.tiles&&S.view!=='music';
     const sw=`<span class="vsw" role="group" aria-label="Вид списка"><button type="button" data-layout="list" aria-pressed="${!tl}" aria-label="Список" title="Список"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><button type="button" data-layout="tiles" aria-pressed="${tl}" aria-label="Плитки" title="Плитки"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg></button></span>`;
     h = `<div class="toolbar"><span>${rows.length} из ${DATA[S.view].length}</span><span class="tb-r">${sw}${addBtn(S.view)}<label>Сортировка <select id="sort"><option value="recent" ${S.sort==='recent'?'selected':''}>Недавние</option><option value="score" ${S.sort==='score'?'selected':''}>Сначала лучшие</option><option value=\"worst\" ${S.sort==='worst'?'selected':''}>Сначала худшие</option><option value="liked" ${S.sort==='liked'?'selected':''}>Любимое</option></select></label></span></div>`
-      + (rows.length?(tl?`<div class="tgrid">${rows.map(tileCard).join('')}</div>`:rows.map(r=>ratingRow(r,false)).join('')):'<div class="empty">В этом списке пока пусто.</div>');
+      + (rows.length?(tl?`<div class="tgrid">${rows.map(tileCard).join('')}</div>`:rows.map(r=>ratingRow(r,false)).join('')):'<div class="empty">'+(S.sort==='liked'?'Здесь появятся записи, у которых нажато «Нравится».':'В этом списке пока пусто.')+'</div>');
   }
   el.innerHTML = h;
   const s=document.getElementById('sort'); if(s) s.onchange=()=>{S.sort=s.value;renderMain()};
@@ -3200,6 +3230,14 @@ render();
   function q(){if(!raf)raf=requestAnimationFrame(sync)}
   new MutationObserver(q).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden','class','style']});
   q();
+})();
+</script>
+<script>
+/* Плавное появление окон: класс ov-in живёт только первые полсекунды после создания окна */
+(function(){
+  new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(function(n){
+    if(n.nodeType===1&&n.classList&&(n.classList.contains('ov')||n.classList.contains('mlb'))){n.classList.add('ov-in');setTimeout(function(){n.classList.remove('ov-in')},450)}
+  })})}).observe(document.body,{childList:true});
 })();
 </script>
 </body></html>

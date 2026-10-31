@@ -298,6 +298,7 @@
     if (busy.has(id)) return; busy.add(id);
     const old = { ...(eng.get(id) || ZERO()) }, was = old.liked;
     eng.set(id, { ...old, liked: !was, likes: Math.max(0, old.likes + (was ? -1 : 1)) }); paintEng(id);
+    if (!was) document.querySelectorAll('[data-solike]').forEach(b => { if (b.dataset.solike === id) { b.classList.add('ddpop'); setTimeout(() => b.classList.remove('ddpop'), 450); } });
     const q = was ? sb.from('likes').delete().eq('user_id', myId()).eq('target_id', id) : sb.from('likes').insert({ user_id: myId(), target_id: id });
     const { error } = await q;
     if (error && error.code !== '23505') { console.error(error); eng.set(id, old); paintEng(id); toast('Не получилось. Попробуйте ещё раз.'); }
