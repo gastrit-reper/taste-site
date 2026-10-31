@@ -25,6 +25,8 @@
 body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.45;padding-inline:16px;padding-block:0 48px}
 button{font:inherit;color:inherit;cursor:pointer}
 button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.gs-box input:focus-visible{outline:0}
+.gs-box{transition:border-color .2s,box-shadow .2s}.gs-box:hover{border-color:color-mix(in srgb,var(--accent) 55%,var(--line))}.gs-box:focus-within{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
 .wrap{max-width:1160px;margin-inline:auto}
 /* верхняя строка и строка поиска: те же размеры и место, что на главной */
 .proto{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;padding-block:12px;min-height:62px;color:var(--muted);font-size:13px}

@@ -534,6 +534,24 @@ textarea.fld{min-height:96px;resize:vertical}
 .hc:hover,.row:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgb(0 0 0 / .25)}
 .row .cover{transition:transform .25s}.row:hover .cover{transform:scale(1.05)}
 }
+/* поиск и шестерёнка */
+.gs-box input:focus-visible{outline:0}   /* рамку фокуса даёт само поле целиком, внутренняя красная полоса сидела криво */
+.gs-box:hover{border-color:color-mix(in srgb,var(--accent) 55%,var(--line))}
+.gs-box svg{transition:transform .35s cubic-bezier(.3,1.5,.5,1),stroke .2s}
+.gs-box:focus-within svg{stroke:var(--accent);transform:scale(1.18) rotate(-12deg)}
+.gs-box kbd{transition:opacity .2s,transform .25s}.gs-box:focus-within kbd{opacity:0;transform:scale(.7)}
+.gs-box input::placeholder{transition:opacity .25s}.gs-box input:focus::placeholder{opacity:.4}
+.gs-it{transition:transform .16s cubic-bezier(.2,.8,.2,1),border-color .15s,background .15s}
+.gs-it .cover{transition:transform .22s}
+@keyframes ddSpin{from{transform:rotate(60deg)}to{transform:rotate(420deg)}}
+.gear svg{transition:transform .5s cubic-bezier(.3,1.4,.4,1)}
+.gear.spin svg{animation:ddSpin .7s cubic-bezier(.5,0,.2,1)}
+.pop:not([hidden]){animation:ddDrop .2s cubic-bezier(.2,.8,.2,1);transform-origin:top right}
+@media (hover:hover){
+.gear:hover svg{transform:rotate(60deg)}
+.gear:active{transform:scale(.92)}
+.gs-it:hover,.gs-it.act{transform:translateX(4px)}.gs-it:hover .cover,.gs-it.act .cover{transform:scale(1.08)}
+}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 /* музыка, сборники, редактирование профиля */
 .crumb{margin-bottom:10px}
@@ -750,7 +768,7 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10.</p>
-  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-31-anim2</p>
+  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-31-anim4</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
@@ -3235,6 +3253,7 @@ render();
 <script>
 /* Плавное появление окон: класс ov-in живёт только первые полсекунды после создания окна */
 (function(){
+  document.addEventListener('click',function(e){var g=e.target.closest&&e.target.closest('#gear');if(!g)return;g.classList.remove('spin');void g.offsetWidth;g.classList.add('spin');setTimeout(function(){g.classList.remove('spin')},750)},true);   /* true: ловим клик раньше обработчика шестерёнки, он останавливает событие */
   new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(function(n){
     if(n.nodeType===1&&n.classList&&(n.classList.contains('ov')||n.classList.contains('mlb'))){n.classList.add('ov-in');setTimeout(function(){n.classList.remove('ov-in')},450)}
   })})}).observe(document.body,{childList:true});
