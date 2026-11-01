@@ -102,7 +102,7 @@
     const row = (n, extra = '') => `<div class="so-row">${avatarOf(n)}<button type="button" class="so-nm" data-user="${esc(n)}">${esc(n)}</button>${extra}</div>`;
     let h = '';
     if (reqs.length) h += `<section class="card"><h3>Заявки в друзья · ${reqs.length}</h3>${reqs.map(([id, r]) => row(r.nick, `<span class="so-b"><button type="button" class="btn primary" data-sacc="${esc(id)}">Принять</button><button type="button" class="btn" data-sdec="${esc(id)}">Нет</button></span>`)).join('')}</section>`;
-    h += `<section class="card"><h3>Друзья${fr.length ? ' · ' + fr.length : ''}</h3>${fr.length ? fr.map(([, r]) => row(r.nick)).join('') : '<div class="sub">Пока никого. Найдите человека по нику через поиск вверху.</div>'}${sent ? `<div class="sub" style="margin-top:6px">Ждут ответа: ${sent}</div>` : ''}</section>`;
+    h += `<section class="card"><h3><button type="button" data-fview title="Открыть список друзей" style="all:unset;cursor:pointer">Друзья${fr.length ? ' · ' + fr.length : ''} ›</button></h3>${fr.length ? fr.map(([, r]) => row(r.nick)).join('') : '<div class="sub">Пока никого. Найдите человека по нику через поиск вверху.</div>'}${sent ? `<div class="sub" style="margin-top:6px">Ждут ответа: ${sent}</div>` : ''}</section>`;
     return h;
   };
   SO.renderFriends = () => {

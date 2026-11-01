@@ -768,7 +768,7 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10.</p>
-  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-11-01-friends</p>
+  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-11-01-friends2</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
@@ -3101,6 +3101,7 @@ function wdLoad(kind,force){
   WD.busy[kind]=true;
   SOCIAL.world[kind]().then(r=>{WD[kind]=r;WD.err[kind]=''},e=>{console.error('home',kind,e);WD.err[kind]=String((e&&(e.message||e.code))||e||'ошибка')}).then(()=>{
     WD.busy[kind]=false;WD.t[kind]=Date.now();
+    if(kind==='match')drawFv();
     const hm=document.getElementById('home');if(!hm||hm.hidden)return;
     const ct=document.getElementById('ct');if(ct&&ct.textContent.trim())return;   // не затираем недописанный пост
     if([...document.querySelectorAll('.so-cf textarea')].some(t=>t.value.trim()))return;
@@ -3114,7 +3115,25 @@ function wdMsg(kind){   // что показать, пока данных нет
   return '';
 }
 const hcBody=x=>`<button type="button" class="hc-body" data-hopen="${esc(x.key)}">${cover(x.c.t,'',x.k)}<div class="i"><b>${esc(x.c.t)}</b><span class="sub">${esc(CATS[x.k].one)} · ${esc(x.c.by||'')}${x.c.y?' · '+x.c.y:''}</span><p>${esc(x.c.d||'')}</p></div></button>`;
-function friendsPanel(){   // верх вкладки «Друзья»: человек по вкусу и список друзей
+function closeFv(){const o=document.getElementById('fvov');if(o)o.remove()}
+function drawFv(){const b=document.getElementById('fv-body');if(b)b.innerHTML=friendsPanel()}
+function openFv(){   // большое окно «Друзья»: человек по вкусу и список друзей (без постов)
+  if(!wdOn()){toast('Войдите в аккаунт, чтобы видеть друзей.');return}
+  closeFv();
+  const o=document.createElement('div');o.className='ov';o.id='fvov';o.style.zIndex=30;
+  o.innerHTML=`<div class="dlg" role="dialog" aria-modal="true" aria-label="Друзья" style="width:min(680px,100%);margin-block:auto"><h2 style="display:flex;align-items:center;margin:0 0 12px">Друзья<button type="button" class="ic" id="fv-x" style="margin-left:auto" aria-label="Закрыть">×</button></h2><div id="fv-body" style="display:flex;flex-direction:column;gap:12px"></div></div>`;
+  document.body.appendChild(o);
+  o.onmousedown=e=>{if(e.target===o)closeFv()};
+  o.addEventListener('keydown',e=>{if(e.key==='Escape')closeFv()});
+  document.getElementById('fv-x').onclick=closeFv;
+  o.addEventListener('click',e=>{
+    if(e.target.closest('[data-wdnext]')){WD.mi=((WD.mi<0?0:WD.mi)+1)%((WD.match||[1]).length||1);drawFv();return}
+    const rt=e.target.closest('[data-wdretry]');if(rt){WD.err.match='';WD.match=null;wdLoad('match',true);drawFv();return}
+    if(e.target.closest('[data-user],[data-dm]'))setTimeout(closeFv,0);   // дальше сработает обычный переход к профилю или сообщениям
+  });
+  wdLoad('match');drawFv();
+}
+function friendsPanel(){   // содержимое окна «Друзья»
   if(!wdOn())return '';
   const fr=(SOCIAL.friendsList?SOCIAL.friendsList():[]);
   return `${matchCard()}<section class="card" aria-label="Мои друзья"><h3>Мои друзья · ${fr.length}</h3>${fr.length?fr.map(f=>`<div class="hm-li" style="cursor:default">${avatar(f.nick)}<span class="i"><button type="button" class="so-nm" data-user="${esc(f.nick)}" style="text-align:left">${esc(f.nick)}</button></span><button type="button" class="btn" data-dm="${esc(f.nick)}">Написать</button></div>`).join(''):'<div class="sub">Пока никого. Найдите человека по нику через поиск вверху и подпишитесь, а когда он подпишется в ответ, вы станете друзьями.</div>'}</section>`;
@@ -3200,7 +3219,6 @@ window.renderHome=function(){
     <form class="post compose" id="cf"><span class="sub" id="ct-l">Новый пост</span><div id="ct" class="ced" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="ct-l" data-ph="О чём думаете?"></div><div class="sugg" id="sg"></div><div class="r"><span class="hint">{{ — сослаться на игру, фильм, книгу. @ — отметить человека.</span><span id="cc">0 / 5000</span>${window.SOCIAL?SOCIAL.visSel():''}<button class="btn primary" type="submit">Опубликовать</button></div></form>
     <div class="hm-bar">${tabsSeg()}
     <div class="hm-chips" role="group" aria-label="Категория">${[['all','Все'],...(HS.tab==='friends'?[['posts','Только посты']]:[]),...ORDER.map(k=>[k,CATS[k].name])].map(([id,l])=>`<button type="button" class="gs-chip" data-hcat="${id}" aria-pressed="${HS.cat===id}">${l}</button>`).join('')}</div></div>
-    ${HS.tab==='friends'?friendsPanel():''}
     ${HS.tab==='friends'&&HS.cat!=='posts'?nowStrip(HS.cat==='all'?null:HS.cat):''}
     ${r.cards.join('')}${empty}${r.total>HS.n?`<button type="button" class="btn hm-more" data-hmore>Показать ещё</button>`:''}
     ${window.SOCIAL&&SOCIAL.on()?'':'<p class="note" style="margin:0">Лента друзей пока примерная: настоящая появится вместе с аккаунтами.</p>'}
@@ -3220,6 +3238,7 @@ document.addEventListener('click',e=>{
   if(e.target.closest('[data-hmore]')){HS.n+=10;renderHome();return}
   if(e.target.closest('[data-hworld]')){HS.view='world';HS.n=10;renderHome();window.scrollTo(0,0);return}
   if(e.target.closest('[data-wdnext]')){WD.mi=((WD.mi<0?0:WD.mi)+1)%((WD.match||[1]).length||1);renderHome();return}
+  if(e.target.closest('[data-fview]')){openFv();return}
   if(b=e.target.closest('[data-wdretry]')){const k=b.dataset.wdretry;WD.err[k]='';WD[k]=null;wdLoad(k,true);renderHome();return}
   if(e.target.closest('[data-auth]')){const ab=document.getElementById('au-btn');if(ab)ab.click();return}
   if(b=e.target.closest('[data-wsort]')){HS.wsort=b.dataset.wsort;HS.n=10;renderHome();return}
