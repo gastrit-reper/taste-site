@@ -58,13 +58,26 @@
     slot.parentNode.insertBefore(b, slot);
   }
 
-  const isNew = n => n.kind === 'request' || (Date.parse(n.created_at) || 0) > seen;
+  const isNew = n => n.kind === 'request' || n.kind === 'msg' || (Date.parse(n.created_at) || 0) > seen;
+  /* новые сообщения: одна строка на человека («3 новых сообщения»), пока они не прочитаны в «Сообщениях» */
+  async function fetchMsgs() {
+    const { data, error } = await sb.from('messages').select('sender_id,body,created_at').eq('recipient_id', me()).is('read_at', null).order('created_at', { ascending: false }).limit(100);
+    if (error || !data || !data.length) return [];
+    const by = new Map();
+    data.forEach(m => { const g = by.get(m.sender_id); if (g) g.n++; else by.set(m.sender_id, { n: 1, last: m }); });
+    const { data: pr } = await sb.from('profiles').select('id,nick').in('id', [...by.keys()]);
+    const nick = new Map((pr || []).map(p => [p.id, p.nick]));
+    const out = [];
+    by.forEach((g, id) => { if (nick.get(id)) out.push({ kind: 'msg', actor_nick: nick.get(id), n: g.n, snippet: g.last.body, created_at: g.last.created_at }); });
+    return out;
+  }
   async function fetchAll() {
     if (!me() || dead) return false;
     try {
       const { data, error } = await sb.rpc('my_notifications', { p_limit: 60 });
       if (error) throw error;
       items = Array.isArray(data) ? data : [];
+      try { items = items.concat(await fetchMsgs()); items.sort((a, b) => (Date.parse(b.created_at) || 0) - (Date.parse(a.created_at) || 0)); } catch (e) { console.error('notif msgs', e); }
       unread = items.filter(isNew).length; paintBadges();
       return true;
     } catch (e) {
@@ -87,6 +100,7 @@
   function text(n) {
     const who = `<b>${esc(n.actor_nick)}</b>`;
     if (n.kind === 'request') return `${who} хочет дружить`;
+    if (n.kind === 'msg') return n.n > 1 ? `${who}: ${n.n} ${n.n < 5 ? 'новых сообщения' : 'новых сообщений'}` : `${who} написал вам`;
     if (n.kind === 'friend') return `Теперь вы друзья: ${who}`;
     if (n.kind === 'like') return `${who}: лайк ${target(n)}`;
     return `${who} оставил комментарий к ${target(n)}`;
@@ -95,7 +109,7 @@
   function draw() {
     const box = document.getElementById('nf-list'); if (!box) return;
     box.innerHTML = items.length ? items.map((n, i) => `<div class="nfrow${isNew(n) ? ' new' : ''}" data-i="${i}">${avatar(n.actor_nick)}<div class="nft">${text(n)}${n.snippet ? `<q>${esc(n.snippet)}</q>` : ''}<small>${esc(ago(n.created_at))}</small></div>${n.kind === 'request' ? `<span class="nfbtn"><button type="button" class="btn primary" data-nfacc="${esc(n.actor_id)}">Принять</button></span>` : ''}</div>`).join('')
-      : '<div class="nfempty">Пока ничего нового. Здесь появятся заявки в друзья, комментарии и лайки.</div>';
+      : '<div class="nfempty">Пока ничего нового. Здесь появятся заявки в друзья, сообщения, комментарии и лайки.</div>';
   }
 
   function close() {
@@ -105,7 +119,7 @@
   function markSeen() {
     seen = Date.now();
     try { localStorage.setItem(seenKey(), String(seen)); } catch (e) {}
-    unread = items.filter(n => n.kind === 'request').length; paintBadges();   // заявки остаются в счётчике, пока их не приняли
+    unread = items.filter(n => n.kind === 'request' || n.kind === 'msg').length; paintBadges();   // заявки и непрочитанные сообщения остаются в счётчике, пока их не приняли
   }
   let anchor = null;
   function place() {   // панель под колокольчиком, у его правого края
@@ -143,7 +157,8 @@
       const row = e.target.closest('.nfrow'); if (!row) return;
       const n = items[+row.dataset.i]; if (!n) return;
       close();
-      if (n.kind === 'request' || n.kind === 'friend') { if (SO() && SO().openUser) SO().openUser(n.actor_nick); }
+      if (n.kind === 'msg') { if (window.DM && DM.open) DM.open(n.actor_nick); }
+      else if (n.kind === 'request' || n.kind === 'friend') { if (SO() && SO().openUser) SO().openUser(n.actor_nick); }
       else { const m = document.getElementById('v-me'); if (m) m.click(); window.scrollTo(0, 0); }
     });
     if (dead) { document.getElementById('nf-list').innerHTML = '<div class="nfempty">Уведомления ещё не включены: нужно выполнить stage15.sql в Supabase.</div>'; return; }

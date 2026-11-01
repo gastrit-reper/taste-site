@@ -211,6 +211,6 @@
   }, true);
 
   countUnread();
-  badgeTimer = setInterval(() => { if (!ov) countUnread(); }, 60000);
+  badgeTimer = setInterval(() => { if (!ov) countUnread(); }, 20000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden && !ov) countUnread(); });
 })();

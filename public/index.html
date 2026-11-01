@@ -768,7 +768,7 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10.</p>
-  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-10-31-anim4</p>
+  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-11-01-world</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
@@ -3029,10 +3029,10 @@ const st=document.createElement('style');st.textContent='.imp-drop{display:grid;
 })();
 </script>
 <script>
-/* ===== главная: лента друзей, рекомендации, тренды. Лента примерная, пока нет аккаунтов ===== */
+/* ===== главная: лента друзей, рекомендации, тренды (настоящие данные при входе, пример для гостя) ===== */
 (function(){
 const HK='home_prefs_v1';
-const HS={tab:'friends',cat:'all',n:10,liked:new Set(),view:'home',wsort:'hot',openTh:new Set()};
+const HS={tab:'friends',cat:'all',n:10,liked:new Set(),view:'home',wsort:'hot'};
 try{const p=JSON.parse(localStorage.getItem(HK)||'{}');if(['friends','foryou','trend'].includes(p.tab))HS.tab=p.tab;if(p.cat==='all'||p.cat==='posts'||CATS[p.cat])HS.cat=p.cat;(p.liked||[]).forEach(x=>HS.liked.add(x))}catch(_){}
 const HTABS=[['world','Мир'],['trend','В тренде'],['friends','Друзья'],['foryou','Для вас']];   // порядок вкладок «Главной»
 const htabOn=id=>id==='world'?HS.view==='world':(HS.view==='home'&&HS.tab===id);
@@ -3079,62 +3079,65 @@ function card(e){
   return `<article class="hc"><div class="hc-h">${avatar(e.who)}<div class="t"><b${real&&e.who!=='me'?` class="hm-who" data-user="${esc(e.who)}"`:''}>${esc(nm)}</b><div class="sub">${ago(e.d)}</div></div><span class="hc-chip ${e.status?stc(e.status):''}">${esc(chip)}</span></div>${body}
     <div class="hc-f">${real?(e.tid&&window.SOCIAL?SOCIAL.bar(e.tid):''):`<button type="button" data-hlike="${esc(e.id)}" class="${liked?'on':''}" aria-pressed="${liked}"><svg viewBox="0 0 24 24"><use href="#heart"/></svg>${likes||''}</button><button type="button" data-hcom>Комментарий</button>`}${e.key&&!rated(e.key)?`<button type="button" data-hopen="${esc(e.key)}">Оценить</button>`:''}</div>${real&&e.tid&&window.SOCIAL?SOCIAL.box(e.tid):''}</article>`;
 }
-function recs(){
-  // жанры из высоко оценённого у вас: чем выше оценка, тем сильнее вес
-  const w={};ORDER.forEach(k=>DATA[k].forEach(r=>{const c=CAT_IDX[kk(k,r[0])];if(c&&r[2]>=8)(c.g||[]).forEach(g=>w[g]=(w[g]||0)+r[2]-7)}));
-  const likedBy=key=>FRIENDS.filter(([n])=>rnd(hue(n+key),6)<.28).map(f=>f[0]).slice(0,2);
-  return ALL().filter(x=>!rated(x.key)).map(x=>{const gs=(x.c.g||[]).filter(g=>w[g]);const sc=gs.reduce((a,g)=>a+w[g],0)+rnd(hue(x.key),8);return {...x,sc,gs}}).sort((a,b)=>b.sc-a.sc).slice(0,24);
-}
-function trend(){return ALL().map(x=>({...x,n:Math.floor(500+rnd(hue(x.key),11)*9000)})).sort((a,b)=>b.n-a.n)}
 function render2(){
   const onlyPosts=HS.cat==='posts'&&HS.tab==='friends',fl=(HS.cat==='all'||HS.cat==='posts')?null:HS.cat;let list=[],note='';
   if(HS.tab==='friends'){list=[...EV,...mine()].sort((a,b)=>tsFor(b.d,b.ts)-tsFor(a.d,a.ts)||(a.who==='me'?-1:1)).filter(e=>!fl||e.k===fl||(e.t==='post'&&false));if(fl)list=list.filter(e=>e.k===fl);if(onlyPosts)list=list.filter(e=>e.t==='post')}
   const cards=[];
   if(HS.tab==='friends')list.slice(0,HS.n).forEach(e=>cards.push(card(e)));
-  else if(HS.tab==='foryou'){const r=recs().filter(x=>!fl||x.k===fl);r.slice(0,HS.n).forEach(x=>{const fr=FRIENDS.filter(([n])=>rnd(hue(n+x.key),6)<.28).map(f=>f[0]).slice(0,2);cards.push(`<article class="hc"><div class="hc-h"><span class="hm-av" style="background:var(--accent);color:var(--accent-fg)">★</span><div class="t"><b>Рекомендация</b><div class="sub hm-why">${x.gs.length?'Вам нравится: '+esc(x.gs.slice(0,2).join(', ')):'Популярное в этой категории'}${fr.length?' · оценили друзья: '+esc(fr.join(', ')):''}</div></div></div><button type="button" class="hc-body" data-hopen="${esc(x.key)}">${cover(x.c.t,'',x.k)}<div class="i"><b>${esc(x.c.t)}</b><span class="sub">${esc(CATS[x.k].one)} · ${esc(x.c.by||'')}${x.c.y?' · '+x.c.y:''}</span><p>${esc(x.c.d||'')}</p></div></button></article>`)});list=r}
-  else{const r=trend().filter(x=>!fl||x.k===fl);r.slice(0,HS.n).forEach((x,i)=>cards.push(`<article class="hc"><div class="hc-h"><span class="hm-rk" style="font-size:18px">${i+1}</span><div class="t"><b>В тренде</b><div class="sub">${kfmt(x.n)} оценок за неделю</div></div></div><button type="button" class="hc-body" data-hopen="${esc(x.key)}">${cover(x.c.t,'',x.k)}<div class="i"><b>${esc(x.c.t)}</b><span class="sub">${esc(CATS[x.k].one)} · ${esc(x.c.by||'')}${x.c.y?' · '+x.c.y:''}</span><p>${esc(x.c.d||'')}</p></div></button></article>`));list=r}
+  else if(HS.tab==='foryou'){wdLoad('recs');const r=(WD.recs||[]).filter(x=>!fl||x.k===fl);r.slice(0,HS.n).forEach(x=>cards.push(recCard(x)));list=r}
+  else{wdLoad('trend');const r=(WD.trend||[]).filter(x=>!fl||x.k===fl);r.slice(0,HS.n).forEach((x,i)=>cards.push(trendCard(x,i,WD.trend.label)));list=r}
   return {cards,total:list.length};
 }
 
-/* ===== Мир: популярные обсуждения (примерные, пока нет аккаунтов) ===== */
-const W_USERS=['north_wind','kinofan_77','pixel_witch','old_reader','mira.k','tape_deck','late_night','grey_cat','vova_plays','lena_reads'];
-const W_T=[t=>`Стоит ли начинать «${t}»?`,t=>`«${t}»: переоценено или нет?`,t=>`Любимый момент в «${t}» (без спойлеров)`,t=>`Что после «${t}»? Посоветуйте похожее`,t=>`Чего вы ждали от «${t}» и что получили?`,t=>`«${t}» спустя годы: как вам сейчас?`];
-let TH=null;
-function threads(){
-  if(TH)return TH;
-  TH=ALL().map((x,i)=>{
-    const h=hue(x.key)+i*3,tpl=W_T[Math.floor(rnd(h,1)*W_T.length)],pool=POOL[Math.floor(rnd(h,2)*POOL.length)];
-    const rep=Math.floor(8+Math.pow(rnd(h,3),2)*900),likes=Math.floor(rep*(.6+rnd(h,4)*2));
-    return {id:'th|'+x.key,key:x.key,k:x.k,c:x.c,title:tpl(x.c.t),text:pool[0],who:W_USERS[Math.floor(rnd(h,5)*W_USERS.length)],d:Math.floor(rnd(h,6)*8),rep,likes,hot:rep*2+likes};
+/* ===== Мир, В тренде, Для вас: настоящие данные =====
+   Грузит social.js (SOCIAL.world): «Мир» берёт открытые посты и отзывы всех людей, «В тренде» и «Для вас» считает сервер (stage16.sql). */
+const WD={trend:null,recs:null,world:null,t:{},err:{},busy:{}};
+const wdOn=()=>!!(window.SOCIAL&&SOCIAL.on()&&SOCIAL.world);
+const pl=(n,a)=>{const m=n%100,d=n%10;return a[m>10&&m<20?2:d===1?0:d>1&&d<5?1:2]};
+const clip=(t,n)=>{t=String(t||'').replace(/\{\{(.+?)\}\}/g,'$1').replace(/\s+/g,' ').trim();return t.length>n?t.slice(0,n-1)+'…':t};
+function wdLoad(kind,force){
+  if(!wdOn()||WD.busy[kind])return;
+  if(!force&&WD.t[kind]&&Date.now()-WD.t[kind]<90000)return;   // не чаще раза в 90 секунд
+  WD.busy[kind]=true;
+  SOCIAL.world[kind]().then(r=>{WD[kind]=r;WD.err[kind]=''},e=>{console.error('home',kind,e);WD.err[kind]=String((e&&(e.message||e.code))||e||'ошибка')}).then(()=>{
+    WD.busy[kind]=false;WD.t[kind]=Date.now();
+    const hm=document.getElementById('home');if(!hm||hm.hidden)return;
+    const ct=document.getElementById('ct');if(ct&&ct.textContent.trim())return;   // не затираем недописанный пост
+    if([...document.querySelectorAll('.so-cf textarea')].some(t=>t.value.trim()))return;
+    renderHome();
   });
-  return TH;
 }
-function threadCard(t){
-  const open=HS.openTh.has(t.id),liked=HS.liked.has(t.id),h=hue(t.id);
-  const replies=open?`<div class="th-rep">${[0,1,2].map(i=>{const p=POOL[Math.floor(rnd(h,10+i)*POOL.length)],n=W_USERS[Math.floor(rnd(h,20+i)*W_USERS.length)];return `<div class="th-r"><span class="hm-av" style="background:hsl(${hue(n)} 45% 42%);width:28px;height:28px;font-size:12px">${esc(n[0].toUpperCase())}</span><div><b>${esc(n)}</b><p>${esc(p[0])}</p></div></div>`}).join('')}<p class="note" style="margin:0">Это пример: настоящие ответы появятся вместе с аккаунтами.</p></div>`:'';
-  return `<article class="hc"><div class="hc-h"><span class="hm-av" style="background:hsl(${hue(t.who)} 45% 42%)">${esc(t.who[0].toUpperCase())}</span><div class="t"><b>${esc(t.who)}</b><div class="sub">${ago(t.d)}</div></div><span class="hc-chip">${esc(CATS[t.k].one)}</span></div>
-    <div><b class="th-t">${esc(t.title)}</b><p class="th-p">${esc(t.text)}</p></div>
-    <button type="button" class="hm-li th-ref" data-hopen="${esc(t.key)}">${cover(t.c.t,'',t.k)}<span class="i"><b>${esc(t.c.t)}</b><span class="sub">${esc(t.c.by||'')}${t.c.y?' · '+t.c.y:''}</span></span></button>
-    <div class="hc-f"><button type="button" data-hlike="${esc(t.id)}" class="${liked?'on':''}" aria-pressed="${liked}"><svg viewBox="0 0 24 24"><use href="#heart"/></svg>${t.likes+(liked?1:0)}</button><button type="button" data-hth="${esc(t.id)}" aria-expanded="${open}">${open?'Скрыть ответы':t.rep+' ответов'}</button></div>${replies}</article>`;
+function wdMsg(kind){   // что показать, пока данных нет: вход, загрузка, ошибка
+  if(!wdOn())return `<div class="hc hm-empty">Эта лента строится из оценок и постов всех людей на сайте.<br>Войдите в аккаунт, чтобы её увидеть.<div style="margin-top:12px"><button type="button" class="btn primary" data-auth>Войти или зарегистрироваться</button></div></div>`;
+  if(WD.err[kind])return /function|schema cache|does not exist|PGRST20/i.test(WD.err[kind])?`<div class="hc hm-empty">Эта лента ещё не включена: нужно выполнить stage16.sql в Supabase.</div>`:`<div class="hc hm-empty">Не удалось загрузить.<div style="margin-top:12px"><button type="button" class="btn" data-wdretry="${kind}">Повторить</button></div></div>`;
+  if(!WD[kind])return `<div class="hc hm-empty">Загружаю…</div>`;
+  return '';
 }
+const hcBody=x=>`<button type="button" class="hc-body" data-hopen="${esc(x.key)}">${cover(x.c.t,'',x.k)}<div class="i"><b>${esc(x.c.t)}</b><span class="sub">${esc(CATS[x.k].one)} · ${esc(x.c.by||'')}${x.c.y?' · '+x.c.y:''}</span><p>${esc(x.c.d||'')}</p></div></button>`;
+const recCard=x=>`<article class="hc"><div class="hc-h"><span class="hm-av" style="background:var(--accent);color:var(--accent-fg)">★</span><div class="t"><b>Рекомендация</b><div class="sub hm-why">${x.why==='similar'?'Высоко оценили люди с похожим вкусом: '+x.n:'Средняя оценка '+x.avg+' · оценили '+x.n+' '+pl(x.n,['человек','человека','человек'])}</div></div></div>${hcBody(x)}</article>`;
+const trendCard=(x,i,label)=>`<article class="hc"><div class="hc-h"><span class="hm-rk" style="font-size:18px">${i+1}</span><div class="t"><b>В тренде</b><div class="sub">${x.n} ${pl(x.n,['оценка','оценки','оценок'])} ${esc(label||'за неделю')}${x.avg?' · средняя '+x.avg:''}</div></div></div>${hcBody(x)}</article>`;
 function worldMain(){
+  wdLoad('world');
   const fl=HS.cat==='all'||HS.cat==='posts'?null:HS.cat;
-  let list=threads().filter(t=>!fl||t.k===fl);
-  list=[...list].sort(HS.wsort==='hot'?(a,b)=>b.hot-a.hot:(a,b)=>a.d-b.d||b.hot-a.hot);
+  let list=(WD.world||[]).filter(e=>!fl||e.k===fl);   // при выбранной категории остаются только отзывы к ней
+  list=[...list].sort(HS.wsort==='hot'?(a,b)=>b.hot-a.hot:(a,b)=>b.ts-a.ts);
   const sorts=[['hot','Популярное'],['new','Свежее']];
+  const msg=list.length?'':(wdMsg('world')||`<div class="hc hm-empty">${fl?'В этой категории пока нет отзывов.':'В мире пока нет открытых постов и отзывов. Опубликуйте пост для всех или оставьте отзыв к игре, фильму или книге.'}</div>`);
   return `<div class="hm-main"><div class="hm-bar">${tabsSeg()}<span class="seg" style="display:inline-flex" role="tablist" aria-label="Порядок">${sorts.map(([id,l])=>`<button type="button" role="tab" data-wsort="${id}" aria-pressed="${HS.wsort===id}">${l}</button>`).join('')}</span>
     <div class="hm-chips" role="group" aria-label="Категория">${[['all','Все'],...ORDER.map(k=>[k,CATS[k].name])].map(([id,l])=>`<button type="button" class="gs-chip" data-hcat="${id}" aria-pressed="${(HS.cat==='posts'?'all':HS.cat)===id}">${l}</button>`).join('')}</div></div>
-    ${list.slice(0,HS.n).map(threadCard).join('')||'<div class="hc hm-empty">В этой категории пока нет обсуждений.</div>'}${list.length>HS.n?'<button type="button" class="btn hm-more" data-hmore>Показать ещё</button>':''}
-    <p class="note" style="margin:0">Обсуждения пока примерные: настоящие появятся вместе с аккаунтами.</p></div>`;
+    ${list.slice(0,HS.n).map(card).join('')}${msg}${list.length>HS.n?'<button type="button" class="btn hm-more" data-hmore>Показать ещё</button>':''}
+    ${wdOn()?'<p class="note" style="margin:0">Здесь открытые посты и отзывы (без спойлеров) всех людей на сайте.</p>':''}</div>`;
 }
 function side(){
-  const tr=trend().slice(0,5);
+  const live=wdOn();if(live){wdLoad('trend');wdLoad('world')}
+  const tr=live?(WD.trend||[]).slice(0,5):[];
+  const hot=live?[...(WD.world||[])].filter(e=>e.comments>0).sort((a,b)=>(b.comments*2+b.likes)-(a.comments*2+a.likes)).slice(0,4):[];
   const prog=[];ORDER.forEach(k=>DATA[k].forEach(r=>{if(/^(Играю|Смотрю|Читаю)$/.test(r[3])){const c=CAT_IDX[kk(k,r[0])];if(c)prog.push({k,c,key:kk(k,r[0]),st:r[3]})}}));
   const li=(x,rk)=>`<button type="button" class="hm-li" data-hopen="${esc(x.key)}">${rk?`<span class="hm-rk">${rk}</span>`:''}${cover(x.c.t,'',x.k)}<span class="i"><b>${esc(x.c.t)}</b><span class="sub">${esc(x.st||CATS[x.k].one)}${x.c.y?' · '+x.c.y:''}</span></span></button>`;
   return `${prog.length?`<section class="card"><h3>Сейчас в процессе</h3>${prog.slice(0,5).map(x=>li(x)).join('')}</section>`:''}
-  <section class="card"><h3>В тренде на неделе</h3>${tr.map((x,i)=>li(x,i+1)).join('')}</section>
+  ${tr.length?`<section class="card"><h3>В тренде ${esc(WD.trend.label||'за неделю')}</h3>${tr.map((x,i)=>li(x,i+1)).join('')}</section>`:''}
   ${window.SOCIAL&&SOCIAL.on()?SOCIAL.sideHtml():`<section class="card"><h3>Друзья</h3>${FRIENDS.map(([n,on])=>`<div class="hm-li" style="cursor:default">${avatar(n)}<span class="i"><b>${esc(n)}</b><span class="sub">${on?'в сети':'не в сети'}</span></span></div>`).join('')}</section>`}
-  <section class="card"><h3>Обсуждают в мире</h3>${[...threads()].sort((a,b)=>b.hot-a.hot).slice(0,4).map(t=>`<button type="button" class="hm-li" data-hworld><span class="i"><b>${esc(t.title)}</b><span class="sub">${t.rep} ответов · ${esc(CATS[t.k].one)}</span></span></button>`).join('')}</section>`;
+  ${hot.length?`<section class="card"><h3>Обсуждают в мире</h3>${hot.map(e=>`<button type="button" class="hm-li" data-hworld><span class="i"><b>${esc(e.t==='post'?clip(e.text,60):e.c.t)}</b><span class="sub">${e.comments} ${pl(e.comments,['ответ','ответа','ответов'])} · ${e.t==='post'?'Пост':esc(CATS[e.k].one)}</span></span></button>`).join('')}</section>`:''}`;
 }
 const IC={mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',home:'<path d="M3 11l9-8 9 8v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z"/>',search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/>',coll:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5"/>',cog:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',plus:'<path d="M12 5v14M5 12h14"/>',bell:'<path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 003.4 0"/>',globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>'};
 const svg=n=>`<svg viewBox="0 0 24 24" aria-hidden="true">${IC[n]}</svg>`;
@@ -3168,7 +3171,9 @@ window.renderHome=function(){
   const hm=document.getElementById('home');if(!EV||(window.SOCIAL&&SOCIAL.on()))EV=build();
   document.body.classList.add('on-home');
   const r=render2();
-  const empty=!r.cards.length?`<div class="hc hm-empty">${HS.tab==='friends'?(window.SOCIAL&&SOCIAL.on()?'Здесь появятся оценки и посты друзей и тех, на кого вы подписаны.<br>Найдите людей по нику через поиск вверху.':'Здесь появятся оценки и посты друзей.<br>Пока тихо: перенесите свои оценки или посмотрите, что в тренде.'):'Пока ничего не нашлось в этой категории.'}<div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button type="button" class="btn primary" data-import>Импорт оценок</button><button type="button" class="btn" data-htab="trend">В тренде</button></div></div>`:'';
+  const wk=HS.tab==='foryou'?'recs':HS.tab==='trend'?'trend':null;
+  const wm=wk&&!r.cards.length?(wdMsg(wk)||`<div class="hc hm-empty">${HS.cat!=='all'?'В этой категории пока ничего нет.':wk==='recs'?'Пока нечего советовать: оцените несколько тайтлов, и сайт найдёт людей с похожим вкусом. Чем больше оценок у всех, тем точнее подборка.':'За последнее время ещё никто ничего не оценивал.'}</div>`):'';
+  const empty=wm||(!r.cards.length?`<div class="hc hm-empty">${HS.tab==='friends'?(window.SOCIAL&&SOCIAL.on()?'Здесь появятся оценки и посты друзей и тех, на кого вы подписаны.<br>Найдите людей по нику через поиск вверху.':'Здесь появятся оценки и посты друзей.<br>Пока тихо: перенесите свои оценки или посмотрите, что в тренде.'):'Пока ничего не нашлось в этой категории.'}<div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button type="button" class="btn primary" data-import>Импорт оценок</button><button type="button" class="btn" data-htab="trend">В тренде</button></div></div>`:'');
   if(HS.view==='world'){hm.innerHTML=`<div class="home">${nav()}${worldMain()}<aside class="hm-side">${side()}</aside></div>${tabbar()}`;return}
   hm.innerHTML=`<div class="home">${nav()}<div class="hm-main">
     ${welcome()}
@@ -3177,7 +3182,7 @@ window.renderHome=function(){
     <div class="hm-chips" role="group" aria-label="Категория">${[['all','Все'],...(HS.tab==='friends'?[['posts','Только посты']]:[]),...ORDER.map(k=>[k,CATS[k].name])].map(([id,l])=>`<button type="button" class="gs-chip" data-hcat="${id}" aria-pressed="${HS.cat===id}">${l}</button>`).join('')}</div></div>
     ${HS.tab==='friends'&&HS.cat!=='posts'?nowStrip(HS.cat==='all'?null:HS.cat):''}
     ${r.cards.join('')}${empty}${r.total>HS.n?`<button type="button" class="btn hm-more" data-hmore>Показать ещё</button>`:''}
-    ${window.SOCIAL&&SOCIAL.on()?(HS.tab==='friends'?'':'<p class="note" style="margin:0">Рекомендации и тренды пока примерные.</p>'):'<p class="note" style="margin:0">Лента друзей пока примерная: настоящая появится вместе с аккаунтами.</p>'}
+    ${window.SOCIAL&&SOCIAL.on()?'':'<p class="note" style="margin:0">Лента друзей пока примерная: настоящая появится вместе с аккаунтами.</p>'}
   </div><aside class="hm-side">${side()}</aside></div>${tabbar()}`;
   bindCompose();
 };
@@ -3193,7 +3198,8 @@ document.addEventListener('click',e=>{
   if(b=e.target.closest('[data-hcat]')){HS.cat=b.dataset.hcat;HS.n=10;saveH();renderHome();return}
   if(e.target.closest('[data-hmore]')){HS.n+=10;renderHome();return}
   if(e.target.closest('[data-hworld]')){HS.view='world';HS.n=10;renderHome();window.scrollTo(0,0);return}
-  if(b=e.target.closest('[data-hth]')){const id=b.dataset.hth;HS.openTh.has(id)?HS.openTh.delete(id):HS.openTh.add(id);const y=window.scrollY;renderHome();window.scrollTo(0,y);return}
+  if(b=e.target.closest('[data-wdretry]')){const k=b.dataset.wdretry;WD.err[k]='';WD[k]=null;wdLoad(k,true);renderHome();return}
+  if(e.target.closest('[data-auth]')){const ab=document.getElementById('au-btn');if(ab)ab.click();return}
   if(b=e.target.closest('[data-wsort]')){HS.wsort=b.dataset.wsort;HS.n=10;renderHome();return}
   if(e.target.closest('[data-hwel]')){try{localStorage.setItem(WK,'1')}catch(_){}renderHome();return}
   if(b=e.target.closest('[data-hnav]')){

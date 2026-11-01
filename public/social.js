@@ -345,6 +345,66 @@
     await drawComments(id, btn.closest('.so-cm'));
   }
 
+  /* ---------- Мир, В тренде, Для вас: настоящие данные ---------- */
+  /* Всё считается на сервере (stage16.sql) или берётся из открытых постов и отзывов. Выдуманного здесь нет. */
+  const W = SO.world = {};
+  async function rpcTitles(name, args) {
+    const { data, error } = await sb.rpc(name, args);
+    if (error) throw error;
+    const out = [];
+    (data || []).forEach(r => {
+      const key = r.title_row && regLive(r.title_row, true); if (!key) return;
+      const c = CAT_IDX[key];
+      out.push({ key, k: c.k, c, n: Number(r.cnt) || 0, avg: r.avg_score == null ? null : Number(r.avg_score), why: r.why || '' });
+    });
+    return out;
+  }
+  W.trend = async () => {   // за неделю; если оценок мало, расширяем окно и честно подписываем
+    let list = [];
+    for (const [days, label] of [[7, 'за неделю'], [30, 'за месяц'], [3650, 'за всё время']]) {
+      list = await rpcTitles('trending_titles', { p_days: days, p_limit: 60 });
+      list.label = label;
+      if (list.length >= 5) break;
+    }
+    return list;
+  };
+  W.recs = async () => rpcTitles('recs_for_me', { p_limit: 60 });
+  W.world = async () => {   // открытые посты и отзывы всех людей; сортировка «Популярное» считается здесь же
+    const [p, r] = await Promise.all([
+      sb.from('posts').select('id,user_id,body,visibility,created_at').eq('visibility', 'all').order('created_at', { ascending: false }).limit(60),
+      sb.from('ratings').select(RCOLS).neq('review', '').eq('spoiler', false).order('rated_at', { ascending: false }).limit(60)
+    ]);
+    if (p.error) throw p.error;
+    if (r.error) throw r.error;
+    const ids = [...new Set([...(p.data || []).map(x => x.user_id), ...(r.data || []).map(x => x.user_id)])], nicks = new Map();
+    for (let i = 0; i < ids.length; i += 100) {
+      const { data, error } = await sb.from('profiles').select('id,nick').in('id', ids.slice(i, i + 100));
+      if (error) throw error;
+      (data || []).forEach(x => { nicks.set(x.id, x.nick); addNick(x.nick, x.id); });
+    }
+    const uid = myId(), ev = [];
+    const who = u => u === uid ? 'me' : nicks.get(u);
+    (p.data || []).forEach(x => {
+      const w = who(x.user_id); if (!w) return;
+      owner.set(x.id, x.user_id);
+      ev.push({ id: 'w|p|' + x.id, tid: x.id, who: w, d: AUTH.daysSince(x.created_at), ts: Date.parse(x.created_at), t: 'post', text: x.body, real: true, vis: x.visibility });
+    });
+    (r.data || []).forEach(x => {
+      const w = who(x.user_id); if (!w || !x.titles) return;
+      const key = regLive(x.titles, true); if (!key) return;
+      const c = CAT_IDX[key];
+      owner.set(x.id, x.user_id);
+      ev.push({ id: 'w|r|' + x.id, tid: x.id, who: w, d: AUTH.daysSince(x.rated_at), ts: Date.parse(x.rated_at), t: 'rate', key, k: c.k, c, real: true, score: x.score || 0, status: x.status || '', text: x.review || '' });
+    });
+    await loadEng(ev.map(e => e.tid));
+    ev.forEach(e => {
+      const en = eng.get(e.tid) || ZERO();
+      e.likes = en.likes; e.comments = en.comments;
+      e.hot = (en.likes + 2 * en.comments + 1) / Math.pow((Date.now() - e.ts) / 864e5 + 2, 1.2);   // чем больше реакций и чем свежее, тем выше
+    });
+    return ev;
+  };
+
   /* ---------- друзья: действия ---------- */
   async function follow(id) {
     const { error } = await sb.from('follows').insert({ follower_id: myId(), followee_id: id });
