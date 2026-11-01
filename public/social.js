@@ -74,6 +74,7 @@
   fromCache();
   SO.on = () => !!AUTH.syncOn;
   SO.viewing = () => viewing;
+  SO.relations = () => [...rel].filter(([, r]) => r.nick).map(([id, r]) => ({ id, nick: r.nick, i: !!r.i, t: !!r.t }));
   SO.friendsList = () => [...rel].filter(([, r]) => r.i && r.t && r.nick).map(([id, r]) => ({ id, nick: r.nick }));
   SO.known = n => byNick.has(String(n).toLowerCase());
   SO.nicks = () => [...byNick.values()].map(x => x.nick);
