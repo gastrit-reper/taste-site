@@ -649,9 +649,9 @@ textarea.fld{min-height:96px;resize:vertical}
 .hm-tabbar button[aria-current="page"]{color:var(--accent)}
 .hm-tabbar .plus{background:var(--accent);color:var(--accent-fg);border-radius:14px;padding:8px 14px;min-width:0}
 @media (max-width:1099px){body.on-home{padding-bottom:84px}}
-.hm-nowrap{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
+.hm-nowrap{display:flex;gap:10px;overflow-x:auto;padding:3px 3px 7px;margin:-3px -3px -3px}
 .hm-now{flex:none;width:150px;display:flex;flex-direction:column;gap:6px;border:0;background:var(--surface);border-radius:14px;padding:8px;text-align:left;color:var(--fg)}
-.hm-now:hover{outline:1px solid var(--accent)}
+.hm-now:hover{box-shadow:0 0 0 1px var(--accent)}
 .hm-now .cover{width:100%;height:150px;border-radius:10px}
 .hm-now .w{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600}.hm-now .w .hm-av{width:22px;height:22px;font-size:11px}
 .hm-now .st{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -680,6 +680,14 @@ textarea.fld{min-height:96px;resize:vertical}
 .fr-open{display:flex;align-items:center;gap:10px;flex:1;min-width:0;border:0;background:none;text-align:left;padding:2px;color:inherit}
 .fr-open .hm-av,.fr-open .av{width:44px;height:44px;flex:none}
 .fr-open .i{min-width:0;flex:1}.fr-open b{display:block;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.fr-open .sub{display:block;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.co-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.co-card{display:flex;flex-direction:column;gap:10px;text-align:left;border:1px solid var(--line);background:var(--surface);color:inherit;border-radius:14px;padding:12px;transition:transform .18s cubic-bezier(.2,.8,.2,1),border-color .2s,box-shadow .2s}
+.co-cv{display:flex;gap:6px;min-height:64px}.co-cv .cover{width:48px;height:64px}
+.co-t{display:flex;flex-direction:column;gap:3px;min-width:0}.co-t b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.co-t .sub{font-size:12px;color:var(--muted)}
+.co-d{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.co-p{display:flex;align-items:center;gap:8px;margin-top:4px}.co-p .pbar{flex:1}
+@media (hover:hover){.co-card:hover{transform:translateY(-2px);border-color:var(--accent);box-shadow:0 8px 20px rgb(0 0 0 / .28)}}
 .fr-w{padding:6px 8px}.fr-w svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 @media (hover:hover){.fr-tile:hover{transform:translateY(-2px);border-color:var(--accent);box-shadow:0 8px 20px rgb(0 0 0 / .28)}}
 @media (max-width:1099px){.fr-page{grid-template-columns:minmax(0,1fr)}.fr-menu{display:flex!important;flex-direction:row;flex-wrap:wrap;position:static}.fr-mh{display:none}}
@@ -786,7 +794,7 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10.</p>
-  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-11-01-frpage2</p>
+  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-11-01-colls</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
@@ -2189,7 +2197,7 @@ const ownerName=c=>c.owner==='me'?P.nick:c.owner;
 function renderSide(){
   const el=document.getElementById('colls');if(!el)return;
   const all=myColls(),list=S.collAll?all:all.slice(0,3);
-  el.innerHTML=`<h3><span>Сборники · ${all.length}</span>${S.me?'<button type="button" class="lnk" data-newcoll>+ Создать</button>':''}</h3>`
+  el.innerHTML=`<h3><button type="button" data-pcolls title="Открыть страницу сборников" style="all:unset;cursor:pointer">Сборники · ${all.length} ›</button>${S.me?'<button type="button" class="lnk" data-newcoll>+ Создать</button>':''}</h3>`
     +(all.length?list.map(c=>{const s=collStat(c);return `<button type="button" class="cl" data-coll="${esc(c.id)}"><span class="cn">${esc(c.name)}</span><span class="cp">${s.d}/${s.n}</span><span class="pbar"><i style="width:${s.pct}%"></i></span></button>`}).join('')+(all.length>3?`<button type="button" class="lnk" data-allcoll style="margin-top:6px">${S.collAll?'Скрыть':'Показать все'}</button>`:''):'<div class="sub">Сборников пока нет.</div>');
 }
 function renderColl(){
@@ -2199,7 +2207,7 @@ function renderColl(){
   const row=k=>{
     const ci=CAT_IDX[k],r=DATA[ci.k].find(x=>x[0]===ci.t),d=isDone(k),mus=ci.k==='music';
     const st=mus?(r&&r[2]?'Оценён':''):(r?r[3]:'');
-    return `<article class="row" style="grid-template-columns:48px minmax(0,1fr) auto">${cover(ci.t,'',ci.k)}<div style="min-width:0"><h4><a href="#" class="tl" ${mus?'data-al':'data-title'}="${esc(k)}">${esc(ci.t)}</a></h4><div class="meta"><span>${CATS[ci.k].one}</span><span>${esc(ci.by)}</span>${st?`<span class="stp ${mus?'s-done':stc(st)}"><i class="dot"></i>${esc(st)}</span>`:'<span>Не начато</span>'}</div></div><span class="cdone ${d?'on':''}" title="${d?'Пройдено':'Ещё нет'}">${d?ico('check'):''}</span></article>`;
+    return `<article class="row">${cover(ci.t,'',ci.k)}<div style="min-width:0"><h4><a href="#" class="tl" ${mus?'data-al':'data-title'}="${esc(k)}">${esc(ci.t)}</a></h4><div class="meta"><span>${CATS[ci.k].one}</span><span>${esc(ci.by)}</span>${st?`<span class="stp ${mus?'s-done':stc(st)}"><i class="dot"></i>${esc(st)}</span>`:'<span>Не начато</span>'}</div></div><span class="cdone ${d?'on':''}" title="${d?'Пройдено':'Ещё нет'}">${d?ico('check'):''}</span></article>`;
   };
   const fl=[['all','Все',items.length],['done','Пройдено',s.d],['left','Осталось',s.n-s.d]];
   document.getElementById('tp').innerHTML=`
@@ -3176,7 +3184,7 @@ let wantFr=location.hash==='#friends';
 const tryFr=()=>{if(wantFr&&wdOn()){wantFr=false;goFriends(false)}};
 document.addEventListener('sync-entered',()=>setTimeout(tryFr,0));
 document.addEventListener('auth-changed',()=>setTimeout(tryFr,0));
-window.addEventListener('popstate',()=>{if(location.hash==='#friends'){if(wdOn()){HS.view='friends';renderHome()}}else if(HS.view==='friends'){HS.view='home';renderHome()}});
+window.addEventListener('popstate',()=>{if(location.hash==='#friends'){if(wdOn()){HS.view='friends';renderHome()}}else if(location.hash==='#collections'){HS.view='colls';renderHome()}else if(HS.view==='friends'||HS.view==='colls'){HS.view='home';renderHome()}});
 document.addEventListener('input',e=>{
   if(!e.target||e.target.id!=='fr-q')return;
   const q=e.target.value.trim().toLowerCase();let n=0;
@@ -3184,6 +3192,30 @@ document.addEventListener('input',e=>{
   document.querySelectorAll('.fr-grid').forEach(g=>{const any=[...g.children].some(c=>!c.hidden);g.hidden=!any;if(g.previousElementSibling&&g.previousElementSibling.classList.contains('fr-sec'))g.previousElementSibling.hidden=!any});
   const no=document.getElementById('fr-none');if(no)no.hidden=n>0;
 });
+/* ===== страница «Сборники»: адрес /#collections, свои и добавленные ===== */
+function coCard(c){
+  const s=collStat(c),own=c.owner==='me',its=c.items.filter(k=>CAT_IDX[k]);
+  return `<button type="button" class="co-card" data-hcoll="${esc(c.id)}"><span class="co-cv">${its.slice(0,4).map(k=>cover(CAT_IDX[k].t,'',CAT_IDX[k].k)).join('')||'<span class="sub">Пусто</span>'}</span><span class="co-t"><b>${esc(c.name)}</b><span class="sub">${own?'Ваш сборник':'Автор: '+esc(ownerName(c))} · ${s.n} ${pl(s.n,['позиция','позиции','позиций'])}</span>${c.desc?`<span class="sub co-d">${esc(c.desc)}</span>`:''}<span class="co-p"><span class="pbar"><i style="width:${s.pct}%"></i></span><span class="sub">${s.d}/${s.n}</span></span></span></button>`;
+}
+function collsPage(){
+  const mine=COLL.filter(c=>c.owner==='me'),saved=COLL.filter(c=>c.owner!=='me'&&SAVED.has(c.id));
+  const sec=HS.csec||'mine',list=sec==='saved'?saved:mine;
+  const mi=(id,l,n,ic)=>`<button type="button" data-csec="${id}" ${sec===id?'aria-current="page"':''}>${svg(ic)}<span style="flex:1">${l}</span><span class="fr-n">${n}</span></button>`;
+  const menu=`<nav class="hm-nav fr-menu" aria-label="Сборники"><button type="button" data-hnav="home">${svg('home')}<span style="flex:1">← На главную</span></button><div class="fr-mh">Сборники</div>${mi('mine','Ваши',mine.length,'user')}${mi('saved','Добавленные',saved.length,'globe')}</nav>`;
+  const body=`<div class="fr-head"><span>${sec==='saved'?'Добавленные':'Ваши сборники'} <b>${list.length}</b></span><button type="button" class="btn primary" data-newcoll>+ Создать</button></div>
+    ${list.length?`<div class="co-grid">${list.map(coCard).join('')}</div>`:`<div class="hc hm-empty">${sec==='saved'?'Вы пока не добавили чужих сборников. Откройте сборник другого человека и нажмите «Добавить к себе».':'Сборников пока нет. Нажмите «+ Создать».'}</div>`}`;
+  return `<div class="home fr-page">${menu}<div class="hm-main fr-main">${body}</div></div>${tabbar()}`;
+}
+function goColls(push){
+  HS.view='colls';HS.csec=HS.csec||'mine';
+  if(push&&location.hash!=='#collections')try{history.pushState(null,'',location.pathname+location.search+'#collections')}catch(_){}
+  renderHome();window.scrollTo(0,0);
+}
+window.goColls=goColls;
+let wantCo=location.hash==='#collections';
+const tryCo=()=>{if(wantCo&&wdOn()){wantCo=false;goColls(false)}};
+document.addEventListener('sync-entered',()=>setTimeout(tryCo,300));
+document.addEventListener('auth-changed',()=>setTimeout(tryCo,300));
 function matchCard(){   // «Человек по вкусу»: показывается над лентой друзей, если сервер нашёл похожих людей
   if(!wdOn())return '';
   wdLoad('match');
@@ -3259,9 +3291,10 @@ window.renderHome=function(){
   const wk=HS.tab==='foryou'?'recs':HS.tab==='trend'?'trend':null;
   const wm=wk&&!r.cards.length?(wdMsg(wk)||`<div class="hc hm-empty">${HS.cat!=='all'?'В этой категории пока ничего нет.':wk==='recs'?'Пока нечего советовать: оцените несколько тайтлов, и сайт найдёт людей с похожим вкусом. Чем больше оценок у всех, тем точнее подборка.':'За последнее время ещё никто ничего не оценивал.'}</div>`):'';
   const empty=wm||(!r.cards.length?`<div class="hc hm-empty">${HS.tab==='friends'?(window.SOCIAL&&SOCIAL.on()?'Здесь появятся оценки и посты друзей и тех, на кого вы подписаны.<br>Найдите людей по нику через поиск вверху.':'Здесь появятся оценки и посты друзей.<br>Пока тихо: перенесите свои оценки или посмотрите, что в тренде.'):'Пока ничего не нашлось в этой категории.'}<div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button type="button" class="btn primary" data-import>Импорт оценок</button><button type="button" class="btn" data-htab="trend">В тренде</button></div></div>`:'');
-  if(HS.view!=='friends'&&location.hash==='#friends')try{history.replaceState(null,'',location.pathname+location.search)}catch(_){}
+  if((HS.view!=='friends'&&location.hash==='#friends')||(HS.view!=='colls'&&location.hash==='#collections'))try{history.replaceState(null,'',location.pathname+location.search)}catch(_){}
   if(HS.view==='friends'&&wdOn()){wdLoad('match');hm.innerHTML=friendsPage();return}
   if(HS.view==='friends')HS.view='home';
+  if(HS.view==='colls'){hm.innerHTML=collsPage();return}
   if(HS.view==='world'){hm.innerHTML=`<div class="home">${nav()}${worldMain()}<aside class="hm-side">${side()}</aside></div>${tabbar()}`;return}
   hm.innerHTML=`<div class="home">${nav()}<div class="hm-main">
     ${welcome()}
@@ -3277,7 +3310,7 @@ window.renderHome=function(){
 
 (function(){const pf=document.getElementById('profile');if(pf&&!document.getElementById('pf-back')){const d=document.createElement('div');d.id='pf-back';d.innerHTML='<button type="button" class="btn" data-gohome>← На главную</button>';pf.insertBefore(d,pf.firstChild)}})();
 document.addEventListener('click',e=>{if(e.target.closest('[data-gohome]')){document.getElementById('v-home').click()}});
-document.addEventListener('click',e=>{if(!e.target.closest('[data-pfriends]'))return;if(S.me===false||!wdOn()){if(S.me!==false)toast('Войдите в аккаунт, чтобы видеть друзей.');return}document.getElementById('v-home').click();goFriends(true)});   /* «Друзья ›» в профиле открывает страницу друзей */
+document.addEventListener('click',e=>{if(e.target.closest('[data-pcolls]')){if(S.me===false)return;document.getElementById('v-home').click();goColls(true);return}if(!e.target.closest('[data-pfriends]'))return;if(S.me===false||!wdOn()){if(S.me!==false)toast('Войдите в аккаунт, чтобы видеть друзей.');return}document.getElementById('v-home').click();goFriends(true)});   /* «Друзья ›» в профиле открывает страницу друзей */
 (function(){const pf=document.getElementById('profile'),gb=document.getElementById('gs-home');if(!pf||!gb)return;const sync=()=>{gb.hidden=pf.hidden};sync();new MutationObserver(sync).observe(pf,{attributes:true,attributeFilter:['hidden']})})();   /* кнопка в строке поиска видна только на странице профиля */
 document.addEventListener('click',e=>{
   const hm=document.getElementById('home');if(!hm||hm.hidden||!hm.contains(e.target))return;
@@ -3289,6 +3322,7 @@ document.addEventListener('click',e=>{
   if(e.target.closest('[data-hworld]')){HS.view='world';HS.n=10;renderHome();window.scrollTo(0,0);return}
   if(e.target.closest('[data-wdnext]')){WD.mi=((WD.mi<0?0:WD.mi)+1)%((WD.match||[1]).length||1);renderHome();return}
   if(e.target.closest('[data-fview]')){goFriends(true);return}
+  if(b=e.target.closest('[data-csec]')){HS.csec=b.dataset.csec;renderHome();window.scrollTo(0,0);return}
   if(b=e.target.closest('[data-fsec]')){HS.fsec=b.dataset.fsec;renderHome();window.scrollTo(0,0);return}
   if(e.target.closest('[data-ffind]')){window.scrollTo(0,0);const q=document.getElementById('gs-q');if(q)q.focus();return}
   if(b=e.target.closest('[data-wdretry]')){const k=b.dataset.wdretry;WD.err[k]='';WD[k]=null;wdLoad(k,true);renderHome();return}
@@ -3298,7 +3332,7 @@ document.addEventListener('click',e=>{
   if(b=e.target.closest('[data-hnav]')){
     const a=b.dataset.hnav;
     if(a==='world'){HS.view='world';HS.n=10;renderHome();window.scrollTo(0,0)}
-    else if(a==='home'&&(HS.view==='world'||HS.view==='friends')){HS.view='home';HS.open=true;HS.n=10;renderHome();window.scrollTo(0,0)}
+    else if(a==='home'&&(HS.view==='world'||HS.view==='friends'||HS.view==='colls')){HS.view='home';HS.open=true;HS.n=10;renderHome();window.scrollTo(0,0)}
     else if(a==='home'){HS.open=!HS.open;const sb=document.getElementById('hm-sub');if(sb)sb.classList.toggle('open',HS.open);b.setAttribute('aria-expanded',HS.open);if(!hm.querySelector('.hm-nav')||getComputedStyle(hm.querySelector('.hm-nav')).display==='none')window.scrollTo({top:0,behavior:'smooth'})}
     else if(a==='me')setProfile(true);
     else if(a==='search'){window.scrollTo(0,0);const q=document.getElementById('gs-q');if(q)q.focus()}
