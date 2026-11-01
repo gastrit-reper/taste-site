@@ -369,6 +369,11 @@
     return list;
   };
   W.recs = async () => rpcTitles('recs_for_me', { p_limit: 60 });
+  W.match = async () => {   // люди с похожим вкусом (stage17.sql)
+    const { data, error } = await sb.rpc('similar_people', { p_limit: 10 });
+    if (error) throw error;
+    return (data || []).filter(x => x.nick).map(x => { addNick(x.nick, x.user_id); return { nick: x.nick, common: Number(x.common) || 0, diff: Number(x.diff) || 0, loved: x.loved || [], genres: x.genres || [] }; });
+  };
   W.world = async () => {   // открытые посты и отзывы всех людей; сортировка «Популярное» считается здесь же
     const [p, r] = await Promise.all([
       sb.from('posts').select('id,user_id,body,visibility,created_at').eq('visibility', 'all').order('created_at', { ascending: false }).limit(60),

@@ -768,7 +768,7 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10.</p>
-  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-11-01-world</p>
+  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-11-01-match</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
@@ -3091,7 +3091,7 @@ function render2(){
 
 /* ===== Мир, В тренде, Для вас: настоящие данные =====
    Грузит social.js (SOCIAL.world): «Мир» берёт открытые посты и отзывы всех людей, «В тренде» и «Для вас» считает сервер (stage16.sql). */
-const WD={trend:null,recs:null,world:null,t:{},err:{},busy:{}};
+const WD={trend:null,recs:null,world:null,match:null,mi:-1,t:{},err:{},busy:{}};
 const wdOn=()=>!!(window.SOCIAL&&SOCIAL.on()&&SOCIAL.world);
 const pl=(n,a)=>{const m=n%100,d=n%10;return a[m>10&&m<20?2:d===1?0:d>1&&d<5?1:2]};
 const clip=(t,n)=>{t=String(t||'').replace(/\{\{(.+?)\}\}/g,'$1').replace(/\s+/g,' ').trim();return t.length>n?t.slice(0,n-1)+'…':t};
@@ -3114,6 +3114,18 @@ function wdMsg(kind){   // что показать, пока данных нет
   return '';
 }
 const hcBody=x=>`<button type="button" class="hc-body" data-hopen="${esc(x.key)}">${cover(x.c.t,'',x.k)}<div class="i"><b>${esc(x.c.t)}</b><span class="sub">${esc(CATS[x.k].one)} · ${esc(x.c.by||'')}${x.c.y?' · '+x.c.y:''}</span><p>${esc(x.c.d||'')}</p></div></button>`;
+function matchCard(){   // «Человек по вкусу»: показывается над лентой друзей, если сервер нашёл похожих людей
+  if(!wdOn())return '';
+  wdLoad('match');
+  const l=WD.match;if(!l||!l.length)return '';
+  if(WD.mi<0||WD.mi>=l.length)WD.mi=Math.floor(Math.random()*l.length);
+  const m=l[WD.mi];
+  const gen=(m.genres||[]).map(g=>String(g).toLowerCase());
+  const lv=(m.loved||[]).map(x=>x.t).filter(Boolean);
+  const why=gen.length?`Вы одинаково любите: ${esc(gen.join(', '))}.`:lv.length?'Вы оба высоко оценили: '+esc(lv.slice(0,3).join(', '))+'.':`У вас ${m.common} ${pl(m.common,['общая оценка','общие оценки','общих оценок'])}, и вы оцениваете их почти одинаково.`;
+  const sub=gen.length&&lv.length?`<div class="sub">Например: ${esc(lv.slice(0,3).join(', '))}</div>`:'';
+  return `<article class="hc" aria-label="Человек по вкусу"><div class="hc-h">${avatar(m.nick)}<div class="t"><b>Человек по вкусу: ${esc(m.nick)}</b><div class="sub hm-why">${why}</div>${sub}<div class="sub">Общих оценок: ${m.common} · в среднем различаетесь на ${String(m.diff).replace('.',',')}</div></div></div><div style="display:flex;gap:8px;flex-wrap:wrap;padding:0 14px 12px"><button type="button" class="btn primary" data-user="${esc(m.nick)}">Открыть профиль</button>${l.length>1?'<button type="button" class="btn" data-wdnext>Другой человек</button>':''}</div></article>`;
+}
 const recCard=x=>`<article class="hc"><div class="hc-h"><span class="hm-av" style="background:var(--accent);color:var(--accent-fg)">★</span><div class="t"><b>Рекомендация</b><div class="sub hm-why">${x.why==='similar'?'Высоко оценили люди с похожим вкусом: '+x.n:'Средняя оценка '+x.avg+' · оценили '+x.n+' '+pl(x.n,['человек','человека','человек'])}</div></div></div>${hcBody(x)}</article>`;
 const trendCard=(x,i,label)=>`<article class="hc"><div class="hc-h"><span class="hm-rk" style="font-size:18px">${i+1}</span><div class="t"><b>В тренде</b><div class="sub">${x.n} ${pl(x.n,['оценка','оценки','оценок'])} ${esc(label||'за неделю')}${x.avg?' · средняя '+x.avg:''}</div></div></div>${hcBody(x)}</article>`;
 function worldMain(){
@@ -3180,6 +3192,7 @@ window.renderHome=function(){
     <form class="post compose" id="cf"><span class="sub" id="ct-l">Новый пост</span><div id="ct" class="ced" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="ct-l" data-ph="О чём думаете?"></div><div class="sugg" id="sg"></div><div class="r"><span class="hint">{{ — сослаться на игру, фильм, книгу. @ — отметить человека.</span><span id="cc">0 / 5000</span>${window.SOCIAL?SOCIAL.visSel():''}<button class="btn primary" type="submit">Опубликовать</button></div></form>
     <div class="hm-bar">${tabsSeg()}
     <div class="hm-chips" role="group" aria-label="Категория">${[['all','Все'],...(HS.tab==='friends'?[['posts','Только посты']]:[]),...ORDER.map(k=>[k,CATS[k].name])].map(([id,l])=>`<button type="button" class="gs-chip" data-hcat="${id}" aria-pressed="${HS.cat===id}">${l}</button>`).join('')}</div></div>
+    ${HS.tab==='friends'?matchCard():''}
     ${HS.tab==='friends'&&HS.cat!=='posts'?nowStrip(HS.cat==='all'?null:HS.cat):''}
     ${r.cards.join('')}${empty}${r.total>HS.n?`<button type="button" class="btn hm-more" data-hmore>Показать ещё</button>`:''}
     ${window.SOCIAL&&SOCIAL.on()?'':'<p class="note" style="margin:0">Лента друзей пока примерная: настоящая появится вместе с аккаунтами.</p>'}
@@ -3198,6 +3211,7 @@ document.addEventListener('click',e=>{
   if(b=e.target.closest('[data-hcat]')){HS.cat=b.dataset.hcat;HS.n=10;saveH();renderHome();return}
   if(e.target.closest('[data-hmore]')){HS.n+=10;renderHome();return}
   if(e.target.closest('[data-hworld]')){HS.view='world';HS.n=10;renderHome();window.scrollTo(0,0);return}
+  if(e.target.closest('[data-wdnext]')){WD.mi=((WD.mi<0?0:WD.mi)+1)%((WD.match||[1]).length||1);renderHome();return}
   if(b=e.target.closest('[data-wdretry]')){const k=b.dataset.wdretry;WD.err[k]='';WD[k]=null;wdLoad(k,true);renderHome();return}
   if(e.target.closest('[data-auth]')){const ab=document.getElementById('au-btn');if(ab)ab.click();return}
   if(b=e.target.closest('[data-wsort]')){HS.wsort=b.dataset.wsort;HS.n=10;renderHome();return}
