@@ -794,7 +794,7 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10.</p>
-  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-11-02-manual2</p>
+  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-11-02-own</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
@@ -1909,9 +1909,9 @@ function drawRes(noLive){
   const ls=liveState(E.q,E.k);
   const msg=ls==='loading'?'Ищу в базе '+SRC[E.k]+'…':ls==='error'?'Не удалось связаться с базой. Попробуйте ещё раз.':`В базе ${SRC[E.k]} такого нет. Проверьте написание.`;
   box.innerHTML=(list.length?list.map(c=>`<button type="button" class="opt" role="option" data-pick="${esc(kk(c.k,c.t))}">${cover(c.t,'',c.k)}<span><b>${esc(c.t)}</b><span class="sub">${esc(c.by)}${c.y?' · '+c.y:''}</span></span></button>`).join(''):'')+(!list.length||ls==='loading'||ls==='error'?`<div class="sub">${msg}</div>`:'');
-  if(E.k==='games'&&E.q.trim().length>=2&&ls!=='loading'){
-    box.insertAdjacentHTML('beforeend',window.AUTH&&AUTH.syncOn?`<button type="button" class="btn" id="e-manual" style="margin-top:8px">${ico('plus')}Нет в списке? Добавить «${esc(E.q.trim().slice(0,40))}» как свою игру</button>`:'<div class="sub" style="margin-top:8px">Чтобы добавить свою игру, войдите в аккаунт.</div>');
-    const mb=document.getElementById('e-manual');if(mb)mb.onclick=()=>manualGame(E.q.trim()).then(key=>{if(key&&E){E.cat=CAT_IDX[key];E.plat='';E.tab='review';drawEditor()}});
+  if(OWNT[E.k]&&E.q.trim().length>=2&&ls!=='loading'){
+    box.insertAdjacentHTML('beforeend',window.AUTH&&AUTH.syncOn?`<button type="button" class="btn" id="e-manual" style="margin-top:8px">${ico('plus')}Нет в списке? Добавить «${esc(E.q.trim().slice(0,40))}» как ${OWNT[E.k][2]} ${OWNT[E.k][1]}</button>`:'<div class="sub" style="margin-top:8px">Чтобы добавить своё, войдите в аккаунт.</div>');
+    const mb=document.getElementById('e-manual');if(mb)mb.onclick=()=>manualGame(E.q.trim(),E.k).then(key=>{if(key&&E){E.cat=CAT_IDX[key];E.plat='';E.tab='review';drawEditor()}});
   }
   box.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{
     const c=CAT_IDX[b.dataset.pick];
@@ -1923,11 +1923,13 @@ function drawRes(noLive){
 }
 
 /* своя игра: нет ни в Steam, ни в RAWG (например, инди, мод или совсем свежая) */
-function manualGame(title){
+const OWNT={games:['game','игру','свою'],series:['series','сериал','свой'],movies:['movie','фильм','свой'],anime:['anime','аниме','своё'],books:['book','книгу','свою']};   // что можно добавить самому (музыка не входит: у альбома должен быть исполнитель)
+function manualGame(title,k){
+  k=OWNT[k]?k:'games';
   return new Promise(resolve=>{
     const old=document.getElementById('mov');if(old)old.remove();
     const ov=document.createElement('div');ov.id='mov';ov.className='ov';ov.style.zIndex=60;
-    ov.innerHTML=`<form class="dlg" role="dialog" aria-modal="true" aria-labelledby="m-h"><div class="dh"><h2 id="m-h">Добавить свою игру</h2><button type="button" class="ic" id="m-x" aria-label="Закрыть">${ico('close')}</button></div>
+    ov.innerHTML=`<form class="dlg" role="dialog" aria-modal="true" aria-labelledby="m-h"><div class="dh"><h2 id="m-h">Добавить ${OWNT[k][2]} ${OWNT[k][1]}</h2><button type="button" class="ic" id="m-x" aria-label="Закрыть">${ico('close')}</button></div>
       <div class="dr pb"><div><label for="m-t">Название</label><input id="m-t" class="fld" maxlength="120" value="${esc(title)}"></div>
       <div><label for="m-y">Год выхода (необязательно)</label><input id="m-y" class="fld" type="number" min="1951" max="2099" placeholder="2024"></div>
       <div><label for="m-c">Обложка (необязательно)</label><input id="m-c" type="file" accept="image/png,image/jpeg,image/webp"><div class="hint">Сайт сам уменьшит картинку, чтобы не занимать место.</div></div>
@@ -1951,12 +1953,12 @@ function manualGame(title){
           const up=await AUTH.client.storage.from('media').upload(path,blob,{contentType:blob.type,cacheControl:'31536000'});
           if(up.error)throw up.error;cover='/media/'+path;upPath=path;
         }
-        const r=await fetch(`${APPC.SUPABASE_URL}/functions/v1/search?manual=1`,{method:'POST',headers:{...liveHeaders(),'Content-Type':'application/json'},body:JSON.stringify({token:ss.access_token,title:t,year:$('m-y').value,cover})});
+        const r=await fetch(`${APPC.SUPABASE_URL}/functions/v1/search?manual=1`,{method:'POST',headers:{...liveHeaders(),'Content-Type':'application/json'},body:JSON.stringify({token:ss.access_token,title:t,year:$('m-y').value,cover,category:OWNT[k][0]})});
         const j=await r.json().catch(()=>({}));
         if(upPath&&(!r.ok||!j.row||(j.existing&&!j.cover_used))){try{await AUTH.client.storage.from('media').remove([upPath])}catch(_){}}   // загруженная обложка не пригодилась: освобождаем место
-        if(r.status===429&&j.error==='limit')throw new Error('Вы уже добавили 25 своих игр, это максимум. Если игра есть в каталоге, найдите её через поиск.');
+        if(r.status===429&&j.error==='limit')throw new Error('Вы уже добавили 25 своих тайтлов, это максимум. Если он есть в каталоге, найдите его через поиск.');
         if(!r.ok||!j.row)throw new Error(r.status===401?'Войдите в аккаунт заново.':'Не получилось добавить игру. Попробуйте ещё раз.');
-        if(j.existing)toast('Такая игра уже есть в каталоге, выбрана она.');
+        if(j.existing)toast('Такое уже есть в каталоге, выбрано оно.');
         const key=regLive(j.row);if(!key)throw new Error('Не получилось добавить игру.');
         done(key);
       }catch(err){er.textContent=err.message||String(err);btn.disabled=false;btn.textContent='Добавить'}
@@ -3040,6 +3042,26 @@ document.addEventListener('click',e=>{if(e.target.closest('[data-import]')){e.pr
 loadSaved();
 setTimeout(()=>{try{render()}catch(_){}},0);
 const st=document.createElement('style');st.textContent='.imp-drop{display:grid;gap:4px;place-items:center;text-align:center;border:2px dashed var(--line);border-radius:14px;padding:26px 12px;cursor:pointer}.imp-drop.on,.imp-drop:hover{border-color:var(--accent)}.imp-track{height:8px;border-radius:99px;background:var(--surface2);overflow:hidden}.imp-bar{height:100%;background:var(--accent);transition:width .2s}.imp-lost{max-height:200px;overflow:auto;font-size:13px;color:var(--muted);margin-top:6px}';document.head.appendChild(st);
+})();
+</script>
+<script>
+/* из страницы поиска: /?add=<game|movie|series|anime|book>&q=<название> открывает форму «добавить своё» */
+(function(){
+  try{
+    const p=new URLSearchParams(location.search),a=p.get('add');if(!a)return;
+    const k={game:'games',movie:'movies',series:'series',anime:'anime',book:'books'}[a];if(!k)return;
+    const title=(p.get('q')||'').trim().slice(0,120);
+    history.replaceState(null,'',location.pathname+location.hash);
+    let done=false;
+    const go=()=>{
+      if(done)return;done=true;
+      if(!(window.AUTH&&AUTH.syncOn)){toast('Чтобы добавить своё, войдите в аккаунт.');const ab=document.getElementById('au-btn');if(ab)ab.click();return}
+      openEditor(k);E.q=title;drawEditor();
+      manualGame(title,k).then(key=>{if(key&&E){E.cat=CAT_IDX[key];E.plat='';E.tab='review';drawEditor()}});
+    };
+    if(window.AUTH&&AUTH.syncOn)setTimeout(go,0);
+    else{document.addEventListener('sync-entered',()=>setTimeout(go,0),{once:true});setTimeout(go,5000)}   // не дождались входа: скажем, что нужен аккаунт
+  }catch(e){console.error(e)}
 })();
 </script>
 <script>

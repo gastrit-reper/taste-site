@@ -53,6 +53,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 h4{margin:0 0 2px;font-size:15px;font-weight:500}.m{color:var(--muted);font-size:13px}.d{font-size:13px;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .st{text-align:center;color:var(--muted);padding:28px 0}.warn{color:var(--mid);font-size:13px;margin-bottom:8px}
 .tr{margin:8px 0 0;padding-left:20px;font-size:13px}.tb{border:0;background:none;color:var(--accent);padding:0;font:inherit;font-size:13px;margin-top:4px}
+.own{margin:14px 2px 0;color:var(--muted);font-size:13px}.own a{color:var(--muted);text-decoration:underline;text-underline-offset:3px}.own a:hover{color:var(--accent)}
 .fine{margin-top:24px;color:var(--muted);font-size:12px}
 .row[data-tid]{cursor:pointer}.row[data-tid]:hover{border-color:var(--accent)}h4 a.tl{color:inherit;text-decoration:none}
 a{color:var(--accent)}
@@ -159,7 +160,7 @@ function tid(t) { return t.source + ':' + t.external_id; }
 function render(list, warn) {
   LAST = list || [];
   try { localStorage.setItem('search_rows', JSON.stringify(LAST.slice(0, 40).map(t => ({...t, description: (t.description || '').slice(0, 300)})))); } catch (_) {}
-  if (!list.length) { $('out').innerHTML = '<div class="st">Ничего не найдено. Проверьте написание или выберите другую категорию.</div>'; return; }
+  if (!list.length) { $('out').innerHTML = '<div class="st">Ничего не найдено. Проверьте написание или выберите другую категорию.</div>' + addOwn(); return; }
   $('out').innerHTML = (warn ? '<div class="warn">Часть внешних баз сейчас недоступна, показаны найденные результаты.</div>' : '') +
     list.map((t, i) => {
       const src = thumb(t.cover_url);
@@ -174,7 +175,19 @@ function render(list, warn) {
         <div class="d">${esc(t.description)}</div>
         ${DEBUG?`<div class="m" style="word-break:break-all;color:#e0a030">alt: ${esc((t.alt_titles||[]).join('; ')||'НЕТ')} | cover: ${esc(t.cover_url||'НЕТ')} | src: ${esc(src||'НЕТ')} | steam: ${esc((t.extra&&t.extra.steam_id)||'-')}/${esc((t.extra&&t.extra.steam_checked)||'-')}</div>`:''}
         ${t.category === 'music' ? `<button class="tb" data-id="${esc(t.external_id)}">Треки</button><div></div>` : ''}</div></div>`;
-    }).join('');
+    }).join('') + addOwn();
+}
+
+// «Не нашли?»: ссылка на форму «добавить своё» на главной странице (нужен вход в аккаунт)
+const OWNK = {game: 'игру', movie: 'фильм', series: 'сериал', anime: 'аниме', book: 'книгу'};
+const OWNA = {game: 'свою', movie: 'свой', series: 'свой', anime: 'своё', book: 'свою'};
+function addOwn() {
+  const q = $('q').value.trim();
+  if (q.length < 2 || CAT === 'music') return '';
+  const ks = OWNK[CAT] ? [CAT] : Object.keys(OWNK);
+  const href = k => `/?add=${k}&q=${encodeURIComponent(q)}`;
+  if (ks.length === 1) return `<div class="own">Не нашли «${esc(q.slice(0, 40))}»? <a href="${href(ks[0])}">Добавить ${OWNA[ks[0]]} ${OWNK[ks[0]]}</a></div>`;
+  return `<div class="own">Не нашли «${esc(q.slice(0, 40))}»? Добавить своё: ${ks.map(k => `<a href="${href(k)}">${OWNK[k]}</a>`).join(' · ')}</div>`;
 }
 
 async function run() {
