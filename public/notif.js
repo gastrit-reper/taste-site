@@ -139,7 +139,7 @@
   function place() {   // панель под колокольчиком, у его правого края
     if (!ov) return;
     const w = window.innerWidth, r = anchor ? anchor.getBoundingClientRect() : { bottom: 60, right: w - 12 };
-    const top = Math.round(r.bottom + 8);
+    const top = Math.max(8, Math.round(r.bottom + 8));   // колокольчик уехал вверх при прокрутке - панель прижимаем к верху окна
     ov.style.top = top + 'px'; ov.style.maxHeight = Math.max(200, window.innerHeight - top - 12) + 'px';
     if (w < 440) { ov.style.left = '8px'; ov.style.right = '8px'; ov.style.width = 'auto'; }
     else { ov.style.left = 'auto'; ov.style.width = ''; ov.style.right = Math.max(8, Math.round(w - r.right)) + 'px'; }
