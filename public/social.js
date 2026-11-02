@@ -305,16 +305,29 @@
     if (error && error.code !== '23505') { console.error(error); eng.set(id, old); paintEng(id); toast('Не получилось. Попробуйте ещё раз.'); }
     busy.delete(id);
   }
+  let hasParent = true;   // false, если в базе ещё нет колонки parent_id (stage18.sql не выполнен)
   async function drawComments(id, box) {
-    const { data, error } = await sb.from('comments').select('id,user_id,body,created_at').eq('target_id', id).order('created_at', { ascending: true }).limit(200);
+    const get = cols => sb.from('comments').select(cols).eq('target_id', id).order('created_at', { ascending: true }).limit(200);
+    let r = await get(hasParent ? 'id,user_id,body,created_at,parent_id' : 'id,user_id,body,created_at');
+    if (r.error && hasParent && /parent_id/i.test(r.error.message || '')) { hasParent = false; r = await get('id,user_id,body,created_at'); }
+    const { data, error } = r;
     if (error) { box.innerHTML = '<div class="sub">Не удалось загрузить комментарии.</div>'; return; }
     const list = data || [], need = [...new Set(list.map(c => c.user_id).filter(u => !nickById.has(u)))];
     if (need.length) { const { data: ps } = await sb.from('profiles').select('id,nick').in('id', need); (ps || []).forEach(p => addNick(p.nick, p.id)); }
     const me = myId(), boss = owner.get(id);
-    box.innerHTML = list.map(c => {
-      const n = nickById.get(c.user_id) || '?';
-      return `<div class="so-c${c.user_id === me || boss === me ? ' hk' : ''}">${avatarOf(n)}<div class="so-ct"><div><b class="hm-who" data-user="${esc(n)}">${esc(n)}</b> <span class="sub">${ago(AUTH.daysSince(c.created_at))}</span></div><p>${renderText(c.body)}</p></div>${c.user_id === me || boss === me ? window.kebab([{ a: `data-sodel="${esc(c.id)}" data-for="${esc(id)}"`, l: 'Удалить', d: 1 }]) : ''}</div>`;
-    }).join('') + `<form class="so-cf" data-for="${esc(id)}"><textarea maxlength="1000" rows="2" placeholder="Написать комментарий" aria-label="Комментарий"></textarea><button type="submit" class="btn primary">Отправить</button></form>`;
+    const ids = new Set(list.map(c => String(c.id))), kids = new Map(), roots = [];
+    list.forEach(c => {
+      const p = c.parent_id != null ? String(c.parent_id) : '';
+      if (p && ids.has(p) && p !== String(c.id)) { if (!kids.has(p)) kids.set(p, []); kids.get(p).push(c); } else roots.push(c);   // ответ на удалённый комментарий показывается как обычный
+    });
+    const nickOf = c => nickById.get(c.user_id) || '?';
+    const byId = new Map(list.map(c => [String(c.id), c]));
+    const node = (c, depth) => {
+      const n = nickOf(c), par = c.parent_id != null ? byId.get(String(c.parent_id)) : null, ch = kids.get(String(c.id)) || [];
+      const can = c.user_id === me || boss === me;
+      return `<div class="so-n"><div class="so-c${can ? ' hk' : ''}" data-cid="${esc(c.id)}">${avatarOf(n)}<div class="so-ct"><div><b class="hm-who" data-user="${esc(n)}">${esc(n)}</b> <span class="sub">${ago(AUTH.daysSince(c.created_at))}</span>${par ? ` <span class="sub so-to">→ ${esc(nickOf(par))}</span>` : ''}</div><p>${renderText(c.body)}</p>${hasParent ? `<button type="button" class="so-rb" data-sorep="${esc(c.id)}" data-nick="${esc(n)}">Ответить</button>` : ''}</div>${can ? window.kebab([{ a: `data-sodel="${esc(c.id)}" data-for="${esc(id)}"`, l: 'Удалить', d: 1 }]) : ''}</div><div class="so-rbox" data-rbox="${esc(c.id)}"></div>${ch.length ? `<div class="so-ch${depth >= 4 ? ' flat' : ''}">${ch.map(k => node(k, depth + 1)).join('')}</div>` : ''}</div>`;
+    };
+    box.innerHTML = roots.map(c => node(c, 0)).join('') + `<form class="so-cf" data-for="${esc(id)}"><textarea maxlength="1000" rows="2" placeholder="Написать комментарий" aria-label="Комментарий"></textarea><button type="submit" class="btn primary">Отправить</button></form>`;
     const e = eng.get(id) || ZERO();
     if (e.comments !== list.length) { eng.set(id, { ...e, comments: list.length }); paintEng(id); }
   }
@@ -332,11 +345,22 @@
     const id = f.dataset.for, ta = f.querySelector('textarea'), v = ta.value.trim(), b = f.querySelector('button');
     if (!v) return;
     b.disabled = true;
-    const { error } = await sb.from('comments').insert({ user_id: myId(), target_id: id, body: v.slice(0, 1000) });
+    const row = { user_id: myId(), target_id: id, body: v.slice(0, 1000) };
+    if (f.dataset.par) row.parent_id = f.dataset.par;
+    const { error } = await sb.from('comments').insert(row);
     b.disabled = false;
-    if (error) { console.error(error); toast('Не удалось отправить комментарий.'); return; }
+    if (error) { console.error(error); toast(/parent_id/i.test(error.message || '') ? 'Ответы ещё не включены: нужно выполнить stage18.sql в Supabase.' : 'Не удалось отправить комментарий.'); return; }
     const en = eng.get(id) || ZERO(); eng.set(id, { ...en, comments: en.comments + 1 }); paintEng(id);
     await drawComments(id, f.closest('.so-cm'));
+  });
+  document.addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('[data-sorep]'); if (!b) return;
+    e.preventDefault();
+    const root = b.closest('.so-cm'), cid = b.dataset.sorep, slot = root && [...root.querySelectorAll('[data-rbox]')].find(x => x.dataset.rbox === cid), cm = root && root.querySelector('.so-cf:not(.so-rf)'); if (!slot || !cm) return;
+    if (slot.firstChild) { slot.innerHTML = ''; return; }
+    root.querySelectorAll('.so-rbox').forEach(x => { x.innerHTML = ''; });
+    slot.innerHTML = `<form class="so-cf so-rf" data-for="${esc(cm.dataset.for)}" data-par="${esc(cid)}"><textarea maxlength="1000" rows="2" placeholder="Ответ для ${esc(b.dataset.nick)}" aria-label="Ответ"></textarea><button type="submit" class="btn primary">Ответить</button></form>`;
+    slot.querySelector('textarea').focus();
   });
   async function delComment(cid, id, btn) {
     if (!(await window.ask('Удалить комментарий?'))) return;
@@ -345,6 +369,10 @@
     const en = eng.get(id) || ZERO(); eng.set(id, { ...en, comments: Math.max(0, en.comments - 1) }); paintEng(id);
     await drawComments(id, btn.closest('.so-cm'));
   }
+
+  const st2 = document.createElement('style');
+  st2.textContent = '.so-ch{margin-left:14px;padding-left:12px;border-left:2px solid color-mix(in srgb,var(--accent) 45%,var(--line))}.so-ch.flat{margin-left:0;padding-left:8px}.so-rb{border:0;background:none;color:var(--muted);font:inherit;font-size:12px;padding:2px 0;margin-top:2px;cursor:pointer}.so-rb:hover{color:var(--accent)}.so-to{opacity:.85}.so-rbox:not(:empty){margin:4px 0 6px 36px}';
+  document.head.appendChild(st2);
 
   /* ---------- Мир, В тренде, Для вас: настоящие данные ---------- */
   /* Всё считается на сервере (stage16.sql) или берётся из открытых постов и отзывов. Выдуманного здесь нет. */
