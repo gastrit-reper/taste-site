@@ -7,7 +7,7 @@
 //   /img/steam/hero/<appid>.jpg   - широкий баннер игры из Steam
 //   /img/ss/<appid>/<ss_хеш.600x338|1920x1080>.jpg - скриншоты игры из Steam
 //   /api/music/search?q=...        - поиск песен (Deezer), для музыки в профиле
-//   /media/<id>/<avatar|banner>-<код>.<png|jpg|gif|webp> - аватары и баннеры из Supabase Storage
+//   /media/<id>/<avatar|banner|cover>-<код>.<png|jpg|gif|webp> - аватары, баннеры и обложки своих игр из Supabase Storage
 //   /img/sgdb/<grid|hero>/<файл>   - обложки и баннеры SteamGridDB
 //   /sb/...                       - прокси к Supabase (вход и база работают и без VPN)
 //   /lib/supabase.js              - библиотека Supabase через наш сайт
@@ -24,7 +24,7 @@ const CAA_IMG = /^\/img\/caa\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[
 
 // адрес проекта Supabase (тот же, что в config.js); картинки профиля отдаём через свой сайт, чтобы работало и без VPN
 const SUPABASE_URL = 'https://kdcbtdypmcqwjeskctat.supabase.co';
-const MEDIA_IMG = /^\/media\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/((?:avatar|banner)-[a-z0-9]{1,16}\.(?:png|jpg|gif|webp))$/;
+const MEDIA_IMG = /^\/media\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/((?:avatar|banner|cover)-[a-z0-9]{1,16}\.(?:png|jpg|gif|webp))$/;
 const SGDB_IMG = /^\/img\/sgdb\/(grid|hero)\/([\w.-]+\.(?:png|jpe?g|webp))$/;
 const DZ_AUDIO = /^\/audio\/dz\/(\d{1,12})\.mp3$/;
 const JSON_H = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=600' };
