@@ -1,4 +1,4 @@
-<!doctype html><html data-theme="crimson"><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}
+<!doctype html><html data-theme="crimson"><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>#boot{position:fixed;inset:0;z-index:5;display:grid;place-content:center;gap:12px;text-align:center;padding:24px;background:#0a0506;color:#f5ebeb;font:16px/1.45 system-ui,sans-serif}#boot small{color:#b58f93;max-width:340px;opacity:0;animation:bootIn .4s 6s forwards}@keyframes bootIn{to{opacity:1}}html.ready:not(.sy-wait) #boot{display:none}</style></head><body><div id="boot" role="status"><b>Загружаю сайт…</b><small>Если пусто дольше полминуты, возможно, ваш интернет-оператор ограничивает доступ к сайту. Попробуйте другую сеть или VPN.</small></div><script>/* запасной выход: заставка не должна закрывать сайт дольше 25 секунд */setTimeout(function(){document.documentElement.classList.add("ready");document.documentElement.classList.remove("sy-wait")},25000)</script><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}
 /* поиск в любимом */
 .cmb{position:relative}.cmb .fld{padding-right:32px}
 .cmb-x{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--muted);font-size:20px;line-height:1;padding:2px 6px;border-radius:8px}
@@ -69,7 +69,7 @@
 .tgi .kebab{top:2px;right:2px;opacity:0}.tgi:hover .kebab,.tgi .kebab.open{opacity:1}.tgi .kb{background:rgb(0 0 0 / .6);color:#fff;width:22px;height:22px;border-radius:6px}.tgi .kb svg{width:14px;height:14px}
 .tgi .kb-menu{top:26px}
 .tile .tl:hover{text-decoration:none}
-</style></head><body>
+</style>
 <title>DevilDash</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&family=Unbounded:wght@500;600&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&family=Unbounded:wght@500;600&display=swap"></noscript>
@@ -794,7 +794,7 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10.</p>
-  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-11-02-own</p>
+  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-11-02-boot</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
@@ -3378,6 +3378,7 @@ document.addEventListener('click',e=>{
   if(e.target.closest('#hm-send')){const t=document.getElementById('hm-t'),v=t.value.trim();if(!v)return;if(v.length>POST_MAX){toast('Пост слишком длинный');return}S.posts.unshift({t:v,d:0,ts:Date.now()});toast('Опубликовано');renderHome()}
 });
 render();
+document.documentElement.classList.add('ready');   /* сайт нарисован: заставка «Загружаю…» убирается */
 })();
 </script>
 <script>
