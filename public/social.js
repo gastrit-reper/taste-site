@@ -306,6 +306,28 @@
     busy.delete(id);
   }
   let hasParent = true;   // false, если в базе ещё нет колонки parent_id (stage18.sql не выполнен)
+  /* тонкие линии: от аватарки того, кому ответили, к аватаркам ответивших (позиции считаем по готовой вёрстке) */
+  function lines(box) {
+    if (!box || box.hidden) return;
+    box.querySelectorAll('.so-ln,.so-tk').forEach(x => x.remove());
+    box.querySelectorAll('.so-n').forEach(n => {
+      const ch = [...n.children].find(x => x.classList.contains('so-ch')); if (!ch) return;
+      const row = [...n.children].find(x => x.classList.contains('so-c')), pav = row && row.firstElementChild; if (!pav) return;
+      const kids = [...ch.children].filter(x => x.classList.contains('so-n')), nb = n.getBoundingClientRect(), pr = pav.getBoundingClientRect();
+      const cx = pr.left + pr.width / 2 - nb.left, y1 = pr.bottom - nb.top + 2;
+      let y2 = y1;
+      kids.forEach(k => {
+        const kr = [...k.children].find(x => x.classList.contains('so-c')), av = kr && kr.firstElementChild; if (!av) return;
+        const ar = av.getBoundingClientRect(), cy = ar.top + ar.height / 2 - nb.top;
+        const t = document.createElement('i'); t.className = 'so-tk';
+        t.style.cssText = `left:${cx}px;top:${cy - 1}px;width:${Math.max(4, ar.left - nb.left - cx - 3)}px`;
+        n.appendChild(t); y2 = Math.max(y2, cy + 1);
+      });
+      const l = document.createElement('i'); l.className = 'so-ln';
+      l.style.cssText = `left:${cx - 1}px;top:${y1}px;height:${Math.max(0, y2 - y1)}px`;
+      n.appendChild(l);
+    });
+  }
   async function drawComments(id, box) {
     const get = cols => sb.from('comments').select(cols).eq('target_id', id).order('created_at', { ascending: true }).limit(200);
     let r = await get(hasParent ? 'id,user_id,body,created_at,parent_id' : 'id,user_id,body,created_at');
@@ -325,9 +347,11 @@
     const node = (c, depth) => {
       const n = nickOf(c), par = c.parent_id != null ? byId.get(String(c.parent_id)) : null, ch = kids.get(String(c.id)) || [];
       const can = c.user_id === me || boss === me;
-      return `<div class="so-n"><div class="so-c${can ? ' hk' : ''}" data-cid="${esc(c.id)}">${avatarOf(n)}<div class="so-ct"><div><b class="hm-who" data-user="${esc(n)}">${esc(n)}</b> <span class="sub">${ago(AUTH.daysSince(c.created_at))}</span>${par ? ` <span class="sub so-to">→ ${esc(nickOf(par))}</span>` : ''}</div><p>${renderText(c.body)}</p>${hasParent ? `<button type="button" class="so-rb" data-sorep="${esc(c.id)}" data-nick="${esc(n)}">Ответить</button>` : ''}</div>${can ? window.kebab([{ a: `data-sodel="${esc(c.id)}" data-for="${esc(id)}"`, l: 'Удалить', d: 1 }]) : ''}</div><div class="so-rbox" data-rbox="${esc(c.id)}"></div>${ch.length ? `<div class="so-ch${depth >= 4 ? ' flat' : ''}">${ch.map(k => node(k, depth + 1)).join('')}</div>` : ''}</div>`;
+      return `<div class="so-n"><div class="so-c${can ? ' hk' : ''}" data-cid="${esc(c.id)}">${avatarOf(n)}<div class="so-ct"><div><b class="hm-who" data-user="${esc(n)}">${esc(n)}</b> ${par ? ` <span class="sub so-to">→ ${esc(nickOf(par))}</span>` : ''} <span class="sub">${ago(AUTH.daysSince(c.created_at))}</span></div><p>${renderText(c.body)}</p>${hasParent ? `<button type="button" class="so-rb" data-sorep="${esc(c.id)}" data-nick="${esc(n)}">Ответить</button>` : ''}</div>${can ? window.kebab([{ a: `data-sodel="${esc(c.id)}" data-for="${esc(id)}"`, l: 'Удалить', d: 1 }]) : ''}</div><div class="so-rbox" data-rbox="${esc(c.id)}"></div>${ch.length ? `<div class="so-ch${depth >= 4 ? ' flat' : ''}">${ch.map(k => node(k, depth + 1)).join('')}</div>` : ''}</div>`;
     };
     box.innerHTML = roots.map(c => node(c, 0)).join('') + `<form class="so-cf" data-for="${esc(id)}"><textarea maxlength="1000" rows="2" placeholder="Написать комментарий" aria-label="Комментарий"></textarea><button type="submit" class="btn primary">Отправить</button></form>`;
+    requestAnimationFrame(() => lines(box));
+    if (!box._ro && window.ResizeObserver) { box._ro = new ResizeObserver(() => requestAnimationFrame(() => lines(box))); box._ro.observe(box); }
     const e = eng.get(id) || ZERO();
     if (e.comments !== list.length) { eng.set(id, { ...e, comments: list.length }); paintEng(id); }
   }
@@ -357,10 +381,10 @@
     const b = e.target.closest && e.target.closest('[data-sorep]'); if (!b) return;
     e.preventDefault();
     const root = b.closest('.so-cm'), cid = b.dataset.sorep, slot = root && [...root.querySelectorAll('[data-rbox]')].find(x => x.dataset.rbox === cid), cm = root && root.querySelector('.so-cf:not(.so-rf)'); if (!slot || !cm) return;
-    if (slot.firstChild) { slot.innerHTML = ''; return; }
+    if (slot.firstChild) { slot.innerHTML = ''; lines(root); return; }
     root.querySelectorAll('.so-rbox').forEach(x => { x.innerHTML = ''; });
     slot.innerHTML = `<form class="so-cf so-rf" data-for="${esc(cm.dataset.for)}" data-par="${esc(cid)}"><textarea maxlength="1000" rows="2" placeholder="Ответ для ${esc(b.dataset.nick)}" aria-label="Ответ"></textarea><button type="submit" class="btn primary">Ответить</button></form>`;
-    slot.querySelector('textarea').focus();
+    slot.querySelector('textarea').focus(); lines(root);
   });
   async function delComment(cid, id, btn) {
     if (!(await window.ask('Удалить комментарий?'))) return;
@@ -371,7 +395,7 @@
   }
 
   const st2 = document.createElement('style');
-  st2.textContent = '.so-ch{margin-left:14px;padding-left:12px;border-left:2px solid color-mix(in srgb,var(--accent) 45%,var(--line))}.so-ch.flat{margin-left:0;padding-left:8px}.so-rb{border:0;background:none;color:var(--muted);font:inherit;font-size:12px;padding:2px 0;margin-top:2px;cursor:pointer}.so-rb:hover{color:var(--accent)}.so-to{opacity:.85}.so-rbox:not(:empty){margin:4px 0 6px 36px}';
+  st2.textContent = '.so-n{position:relative}.so-ch{margin-left:15px;padding-left:20px}.so-ch.flat{margin-left:6px;padding-left:12px}.so-ln,.so-tk{position:absolute;pointer-events:none;background:color-mix(in srgb,var(--accent) 55%,var(--line))}.so-ln{width:2px;border-radius:2px}.so-tk{height:2px;border-radius:2px}.so-rb{border:0;background:none;color:var(--muted);font:inherit;font-size:12px;padding:2px 0;margin-top:2px;cursor:pointer}.so-rb:hover{color:var(--accent)}.so-to{opacity:.85}.so-rbox:not(:empty){margin:4px 0 6px 36px}';
   document.head.appendChild(st2);
 
   /* ---------- Мир, В тренде, Для вас: настоящие данные ---------- */
