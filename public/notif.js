@@ -71,13 +71,26 @@
     by.forEach((g, id) => { if (nick.get(id)) out.push({ kind: 'msg', actor_nick: nick.get(id), n: g.n, snippet: g.last.body, created_at: g.last.created_at }); });
     return out;
   }
+  /* ответы на ваши комментарии (нужна колонка parent_id из stage18.sql; если её нет, просто пропускаем) */
+  async function fetchReplies() {
+    const mine = await sb.from('comments').select('id').eq('user_id', me()).order('created_at', { ascending: false }).limit(200);
+    if (mine.error || !mine.data || !mine.data.length) return [];
+    const ids = mine.data.map(x => String(x.id));
+    const r = await sb.from('comments').select('id,user_id,body,created_at,parent_id').in('parent_id', ids).neq('user_id', me()).order('created_at', { ascending: false }).limit(30);
+    if (r.error || !r.data || !r.data.length) return [];
+    const { data: pr } = await sb.from('profiles').select('id,nick').in('id', [...new Set(r.data.map(x => x.user_id))]);
+    const nick = new Map((pr || []).map(p => [p.id, p.nick]));
+    return r.data.filter(x => nick.get(x.user_id)).map(x => ({ kind: 'reply', actor_nick: nick.get(x.user_id), snippet: x.body, created_at: x.created_at }));
+  }
   async function fetchAll() {
     if (!me() || dead) return false;
     try {
       const { data, error } = await sb.rpc('my_notifications', { p_limit: 60 });
       if (error) throw error;
       items = Array.isArray(data) ? data : [];
-      try { items = items.concat(await fetchMsgs()); items.sort((a, b) => (Date.parse(b.created_at) || 0) - (Date.parse(a.created_at) || 0)); } catch (e) { console.error('notif msgs', e); }
+      try { items = items.concat(await fetchReplies()); } catch (e) { console.error('notif replies', e); }
+      try { items = items.concat(await fetchMsgs()); } catch (e) { console.error('notif msgs', e); }
+      items.sort((a, b) => (Date.parse(b.created_at) || 0) - (Date.parse(a.created_at) || 0));
       unread = items.filter(isNew).length; paintBadges();
       return true;
     } catch (e) {
@@ -101,6 +114,7 @@
     const who = `<b>${esc(n.actor_nick)}</b>`;
     if (n.kind === 'request') return `${who} хочет дружить`;
     if (n.kind === 'msg') return n.n > 1 ? `${who}: ${n.n} ${n.n < 5 ? 'новых сообщения' : 'новых сообщений'}` : `${who} написал вам`;
+    if (n.kind === 'reply') return `${who} ответил на ваш комментарий`;
     if (n.kind === 'friend') return `Теперь вы друзья: ${who}`;
     if (n.kind === 'like') return `${who}: лайк ${target(n)}`;
     return `${who} оставил комментарий к ${target(n)}`;
@@ -109,7 +123,7 @@
   function draw() {
     const box = document.getElementById('nf-list'); if (!box) return;
     box.innerHTML = items.length ? items.map((n, i) => `<div class="nfrow${isNew(n) ? ' new' : ''}" data-i="${i}">${avatar(n.actor_nick)}<div class="nft">${text(n)}${n.snippet ? `<q>${esc(n.snippet)}</q>` : ''}<small>${esc(ago(n.created_at))}</small></div>${n.kind === 'request' ? `<span class="nfbtn"><button type="button" class="btn primary" data-nfacc="${esc(n.actor_id)}">Принять</button></span>` : ''}</div>`).join('')
-      : '<div class="nfempty">Пока ничего нового. Здесь появятся заявки в друзья, сообщения, комментарии и лайки.</div>';
+      : '<div class="nfempty">Пока ничего нового. Здесь появятся заявки в друзья, сообщения, комментарии, ответы и лайки.</div>';
   }
 
   function close() {
