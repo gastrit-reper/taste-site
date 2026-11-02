@@ -145,6 +145,7 @@
     else { ov.style.left = 'auto'; ov.style.width = ''; ov.style.right = Math.max(8, Math.round(w - r.right)) + 'px'; }
   }
   window.addEventListener('resize', place);
+  window.addEventListener('scroll', e => { if (ov && !ov.contains(e.target)) close(); }, { passive: true, capture: true });   // крутят страницу, а не список - панель закрывается
   document.addEventListener('mousedown', e => { if (ov && !ov.contains(e.target) && !(e.target.closest && e.target.closest('[data-notif]'))) close(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && ov) close(); });
   NF.open = async function (from) {
