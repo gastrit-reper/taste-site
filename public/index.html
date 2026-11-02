@@ -794,7 +794,7 @@ textarea.fld{min-height:96px;resize:vertical}
   </div>
   <div id="tp" class="tp" hidden></div>
   <p class="note">Шкала оценок: от 1 до 10.</p>
-  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-11-02-nav2</p>
+  <p class="note" style="margin-top:8px;opacity:.6" id="app-ver">Версия сайта: 2026-11-02-manual2</p>
   <p class="note" style="margin-top:8px">Данные и обложки: <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>, <a href="https://musicbrainz.org" target="_blank" rel="noopener">MusicBrainz</a>, <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a>, <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a> и Cover Art Archive. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
 </div>
 
@@ -1943,17 +1943,20 @@ function manualGame(title){
       btn.disabled=true;btn.textContent='Добавляю…';er.textContent='';
       try{
         const ss=(await AUTH.client.auth.getSession()).data.session;if(!ss)throw new Error('Войдите в аккаунт заново.');
-        let cover='';const f=$('m-c').files[0];
+        let cover='',upPath='';const f=$('m-c').files[0];
         if(f){
           const sm=window.shrinkImg?await window.shrinkImg(f,600):null;
           const blob=sm?sm.blob:f;if(blob.size>2*1024*1024)throw new Error('Обложка слишком большая, выберите картинку поменьше.');
           const path=`${ss.user.id}/cover-${Date.now().toString(36)}.${blob.type==='image/webp'?'webp':blob.type==='image/png'?'png':'jpg'}`;
           const up=await AUTH.client.storage.from('media').upload(path,blob,{contentType:blob.type,cacheControl:'31536000'});
-          if(up.error)throw up.error;cover='/media/'+path;
+          if(up.error)throw up.error;cover='/media/'+path;upPath=path;
         }
         const r=await fetch(`${APPC.SUPABASE_URL}/functions/v1/search?manual=1`,{method:'POST',headers:{...liveHeaders(),'Content-Type':'application/json'},body:JSON.stringify({token:ss.access_token,title:t,year:$('m-y').value,cover})});
         const j=await r.json().catch(()=>({}));
+        if(upPath&&(!r.ok||!j.row||(j.existing&&!j.cover_used))){try{await AUTH.client.storage.from('media').remove([upPath])}catch(_){}}   // загруженная обложка не пригодилась: освобождаем место
+        if(r.status===429&&j.error==='limit')throw new Error('Вы уже добавили 25 своих игр, это максимум. Если игра есть в каталоге, найдите её через поиск.');
         if(!r.ok||!j.row)throw new Error(r.status===401?'Войдите в аккаунт заново.':'Не получилось добавить игру. Попробуйте ещё раз.');
+        if(j.existing)toast('Такая игра уже есть в каталоге, выбрана она.');
         const key=regLive(j.row);if(!key)throw new Error('Не получилось добавить игру.');
         done(key);
       }catch(err){er.textContent=err.message||String(err);btn.disabled=false;btn.textContent='Добавить'}
