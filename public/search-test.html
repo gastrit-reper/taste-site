@@ -190,6 +190,28 @@ function addOwn() {
   return `<div class="own">Не нашли «${esc(q.slice(0, 40))}»? Добавить своё: ${ks.map(k => `<a href="${href(k)}">${OWNK[k]}</a>`).join(' · ')}</div>`;
 }
 
+// у части игр (инди) в выдаче нет картинки, а SteamGridDB её находит: просим доработать обложки, как это делает сайт
+async function upgradeArt(list) {
+  const ids = list.filter(t => t.category === 'game' && t.source === 'rawg' && !thumb(t.cover_url)).slice(0, 8).map(t => String(t.external_id));
+  if (!ids.length) return;
+  try {
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/search?art=${ids.join(',')}`, {headers: {apikey: PUBLISHABLE_KEY, Authorization: 'Bearer ' + PUBLISHABLE_KEY}});
+    if (!r.ok) return;
+    const j = await r.json();
+    if (LAST !== list) return;   // уже показан другой поиск
+    list.forEach(t => {
+      const a = j.art && j.art[String(t.external_id)]; if (!a || !a.cover_url || t.category !== 'game') return;
+      const src = thumb(a.cover_url); if (!src) return;
+      t.cover_url = a.cover_url;
+      const row = [...document.querySelectorAll('.row[data-tid]')].find(x => x.dataset.tid === tid(t)); if (!row) return;
+      const old = row.querySelector('.cv'); if (!old) return;
+      const img = document.createElement('img'); img.className = 'cv'; img.alt = ''; img.src = src;
+      img.onerror = () => fb(img, t.title[0], hue(t.title));
+      old.replaceWith(img);
+    });
+  } catch (_) {}
+}
+
 async function run() {
   const q = $('q').value.trim();
   if (ctrl) ctrl.abort();
@@ -202,6 +224,7 @@ async function run() {
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || r.status);
     render(j.results, j.warning);
+    upgradeArt(j.results || []);
   } catch (e) {
     if (e.name === 'AbortError') return;
     $('out').innerHTML = `<div class="st">Не получилось найти (${esc(e.message)}). Попробуйте ещё раз.</div>`;
